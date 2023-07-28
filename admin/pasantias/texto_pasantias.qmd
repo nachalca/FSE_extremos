@@ -1,0 +1,27 @@
+---
+title: "Untitled"
+format: pdf
+editor: visual
+---
+
+## Downscaling (ERIC)
+
+    El laboratorio ERIC ofrece una pasantía sobre el downscaling de trayectorias meteorológicas simulado utilizando el modelo CIMP6. Esta pasantía está destinada a estudiantes con un fuerte motivación para la investigación en climatología numérica y un buen conocimiento de informática/estadística. La pasantía se enmarca en el proyecto uruguayo “Cuantificación de incertidumbre e identificación de eventos extremos en escenarios de producción renovable generados” (ANII-FSE_S_2022_1_17306), que tiene como objetivo cuantificar las incertidumbres en la producción de electricidad renovable y la identificación de eventos extremos.
+
+    Las principales características requeridas para este tipo de prácticas son la autonomía y curiosidad científica. El candidato debe ser capaz de trabajar de forma independiente. sobre las diversas tareas que le serán encomendadas pudiendo pedir preguntas para aclarar cualquier duda. Él también debe ser capaz de tomar decisiones basadas en los datos disponibles y para justificarlas.
+
+    Las principales misiones de la pasantía consistirán en configurar y utilizar los datos simulado por el modelo CIMP6 (https://pcmdi.llnl.gov/CMIP6/). Estos datos describen trayectorias meteorológicas a diferentes escalas espaciales y temporales. El candidato tendrá que realizar análisis estadísticos sobre los datos simulados para validarlos y
+    interpretarlos. En particular, buscamos reducir la malla de la simulación en un área geográfica con el fin de utilizarlos para la cuantificación de la producción de electricidad local. Para ello, el alumno deberá explorar la bibliografía seleccionada, resaltar aplicación de métodos estadísticos de reducción de escala y evaluar su desempeño.
+
+    El candidato ideal para esta pasantía tendrá un buen conocimiento de los modelos climáticos. (pero esto no es un requisito) y su uso, así como una sólida formación en informática y estadística. También estará familiarizado con el software de procesamiento de computadoras. datos como R o Python. Experiencia previa en climatología numérica
+    sería una ventaja añadida.
+
+    En resumen, la pasantía propuesta es una oportunidad única para los estudiantes interesados en climatología numérica para desarrollar sus habilidades en computación/estadística y para participar en proyectos de investigación de vanguardia. Buscamos candidatos motivados, curioso e independiente para enfrentar los desafíos científicos relacionados con estos temas
+
+## Predicción erengia
+
+Objetivo base: construir un modelo machine learning relacionando las fuentes primarrias de recursos naturales (lluvia, viento, radiación) con la energia electrica producida por los mismos.
+
+## Caracterizar extremos
+
+Estimación de probabilidades de eventos extremos y curvas IDF. Para recursos primarios futuro (bajo esenarios de cambio climático), y/o para series de energía electrica proyectada.
