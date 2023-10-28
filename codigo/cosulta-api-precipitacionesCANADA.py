@@ -1,34 +1,25 @@
 import cdsapi
 
+experimentos =['historical', 'ssp5_8_5']
+variables = ['precipitation'] #, 'near_surface_wind_speed', 'near_surface_air_temperature']
+modelos = ['ipsl-cm6a-lr']
+
 c = cdsapi.Client()
 
-c.retrieve(
-    'projections-cmip6',
+for var in variables:
+  for exp in experimentos:
+    for mod in modelos:
+      archivo = exp+var+mod+'.zip'
+      c.retrieve(
+      'projections-cmip6',
     {
-        'temporal_resolution': 'daily',
-        'experiment': 'ssp5_8_5',
-        'variable': 'precipitation',
-        'model': 'canesm5',
-        'year': [
-            '2015', '2016', '2017',
-            '2018', '2019', '2020',
-            '2021', '2022', '2023',
-            '2024', '2025', '2026',
-            '2027', '2028', '2029',
-            '2030', '2031', '2032',
-            '2033', '2034', '2035',
-            '2036', '2037', '2038',
-            '2039', '2040', '2041',
-            '2042', '2043', '2044',
-            '2045', '2046', '2047',
-            '2048', '2049',
-        ],
-        'month': [
-            '01', '02', '03',
-            '04', '05', '06',
-            '07', '08', '09',
-            '10', '11', '12',
-        ],
+     'temporal_resolution': 'daily',
+     'experiment': exp,
+     'variable': var,
+     'model': mod,
+     'year': '2023', 
+     # 'year': list(range(2000, 2049 + 1)),  
+     'month': list(range(1, 12 + 1)),
         'day': [
             '01', '02', '03',
             '04', '05', '06',
@@ -47,5 +38,55 @@ c.retrieve(
             -53,
         ],
         'format': 'zip',
-    },
-    'download.zip')
+    }
+    ,
+    archivo)
+
+
+
+
+# SINGLE DOWNLOAD
+
+# c.retrieve(
+#     'projections-cmip6',
+#     {
+#      'temporal_resolution': 'daily',
+#      'experiment': 'ssp5_8_5',
+#      'variable': 'precipitation',
+#      'model': 'canesm5',
+#      'year': '2023', 
+#      # 'year': list(range(2000, 2049 + 1)),  
+#      'month': list(range(1, 12 + 1)),
+#         'day': [
+#             '01', '02', '03',
+#             '04', '05', '06',
+#             '07', '08', '09',
+#             '10', '11', '12',
+#             '13', '14', '15',
+#             '16', '17', '18',
+#             '19', '20', '21',
+#             '22', '23', '24',
+#             '25', '26', '27',
+#             '28', '29', '30',
+#             '31',
+#         ],
+#         'area': [
+#             -30, -60, -35,
+#             -53,
+#         ],
+#         'format': 'zip',
+#     }
+#     ,
+#     'download.zip')
+
+
+
+
+
+        # 'month': [
+        #     '01', '02', '03',
+        #     '04', '05', '06',
+        #     '07', '08', '09',
+        #     '10', '11', '12',
+        # ],
+
