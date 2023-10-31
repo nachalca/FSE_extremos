@@ -1,0 +1,37 @@
+
+Variables 
+Surface downwelling shortwave radiation (esta mensual)
+
+Diarias
+precipitacion 
+Near-surface air temperature
+Near-surface wind speed 
+Near-surface specific humidity
+
+capaz
+Daily maximum near-surface air temperature
+Daily minimum near-surface air temperature
+
+
+Mensuales
+TOA incident shortwave radiation
+Total cloud cover percentage
+
+
+Escenarios : 
+historicos (periodo 2000-2014)
+SSP4-3.4 SSP2-4.5 SSP3-7.0 (ver articulo barreiro)  (Periodo: 2000 - 2050)
+
+--- Extraido del plan nacional de costas (informe ejecutivo)
+Barreiro et al. (2019) utilizó diez modelos para representar mejor el clima de Uruguay; 
+cada uno de ellos se ejecutó para los escenarios SSP245, SSP370 y SSP585 para dos 
+horizontes de tiempo: corto plazo (2020-2044) y largo plazo (2075-2099).
+---
+
+
+Modelos iniciales (barreiro):
+EC_Earth3, EC_Earth3-Veg, CESM2, CESM2-WACCM, CNRM-CM6-1, MRI-ESM2-O, UKESM1-0-LL
+
+
+region:
+notre -30, east -52, sur -35, oeste -58
