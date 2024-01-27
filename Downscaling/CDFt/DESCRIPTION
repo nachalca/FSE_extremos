@@ -1,0 +1,10 @@
+Package: CDFt
+Version: 1.2
+Date: 2010-06-25
+Title: Statistical downscaling and model output statistics through parametric and non-parametric CDF-transform
+Author: Mathieu Vrac <mathieu.vrac@lsce.ipsl.fr> and Paul-Antoine Michelangeli <pam@climpact.com>
+Maintainer: Mathieu Vrac <mathieu.vrac@lsce.ipsl.fr>
+Depends: R (>= 1.8.0), stats4, evir
+Description: This package proposes statistical downscaling methods and model output statistics for cumulative distribution functions (CDF).
+License: GPL (>= 2)
+Packaged: Fri Jun 25 11:08:26 2010; mvrac
