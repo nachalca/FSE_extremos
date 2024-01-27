@@ -1,19 +1,32 @@
+# Stages L2 INFO
 
-# Stages L2 INFO 
+We will use this space to communicate about the tasks to be carried out and the progress of the work done during the internship. Please keep this file as clean as possible and keep it up to date.
 
-Nous garderons cet espace pour communiquer sur les tâches à réaliser et l'avancement du travail fait pendant le stage. Merci de garder ce fichier le plus propre possible, et de le maintenir à jour.
- 
-## Liste de tâches à réaliser 
+## List of tasks to be carried out
 
-- [ ] Translate everything to English 🏴󠁧󠁢󠁥󠁮󠁧󠁿
-- [ ] Se familiariser avec le format netCDF (https://www.unidata.ucar.edu/software/netcdf/)
-- Quels modules de python existenent pour traiter ces données ? Si vous avez besoin de faire de tests, n'hésitez pas à explorer les fichiers qui sont dans le dossier datos à la racine du dépot github
-- [ ] Comment visualiser les données ? La solution par défaut c'est Panoply (https://www.giss.nasa.gov/tools/panoply/)
-  - Utiliser le logiciel pour vous familiariser (importez un fichier de données, produisez quelques representations graphiques) 
-  - Essayer et/ou proposer des alternatives (e.g. very nice looking-> https://github.com/blendernc/blendernc )
-- [ ] Explorer l'API de la [Climate Data Store](https://cds.climate.copernicus.eu/#!/home) (CSD)  
+- [x] Translate everything to English 🏴
+- [ ] Familiarize yourself with the netCDF format (https://www.unidata.ucar.edu/software/netcdf/)
+- What Python modules exist for processing this data? If you need to run tests, feel free to explore the files in the "datos" folder at the root of the GitHub repository.
+- [ ] How to visualize the data? The default solution is Panoply (https://www.giss.nasa.gov/tools/panoply/)
+  - Use the software to get acquainted (import a data file, produce some graphical representations)
+  - Try and/or propose alternatives (e.g., very nice-looking -> https://github.com/blendernc/blendernc)
+- [ ] Explore the [Climate Data Store](https://cds.climate.copernicus.eu/#!/home) (CDS) API
 
 ## Décrire l'objectif à long term 
 
-We need a data base ...
+The CDS contains simulated trajectories of different climatological variables (e.g. temperature, precipitation) obtainted by the research consontium CMIP6. The simulation is done over a spatial grid covering the whole planet, and a time grid that may be daily or monthly (depending on the climatological variable). Each research center produce its owns simulations. Different conditions of particles concentration are assumed:
+- historical: no more climate change than the already observed
+- SSP2
+- ...
+- SSP8
+
+For each relevant climate variable, we need a data base in a tabular format:
+
+timestamp  | exp1 | exp2  | ... | expM
+---------- | ---- | ----- | --- | ---
+1-jan-2015 |  24.3 | 24.1 | ... | 23.9
+2-jan-2015 |  23.4 | 21.7 | ... | 22.3
+    ...    |  ...  | ...  | ... | ...
+31-dec-2099|  29.3 | 30.1 | ... | 28.4
+---------- | ----  | ---- | --- | ---
 
