@@ -1,5 +1,5 @@
 
-# Stages L2 INFO
+# Stages L2 INFO 
 
 Nous garderons cet espace pour communiquer sur les tâches à réaliser et l'avancement du travail fait pendant le stage. Merci de garder ce fichier le plus propre possible, et de le maintenir à jour.
  
