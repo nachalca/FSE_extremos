@@ -1,0 +1,246 @@
+---
+title: "downscaler_example"
+format:
+  pdf:
+    toc: true
+    number-sections: true
+    colorlinks: true
+editor: visual
+---
+
+## Important
+
+This is a document that I write down as a way to summarize the paper and clarify some of the ideas for myself. It is poorly written and probably contains some errors. Much of the content consists of passages copied literally from the paper.
+
+
+## Some context
+
+### VALUE
+
+The COST Action VALUE (http://www.cost.eu/domains_actions/essem/Actions/ES1102) will provide a European network to validate and develop downscaling methods and improve the collaboration between the dispersed research communities and with stakeholders. The Action will sytematically compare the different downscaling approaches and assess the aspects listed above. VALUE will deliver an assessment of end-user needs, a benchmark data set and pseudo reality for the validation, a set of validation measures, the validation of state-of-the-art methods and guidelines for stakeholders.
+
+### Reanalysis
+
+Reanalysis involves the process of assimilating past observational data into a numerical model to create a coherent and consistent representation of historical weather and climate conditions.
+
+### Two techniques of Statistical Downscaling
+
+**Perfect prognosis (PP):** Use the reanalysis model to downscale the GCM model.
+
+**Model Output Statistic (MOS)**: Downscale the GCM model with the GCM itself. Many popular 'bias correction techniques (e.g. linear scaling, quantile-quantile mapping) lie in this category
+
+### Most common methods of PP
+
+**Analogs**: For a given atmospheric pattern, the corresponding local prediction is estimated according to a determined similarity measure (tipically the Euclidean norm, which has been shown to perform satisfactorily in most cases) from a set of analog patterns within a historical catalog over a representative climatological period. In PP, this catalog is formed by reanalysis data.
+
+**Linear models**: Nothing new
+
+**Generalized Linear Models**: For precipitation, we can be interested in two predictands (rain-no rain or amount of rain), so we can make the distinction between GLM for occurrence (GLMo) and GLM for amount (GLMa).
+
+### Predictors
+
+PP techniques can consider point-wise and/or spatial-wise predictors, using either the raw values of a variable over a region of a user-defined extent or only at nearby grid boxes and/or the Principal Components (PCs) corresponding to the Empirical Orthogonal Functions of the variables considered over a representative geographical domain (which must be also conveniently determined). Usually, the latter are more informative in those cases where the local climate is mostly determined by synoptic phenomena whereas the former may be needed to add some information about the local variability in those cases where small-scale processes are important.
+
+::: callout-warning
+I copied this from the paper without knowing exactly what the author is referring to. I have to read more about these techiniques.
+:::
+
+### Validation
+
+Validation ultimately consists of deriving specific climate indices from model output, comparing these indices to reference indices calculated from observational data and quantifying the mismatch with the help of suitable performance measures. In VALUE, the term "index" is used in a general way, including not only single numbers (e.g. the 90th percentile of precipitation, lag-1 autocorrelation etc.) but also vectors such as time series (for instance, a binary time series of rain/no rain). Specific "measures" are then computed upon the predicted and observed indices, for instance the difference (bias, predicted - observed) of numeric indices, or the correlation of time series. The VALUE project (Maraun et al., 2015) produced the largest-to-date intercomparison of statistical downscaling methods with over 50 contributing technique
+
+## Experiment
+
+## Resume
+
+First we fit a pair of models(amount/occurrence of rain) in which the predictors are the data from a reanalysis model, and the predictand data are observations of rain taken from some stations in Europe. With these models already fitted, we predict the amount/occurrence of rain using the predictors taken from a cmip5 model (with the space dimension adjusted to be the same as the reanalysis).
+
+### Data
+
+**Reanalysis:**  VALUE has used ERA-Interim (Dee et al., 2011) as the reference reanalysis to drive the experiment with the following one predictors. Sea-level pressure, 2 meter air temperature, air temperature and relative humidity at 500,700 and 850 hPa surface pressure levels, and the geopotential height at 500 hPa.
+
+**GCM data**: From the CMIP5 we consider the outputs from the EC-EARTH model (in particular the r12i1p1 ensemble member) (EC-Earth Consortium, 2014), for the 2071-2100 period under the RCP8.5 scenario.
+
+### Code
+
+All these packages are part of the climate4R bundle. None of them is in CRAN so I had to install it with devtools and deal with the packages dependencies (it can be tricky). Look the readme in https://github.com/SantanderMetGroup/climate4R.
+
+```{r load_packages, warning=FALSE, output=FALSE}
+library(loadeR)
+library(transformeR)
+library(visualizeR)
+library(downscaleR)
+library(climate4R.value)
+library(climate4R.UDG)
+```
+
+Access the User Data Gateway (UDG) from Santander, where data from the CMIP and the reanalysis is stored. Here is the link to sign up: https://www.meteo.unican.es/udg-tap/signup
+
+```{r login, output=FALSE}
+credentials <- read.csv('credentials.csv', header = FALSE)
+
+climate4R.UDG::loginUDG(username = as.character(credentials[1][1]), as.character(credentials[2][1]))
+```
+
+Shows the available data in the Santander User Data Gateway. 
+
+```{r available_dataset, warning=FALSE}
+str(UDG.datasets())
+```
+
+These are the predictors selected by the author of the paper. Sea-level pressure, 2 meter air temperature, air temperature and relative humidity at 500,700 and 850 hPa surface pressure levels, and the geopotential height at 500 hPa. (I think that in the code relative humidity 750 is missing). Also the region to be analysed is setted
+
+```{r vars}
+vars <- c("psl","tas","ta@500","ta@700", "ta@850",
+          "hus@500","hus@850","z@500")
+
+lon <- c(-10,32)
+lat <- c(36,72)
+```
+
+Retrieve the data of reanalysis model (ERA-Interim) from the UDG. 
+
+```{r load_data, eval=FALSE}
+#Generate a list of 8 grids with the data from the. For each predictor a grid is made.
+grid.list <- lapply(vars,function(x) {
+  loadGridData(dataset = "ECMWF_ERA-Interim-ESD",
+               var = x,
+               lonLim = lon,
+               latLim = lat,
+               years = 1979:2008) 
+}) 
+
+#Combine all the grids in one.
+x <- makeMultiGrid(grid.list)
+```
+
+::: callout-warning
+Maybe this code doesn't work because the dataset with the years from 1979 to 2008 is too big. I've tried 1998 to 2008 and it works.
+:::
+
+we need to standardize the training data
+
+```{r reescale, eval=FALSE}
+#(grid - base_{clim})/base_{sd}*ref_{sd} + ref_{clim}
+#base_clim corresponds to the baseline climatology (by default the grid climatology), 
+#base_sd is the standard deviation of the baseline climate signal,thus yielding an anomaly w.r.t. the base, 
+#ref_clim is a reference climatological value added to the previously calculated anomaly and 
+#ref_sd is the standard deviation of the reference climate signal
+x_scale <- scaleGrid(x, type = "standardize")
+```
+
+
+Load the predictand data from the value package. The da
+
+```{r load_observation, eval=FALSE}
+value <- file.path(find.package("VALUE"), "example_datasets", "VALUE_ECA_86_v2.zip")
+y <- loadStationData(dataset = value,
+                     var = "precip",
+                     years = 1979:2008) 
+```
+
+Transform the target to all below 1mm be 0 (I don't know why this is done). Transform the target to 1-rain, 0-no rain if the amount of rain is > 1mm
+
+```{r load_predictand, eval=FALSE}
+y <- binaryGrid(y, condition = "GE", threshold = 1,
+                partial = TRUE)
+y_bin <- binaryGrid(y, condition = "GE", threshold = 1)
+```
+
+I have narrowed the experiment to use only one model. In the original work, several models were fitted. I kept only the model M1L -> Spatial+local: n combined PCs explaining 95% of variance + the first nearest gridbox.
+
+I set the predictor configuration needed for the model. 'spatialList' contains the arguments for the principal component part, and 'prepareData' uses the prinComp function of 'transformeR', so the arguments set here are passed to this function. 'localList.M1L' contains the arguments related to local predictors, where we set the variables to use and chose only one neighbor.
+
+::: callout-warning
+As I warned before, I have to study more about this topic
+:::
+
+```{r config_predicors, eval=FALSE}
+spatialList <- list(v.exp = .95, which.combine = vars)
+localList.M1L <- list(n = 1, vars = vars)
+```
+
+Prepare the data for the amount model and the occurrence model
+
+```{r prepare_data, eval=FALSE}
+xy.M1La <- prepareData(x_scale, y_bin,
+                       spatial.predictors = spatialList,
+                       local.predictors = localList.M1L)
+xy.M1Lb <- prepareData(x_scale, y,
+                       spatial.predictors = spatialList,
+                       local.predictors = localList.M1L)
+```
+
+Fit the models
+
+```{r fit_model, eval=FALSE}
+model.M1La <- downscaleTrain(xy.M1La, method = "GLM", 
+                             family = binomial(link = "logit"))
+
+model.M1Lb <- downscaleTrain(xy.M1Lb, method = "GLM",
+                             family = Gamma(link = "log"),
+                             condition = "GE", threshold = 1)
+```
+
+I attempted to load the CMIP data from the UDG, but it didn't work due to missing variables. It's important to remark that in the interpGrid function is where the 'downscaling' is done. This function is utilized to ensure that the grid of CMIP data has the same dimensions as the reanalysis data. Link to the doc https://github.com/SantanderMetGroup/transformeR/wiki/Regridding
+
+For the interpolation, basic techniques are employed. These techniques are Nearest Neighbour (https://en.wikipedia.org/wiki/Nearest-neighbor_interpolation) and Bilinear (https://x-engineer.org/bilinear-interpolation/). The default method (and the one used in this work) is the Nearest Neighbour. Following is a link to a good video about these techniques (https://www.youtube.com/watch?v=AqscP7rc8_M)
+
+```{r load_cmip, eval=FALSE}
+xh <- lapply(vars, function(x) {
+  loadGridData(dataset = "CMIP5_EC-EARTH_r12i1p1_historical",
+               var = x,
+               lonLim = c(-10,32),
+               latLim = c(36,72),
+               years = 1979:2005) |> 
+    interpGrid(new.coordinates = getGrid(x.eur)) e.
+  }) |> makeMultiGrid()
+
+xf <- grid.list <- lapply(vars, function(x) {
+  loadGridData(dataset = "CMIP5_EC-EARTH_r12i1p1_rcp85",
+               var = x,
+               lonLim = c(-10,32),
+               latLim = c(36,72),
+               years = 2071:2100) |> interpGrid(new.coordinates = getGrid(x.eur))
+}) |> makeMultiGrid() 
+```
+
+
+Prepare all the predictors data from cmip to be used in the models.
+
+```{r prepare_cmip, eval=FALSE}
+xf <- scaleGrid(xf, base = xh, ref = x,
+                type = "center", spatial.frame = "gridbox", 
+                time.frame = "monthly") |> scaleGrid(base = x,
+                                                      type = "standardize")
+
+xh <- scaleGrid(xh, base = xh, ref = x,
+                type = "center", spatial.frame = "gridbox", 
+                time.frame = "monthly") |> scaleGrid(base = x,
+                                                      type = "standardize")
+
+h.M1La <- prepareNewData(xh, xy.M1La)
+h.M1Lb <- prepareNewData(xh, xy.M1Lb)
+f.M1La <- prepareNewData(xf, xy.M1La)
+f.M1Lb <- prepareNewData(xf, xy.M1Lb)
+```
+
+Predicts the ocurrence/amount of rain with the the data historical data from cmip as predictors
+
+```{r fit_historical_model, eval=FALSE}
+hist.M1La <- downscalePredict(newdata = h.M1La, model = model.M1La)
+hist.M1La.bin <- binaryGrid(hist.M1La,
+                            ref.obs = y_bin,
+                            ref.pred = model.M1La$pred) #Transform the predicted probs to 0-1 values.
+hist.M1Lb <- downscalePredict(h.M1Lb, model.M1Lb)
+```
+
+Predicts the ocurrence/amount of rain with the data predicted for the future as predictors
+
+```{r fit_future_model, eval=FALSE}
+futu.M1La <- downscalePredict(f.M1La, model.M1La)
+futu.M1La.bin <- binaryGrid(futu.M1La,
+                            ref.obs = y_bin,
+                            ref.pred = model.M1La$pred)
+futu.M1Lb <- downscalePredict(f.M1Lb, model.M1Lb)
+```

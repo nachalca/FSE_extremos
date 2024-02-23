@@ -11,3 +11,5 @@ codigo/*.zip
 *.aux
 *.log
 *.out
+
+Downscaling/experimentation_bruno/credentials.csv
