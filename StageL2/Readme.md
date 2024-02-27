@@ -10,9 +10,10 @@ We will use this space to communicate about the tasks to be carried out and the 
 - [ ] How to visualize the data? The default solution is Panoply (https://www.giss.nasa.gov/tools/panoply/)
   - Use the software to get acquainted (import a data file, produce some graphical representations)
   - Try and/or propose alternatives (e.g., very nice-looking -> https://github.com/blendernc/blendernc)
-- [ ] Explore the [Climate Data Store](https://cds.climate.copernicus.eu/#!/home) (CDS) API
+- [X] Explore the [Climate Data Store](https://cds.climate.copernicus.eu/#!/home) (CDS) API
 - [ ] Replicate the downloading of two files from the CDS
 - [ ] Fusion the two files into on single tabular dataset (as below)
+- [ ] Produce a minimal dataset with the target format (this will help Bruno in the downscaling phase)
 
 Side task
 - [ ] Visual tool. We need a graphical tool to represent the weather maps. From matrices (like the ones in the nc files) to actual maps. Maybe a different representation by kind of weather variable (e.g. wind should be 2d). Is it possible to construct 3d representations? (Look at raytracing kink of staff)  
