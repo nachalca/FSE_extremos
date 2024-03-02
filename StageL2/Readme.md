@@ -12,7 +12,7 @@ We will use this space to communicate about the tasks to be carried out and the 
   - Try and/or propose alternatives (e.g., very nice-looking -> https://github.com/blendernc/blendernc)
 - [X] Explore the [Climate Data Store](https://cds.climate.copernicus.eu/#!/home) (CDS) API
 - [ ] Replicate the downloading of two files from the CDS
-- [ ] Fusion the two files into on single tabular dataset (as below)
+- [X] Fusion the two files into on single tabular dataset (as below)
 - [ ] Produce a minimal dataset with the target format (this will help Bruno in the downscaling phase)
 
 Current tasks !!
@@ -37,11 +37,12 @@ The CDS contains simulated trajectories of different climatological variables (e
 
 For each relevant climate variable, we need a data base in a tabular format:
 
-timestamp  | exp1 | exp2  | ... | expM
----------- | ---- | ----- | --- | ---
-1-jan-2015 |  24.3 | 24.1 | ... | 23.9
-2-jan-2015 |  23.4 | 21.7 | ... | 22.3
-.......... |  .... | ...  | ... | ...
-31-dec-2099|  29.3 | 30.1 | ... | 28.4
----------- | ----  | ---- | --- | ---
+timestamp  | trend |  toy    | exp1 | exp2 | ... | expM
+---------- | ----- | ------- | ---- |----- | --- | ---
+1-jan-2015 |  1    | 1/365   | 24.3 | 24.1 | ... | 23.9
+2-jan-2015 |  2    | 2/365   | 23.4 | 21.7 | ... | 22.3
+.......... |  .... | ...     | ...  | ...  | ... | ...  
+31-dec-2099|  T    | 365/365 | 29.3 | 30.1 | ... | 28.4
+---------- | ----- | ------- | ---- | ---- | --- | ---
+
 
