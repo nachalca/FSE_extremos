@@ -17,9 +17,9 @@ We will use this space to communicate about the tasks to be carried out and the 
   - [ ] Copernicus => CMIP6 climate projections in order to retrieve datasets
   - [ ] Build an excel table with the following columns for each dataset retrived from Copernicus : time resolution, variable, experience, model, availability of the model based on previous columns
   - [ ] Following columns are needed in the dataframes' table :
-    *toy (time of the year) => possible values are expected to be between 0 and 1 ; possible implementation for day i = i-0.5/365
-    *dow (day of the week)
-    *trend => first row = 1, 2nd = 2, etc.
+    * toy (time of the year) => possible values are expected to be between 0 and 1 ; possible implementation for day i = i-0.5/365
+    * dow (day of the week)
+    * trend => first row = 1, 2nd = 2, etc.
 - [ ] Visual tool. We need a graphical tool to represent the weather maps. From matrices (like the ones in the nc files) to actual maps. Maybe a different representation by kind of weather variable (e.g. wind should be 2d). Is it possible to construct 3d representations? (Look at raytracing kink of staff)  
 - [ ] Slides. Make a short deck of not more than 10 slides presenting the project (context, research question, team, material and methods)
 
