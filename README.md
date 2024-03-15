@@ -1,12 +1,13 @@
-# FSE_extremos
-Proyecto: cuantificación incertidumbre en extremos de energía renovable
+# Project FSE_extremos: Uncertainty Quantification in Renewable Energy Extremes
 
+# Problem description
 
-# Notas (jc: escribo aca para no olvidar)
+Electricity generation by renewable means is a strategic decision of Uruguay energy matrix.
+Among the different threads, climate change may impact on the primary ressource (i.e. sun, wind and water) availability.  
+**We want to measure how the change in climatology (and not predictability), changes the generation conditions in a context of climate change**.
+For this, we will simulate the average production conditions using the climatology simulated trajectories in the CMIP6 data. 
 
-- el problema que atacamos es la simulacion de las condicion media de produccion, 
-asi como lo que se busca estudiar con los datos CMIP6 es el cambio en la climatologia 
-(y no la predictibilidad), nosotros buscamos anticipar las condiciones de generacion en un contexto de cambio climatico
+# (random notes in Spanish)
 
 ## wishlist de datos que podemos necesitar:
 - historicos => estos son utiles para recrear las condiciones de produccion
