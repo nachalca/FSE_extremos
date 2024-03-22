@@ -13,3 +13,4 @@ codigo/*.zip
 *.out
 
 Downscaling/experimentation_bruno/credentials.csv
+code/naive_model.html
