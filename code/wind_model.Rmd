@@ -1,0 +1,75 @@
+# Wind model
+
+Work in progress, don't pay attention.
+
+## Naive Model
+
+In this rmd we explore a model to predict the temperature at a certain hour on a specific day. We use the hour, the month and the average temperature of that day as predictors.
+
+$$y_i = \beta_0 + \beta_1*hour + \beta_2*month + \beta_3*avg\_temp + \beta_4*avg\_temp*hour + \epsilon_i $$
+We train the data on the reanalysis, and with the model fitted we predict on the cmip data (since we have the average temperature for that day). The csv are generated in the notebook `prepare_data.ipnyb`
+
+```{r load_packages, results='hide', message=FALSE}
+library("tidymodels")
+library("data.table")
+library("report")
+
+reanalysis <- fread('reanalysis_wind_training_data.csv') |>
+              mutate(month = as.factor(month), day = as.factor(day), hour = as.factor(hour))
+cmip_6 <- fread('cmip6_wind_to_predict_data.csv') |>
+          mutate(month = as.factor(month), day = as.factor(day), hour = as.factor(hour))
+```
+
+```{r define_model, message=FALSE}
+model_recipe <- recipe(sfc_wind ~ hour + month + avg_sfc_wind, data = reanalysis) |>
+                step_dummy(all_integer()) |>
+                step_interact(~ hour:avg_sfc_wind)
+
+model <- linear_reg() %>% set_engine("lm")
+
+model_workflow <- 
+  workflow() %>% 
+  add_model(model) %>% 
+  add_recipe(model_recipe)
+
+model_fit <- fit(model_workflow, reanalysis)
+
+predicted <- predict(model_fit, cmip_6)
+```
+
+## Results
+
+Hours are statistically significant, as is their interaction with the avg_sfc_winderature; months are not. 
+
+```{r show_summary, echo=FALSE}
+engine <- extract_fit_engine(model_fit)
+#Hours are statistically significant, as is their interaction with the avg_sfc_winderature; months are not. 
+engine |> report_table()
+```
+
+We have that the RMSE when comparing the data at the daily level, by taking the mean of the reanalysis data per day as the true value and the CMIP data as the predicted value, was 4.26. Now, the RMSE at the hourly level, by considering the reanalysis data as the true value and the data predicted with the model for the CMIP data, is 4.53.
+
+```{r show_metrics, echo=FALSE}
+
+res <-  reanalysis |>
+  select(time, sfc_wind, avg_sfc_wind) |>
+  inner_join(cmip_6, by = join_by(time)) |>
+  bind_cols(predicted)
+
+metrics <- metric_set(rmse, mape)
+metrics(res, sfc_wind, .pred)
+```
+
+Plot (hourly) of the first three days.
+
+```{r show_plot, echo=FALSE}
+res_to_plot <- res[1:72,]
+
+ggplot(res_to_plot, aes(x=time)) +
+  geom_line(aes(y=sfc_wind)) +
+  geom_line(aes(y=.pred), color = "red") +
+  geom_line(aes(y=avg_sfc_wind.x), linetype="dotted", color = "black") +
+  geom_line(aes(y=avg_sfc_wind.y), linetype="dotted", color = "red") +
+  xlab("")
+```
+
