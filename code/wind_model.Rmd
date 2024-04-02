@@ -4,10 +4,10 @@ Work in progress, don't pay attention.
 
 ## Naive Model
 
-In this rmd we explore a model to predict the temperature at a certain hour on a specific day. We use the hour, the month and the average temperature of that day as predictors.
+Analagous to the temp model.
 
-$$y_i = \beta_0 + \beta_1*hour + \beta_2*month + \beta_3*avg\_temp + \beta_4*avg\_temp*hour + \epsilon_i $$
-We train the data on the reanalysis, and with the model fitted we predict on the cmip data (since we have the average temperature for that day). The csv are generated in the notebook `prepare_data.ipnyb`
+$$y_i = \beta_0 + \beta_1*hour + \beta_2*month + \beta_3*avg\_sfc\_wind + \beta_4*avg\_sfc\_wind*hour + \epsilon_i $$
+The data was generated in the notebook `prepare_data.ipnyb`
 
 ```{r load_packages, results='hide', message=FALSE}
 library("tidymodels")
@@ -47,8 +47,6 @@ engine <- extract_fit_engine(model_fit)
 engine |> report_table()
 ```
 
-We have that the RMSE when comparing the data at the daily level, by taking the mean of the reanalysis data per day as the true value and the CMIP data as the predicted value, was 4.26. Now, the RMSE at the hourly level, by considering the reanalysis data as the true value and the data predicted with the model for the CMIP data, is 4.53.
-
 ```{r show_metrics, echo=FALSE}
 
 res <-  reanalysis |>
@@ -60,10 +58,10 @@ metrics <- metric_set(rmse, mape)
 metrics(res, sfc_wind, .pred)
 ```
 
-Plot (hourly) of the first three days.
+Plot (hourly) of three days.
 
 ```{r show_plot, echo=FALSE}
-res_to_plot <- res[1:72,]
+res_to_plot <- res[2400:2472,]
 
 ggplot(res_to_plot, aes(x=time)) +
   geom_line(aes(y=sfc_wind)) +
@@ -73,3 +71,11 @@ ggplot(res_to_plot, aes(x=time)) +
   xlab("")
 ```
 
+```{r grouped_by_day}
+ta <- res |> 
+  mutate(date = strftime(time, format="%Y-%m-%d")) |> 
+  group_by(date) |> 
+  summarize(m = min(avg_sfc_wind.x), m2 = min(avg_sfc_wind.y))
+
+metrics(ta,m,m2)
+```

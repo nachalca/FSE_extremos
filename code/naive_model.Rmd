@@ -3,7 +3,7 @@
 In this rmd we explore a model to predict the temperature at a certain hour on a specific day. We use the hour, the month and the average temperature of that day as predictors.
 
 $$y_i = \beta_0 + \beta_1*hour + \beta_2*month + \beta_3*avg\_temp + \beta_4*avg\_temp*hour + \epsilon_i $$
-We train the data on the reanalysis, and with the model fitted we predict on the cmip data (since we have the average temperature for that day). The csv are generated in the notebook `prepare_data.ipnyb`
+We train the data on the reanalysis, and with the model fitted we predict on the cmip data (since we have the average temperature for that day). The data was generated in the notebook `prepare_data.ipnyb`
 
 ```{r load_packages, results='hide', message=FALSE}
 library("tidymodels")
