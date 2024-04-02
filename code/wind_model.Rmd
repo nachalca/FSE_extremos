@@ -61,7 +61,7 @@ metrics(res, sfc_wind, .pred)
 Plot (hourly) of three days.
 
 ```{r show_plot, echo=FALSE}
-res_to_plot <- res[2400:2472,]
+res_to_plot <- res[0:240,]
 
 ggplot(res_to_plot, aes(x=time)) +
   geom_line(aes(y=sfc_wind)) +
@@ -72,10 +72,22 @@ ggplot(res_to_plot, aes(x=time)) +
 ```
 
 ```{r grouped_by_day}
-ta <- res |> 
-  mutate(date = strftime(time, format="%Y-%m-%d")) |> 
+temp_data <- res |> 
+  mutate(date = strftime(time, format="%Y-%m-%d", tz="GMT")) |> 
   group_by(date) |> 
-  summarize(m = min(avg_sfc_wind.x), m2 = min(avg_sfc_wind.y))
+  summarize(reanalyis = min(avg_sfc_wind.x), cmip = min(avg_sfc_wind.y)) |> ungroup() 
 
-metrics(ta,m,m2)
+metrics(temp_data, reanalyis, cmip)
+
+
+data_long <- temp_data %>% pivot_longer(cols = c(reanalyis, cmip),     
+                                       names_to = "origin", 
+                                       values_to = "avg")
+
+ggplot(data_long, aes(x = avg, fill = origin)) +
+  geom_histogram(position = "identity", alpha = 0.5, bins = 20) +
+  labs(x = "avg",
+       y = "Frequency") +
+  scale_fill_manual(values = c("cmip" = "skyblue", "reanalyis" = "lightgreen"))
+
 ```
