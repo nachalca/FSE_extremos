@@ -1,8 +1,8 @@
 # Naive Model
 
-In this rmd we explore a model to predict the temperature at a certain hour on a specific day. We use the hour, the month and the average temperature of that day as predictors.
+In this rmd we explore a model to predict the temperature at a certain hour (h) on a specific day (i), represented by $y_{ih}$. We use the hour, the month to which the day belongs (m) and the average temperature of that day as predictors. 
 
-$$y_i = \beta_0 + \beta_1*hour + \beta_2*month + \beta_3*avg\_temp + \beta_4*avg\_temp*hour + \epsilon_i $$
+$$y_{ih} = \beta_0 + \beta_{1h}*hour + \beta_{2m}*month + \beta_3*avg\_temp + \beta_{4h}*avg\_temp*hour + \epsilon_i $$
 We train the data on the reanalysis, and with the model fitted we predict on the cmip data (since we have the average temperature for that day). The data was generated in the notebook `prepare_data.ipnyb`
 
 ```{r load_packages, results='hide', message=FALSE}
@@ -50,7 +50,8 @@ We have that the RMSE when comparing the data at the daily level, by taking the 
 res <-  reanalysis |>
   select(time, temp, avg_temp) |>
   inner_join(cmip_6, by = join_by(time)) |>
-  bind_cols(predicted)
+  bind_cols(predicted) |>
+  mutate(error = temp - .pred)
 
 metrics <- metric_set(rmse, mape)
 metrics(res, temp, .pred)
@@ -69,3 +70,9 @@ ggplot(res_to_plot, aes(x=time)) +
   xlab("")
 ```
 
+Boxplot with the error (reanalysis - downscaled) by hour.
+
+```{r show_plot_2, echo=FALSE}
+ggplot(res, aes(x=hour, y=error)) +
+  geom_boxplot()
+```
