@@ -2,7 +2,7 @@
 
 In this rmd we explore a model to predict the temperature at a certain hour (h) on a specific day (i), represented by $y_{ih}$. We use the hour, the month to which the day belongs (m) and the average temperature of that day as predictors. 
 
-$$y_{ih} = \beta_0 + \beta_{1h}*hour + \beta_{2m}*month + \beta_3*avg\_temp + \beta_{4h}*avg\_temp*hour + \epsilon_i $$
+$$y_{ih} = \beta_0 + \beta_{1h} + \beta_{2m} + \beta_3*avg\_temp + \beta_{4h}*avg\_temp + \epsilon_i $$
 We train the data on the reanalysis, and with the model fitted we predict on the cmip data (since we have the average temperature for that day). The data was generated in the notebook `prepare_data.ipnyb`
 
 ```{r load_packages, results='hide', message=FALSE}
@@ -76,3 +76,15 @@ Boxplot with the error (reanalysis - downscaled) by hour.
 ggplot(res, aes(x=hour, y=error)) +
   geom_boxplot()
 ```
+
+Lag 1 - correlation. We have a problem with the 0-23 correlation, i.e, at the change of day.
+
+```{r correlation}
+
+res_corr <- res |> mutate(nxt_temp = lag(temp), nxt_.pred = lag(.pred))
+
+res_corr |> group_by(hour) |> summarize(cor(temp, nxt_temp, use = "complete.obs"))
+res_corr |> group_by(hour) |> summarize(cor(.pred, nxt_.pred, use = "complete.obs"))
+
+```
+
