@@ -9,9 +9,11 @@ import cdsapi
 import zipfile
 import re
 import os
+from os.path import exists
 
-file = pd.read_csv("CMIP6-table-for-Amine.csv", sep=";")
-file.head()
+
+#file = pd.read_csv("CMIP6-table-for-Amine.csv", sep=";")
+#file.head()
 
 
 # In[77]:
@@ -70,26 +72,26 @@ def extract_criteria():
 # In[78]:
 
 
-c = cdsapi.Client()
-newFile = "example.zip"
-c.retrieve("projections-cmip6", 
-    {"temporal_resolution": "monthly",
-     "experiment": "historical",
-     "variable": "surface_downwelling_shortwave_radiation",
-     "model": "cesm2",
-     "year": [str(year) for year in range(2000, 2015)],
-     "month": [str(month).zfill(2) for month in range(1, 13)],
-     "day": [str(day).zfill(2) for day in range(1, 32)],
-     "area": [-30, -59, -35, -53],
-     "format": "zip"
-     }, newFile)
-with zipfile.ZipFile(newFile, "r") as zip_f:
-    for file in zip_f.namelist():
-        # another way to find the .nc file;
-        # if os.path.extension("nc"):
-        m = re.search(re.compile(".*\.nc$"), file)
-        if m:
-            zip_f.extract(file)
+# c = cdsapi.Client()
+# newFile = "example.zip"
+# c.retrieve("projections-cmip6", 
+#     {"temporal_resolution": "monthly",
+#      "experiment": "historical",
+#      "variable": "surface_downwelling_shortwave_radiation",
+#      "model": "cesm2",
+#      "year": [str(year) for year in range(2000, 2015)],
+#      "month": [str(month).zfill(2) for month in range(1, 13)],
+#      "day": [str(day).zfill(2) for day in range(1, 32)],
+#      "area": [-30, -59, -35, -53],
+#      "format": "zip"
+#      }, newFile)
+# with zipfile.ZipFile(newFile, "r") as zip_f:
+#     for file in zip_f.namelist():
+#         # another way to find the .nc file;
+#         # if os.path.extension("nc"):
+#         m = re.search(re.compile(".*\.nc$"), file)
+#         if m:
+#             zip_f.extract(file)
 
 
 # In[ ]:
@@ -97,3 +99,4 @@ with zipfile.ZipFile(newFile, "r") as zip_f:
 
 
 
+extract_criteria()
