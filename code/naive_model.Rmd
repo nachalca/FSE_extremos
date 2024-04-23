@@ -60,7 +60,7 @@ metrics(res, temp, .pred)
 Plot (hourly) of the first three days. The red line is the downscaled temperature and the black line is the temperature from the reanalysis model. The dashed lines are the average temp of the day, the colors follow the same criteria.
 
 ```{r show_plot, echo=FALSE}
-res_to_plot <- res[1:72,]
+res_to_plot <- res[1:96,]
 
 ggplot(res_to_plot, aes(x=time)) +
   geom_line(aes(y=temp)) +
@@ -81,10 +81,10 @@ Lag 1 - correlation. We have a problem with the 0-23 correlation, i.e, at the ch
 
 ```{r correlation}
 
-res_corr <- res |> mutate(nxt_temp = lag(temp), nxt_.pred = lag(.pred))
+res_corr <- res |> mutate(prev_temp = lag(temp), prev_.pred = lag(.pred))
 
-res_corr |> group_by(hour) |> summarize(cor(temp, nxt_temp, use = "complete.obs"))
-res_corr |> group_by(hour) |> summarize(cor(.pred, nxt_.pred, use = "complete.obs"))
+res_corr |> group_by(hour) |> summarize(cor(temp, prev_temp, use = "complete.obs"))
+res_corr |> group_by(hour) |> summarize(cor(.pred, prev_.pred, use = "complete.obs"))
 
 ```
 
