@@ -1,0 +1,93 @@
+# Wind model
+
+Work in progress, don't pay attention.
+
+## Naive Model
+
+Analagous to the temp model.
+
+$$y_i = \beta_0 + \beta_1*hour + \beta_2*month + \beta_3*avg\_sfc\_wind + \beta_4*avg\_sfc\_wind*hour + \epsilon_i $$
+The data was generated in the notebook `prepare_data.ipnyb`
+
+```{r load_packages, results='hide', message=FALSE}
+library("tidymodels")
+library("data.table")
+library("report")
+
+reanalysis <- fread('reanalysis_wind_training_data.csv') |>
+              mutate(month = as.factor(month), day = as.factor(day), hour = as.factor(hour))
+cmip_6 <- fread('cmip6_wind_to_predict_data.csv') |>
+          mutate(month = as.factor(month), day = as.factor(day), hour = as.factor(hour))
+```
+
+```{r define_model, message=FALSE}
+model_recipe <- recipe(sfc_wind ~ hour + month + avg_sfc_wind, data = reanalysis) |>
+                step_dummy(all_integer()) |>
+                step_interact(~ hour:avg_sfc_wind)
+
+model <- linear_reg() %>% set_engine("lm")
+
+model_workflow <- 
+  workflow() %>% 
+  add_model(model) %>% 
+  add_recipe(model_recipe)
+
+model_fit <- fit(model_workflow, reanalysis)
+
+predicted <- predict(model_fit, cmip_6)
+```
+
+## Results
+
+Hours are statistically significant, as is their interaction with the avg_sfc_winderature; months are not. 
+
+```{r show_summary, echo=FALSE}
+engine <- extract_fit_engine(model_fit)
+#Hours are statistically significant, as is their interaction with the avg_sfc_winderature; months are not. 
+engine |> report_table()
+```
+
+```{r show_metrics, echo=FALSE}
+
+res <-  reanalysis |>
+  select(time, sfc_wind, avg_sfc_wind) |>
+  inner_join(cmip_6, by = join_by(time)) |>
+  bind_cols(predicted)
+
+metrics <- metric_set(rmse, mape)
+metrics(res, sfc_wind, .pred)
+```
+
+Plot (hourly) of three days.
+
+```{r show_plot, echo=FALSE}
+res_to_plot <- res[0:240,]
+
+ggplot(res_to_plot, aes(x=time)) +
+  geom_line(aes(y=sfc_wind)) +
+  geom_line(aes(y=.pred), color = "red") +
+  geom_line(aes(y=avg_sfc_wind.x), linetype="dotted", color = "black") +
+  geom_line(aes(y=avg_sfc_wind.y), linetype="dotted", color = "red") +
+  xlab("")
+```
+
+```{r grouped_by_day}
+temp_data <- res |> 
+  mutate(date = strftime(time, format="%Y-%m-%d", tz="GMT")) |> 
+  group_by(date) |> 
+  summarize(reanalyis = min(avg_sfc_wind.x), cmip = min(avg_sfc_wind.y)) |> ungroup() 
+
+metrics(temp_data, reanalyis, cmip)
+
+
+data_long <- temp_data %>% pivot_longer(cols = c(reanalyis, cmip),     
+                                       names_to = "origin", 
+                                       values_to = "avg")
+
+ggplot(data_long, aes(x = avg, fill = origin)) +
+  geom_histogram(position = "identity", alpha = 0.5, bins = 20) +
+  labs(x = "avg",
+       y = "Frequency") +
+  scale_fill_manual(values = c("cmip" = "skyblue", "reanalyis" = "lightgreen"))
+
+```

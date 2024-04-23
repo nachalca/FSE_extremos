@@ -11,12 +11,13 @@ We will use this space to communicate about the tasks to be carried out and the 
   - Use the software to get acquainted (import a data file, produce some graphical representations)
   - Try and/or propose alternatives (e.g., very nice-looking -> https://github.com/blendernc/blendernc)
 - [X] Explore the [Climate Data Store](https://cds.climate.copernicus.eu/#!/home) (CDS) API
-- [ ] Replicate the downloading of two files from the CDS
+- [X] Replicate the downloading of two files from the CDS
 - [X] Fusion the two files into on single tabular dataset (as below)
 - [ ] Produce a minimal dataset with the target format (this will help Bruno in the downscaling phase)
   - [X] Copernicus => CMIP6 climate projections in order to retrieve datasets
   - [X] Build an excel table with the following columns for each dataset retrived from Copernicus : time resolution, variable, experience, model, availability of the model based on previous columns
-  - [ ] Write a python script that will enable the downloading of the files from the excel table previously created
+  - [X] Write a python script that will enable the downloading of the files from the excel table previously created
+  - [ ] Write a function enabling the fusion of the previously downloaded nc files
   - [ ] Following columns are needed in the dataframes' table :
     * toy (time of the year) => possible values are expected to be between 0 and 1 ; possible implementation for day i = i-0.5/365
     * dow (day of the week)

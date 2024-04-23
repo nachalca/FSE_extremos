@@ -1,9 +1,9 @@
 # Naive Model
 
-In this rmd we explore a model to predict the temperature at a certain hour on a specific day. We use the hour, the month and the average temperature of that day as predictors.
+In this rmd we explore a model to predict the temperature at a certain hour (h) on a specific day (i), represented by $y_{ih}$. We use the hour, the month to which the day belongs (m) and the average temperature of that day as predictors. 
 
-$$y_i = \beta_0 + \beta_1*hour + \beta_2*month + \beta_3*avg\_temp + \beta_4*avg\_temp*hour + \epsilon_i $$
-We train the data on the reanalysis, and with the model fitted we predict on the cmip data (since we have the average temperature for that day). The csv are generated in the notebook `prepare_data.ipnyb`
+$$y_{ih} = \beta_0 + \beta_{1h} + \beta_{2m} + \beta_3*avg\_temp + \beta_{4h}*avg\_temp + \epsilon_i $$
+We train the data on the reanalysis, and with the model fitted we predict on the cmip data (since we have the average temperature for that day). The data was generated in the notebook `prepare_data.ipnyb`
 
 ```{r load_packages, results='hide', message=FALSE}
 library("tidymodels")
@@ -50,13 +50,14 @@ We have that the RMSE when comparing the data at the daily level, by taking the 
 res <-  reanalysis |>
   select(time, temp, avg_temp) |>
   inner_join(cmip_6, by = join_by(time)) |>
-  bind_cols(predicted)
+  bind_cols(predicted) |>
+  mutate(error = temp - .pred)
 
 metrics <- metric_set(rmse, mape)
 metrics(res, temp, .pred)
 ```
 
-Plot (hourly) of the first three days.
+Plot (hourly) of the first three days. The red line is the downscaled temperature and the black line is the temperature from the reanalysis model. The dashed lines are the average temp of the day, the colors follow the same criteria.
 
 ```{r show_plot, echo=FALSE}
 res_to_plot <- res[1:72,]
@@ -67,5 +68,23 @@ ggplot(res_to_plot, aes(x=time)) +
   geom_line(aes(y=avg_temp.x), linetype="dotted", color = "black") +
   geom_line(aes(y=avg_temp.y), linetype="dotted", color = "red") +
   xlab("")
+```
+
+Boxplot with the error (reanalysis - downscaled) by hour.
+
+```{r show_plot_2, echo=FALSE}
+ggplot(res, aes(x=hour, y=error)) +
+  geom_boxplot()
+```
+
+Lag 1 - correlation. We have a problem with the 0-23 correlation, i.e, at the change of day.
+
+```{r correlation}
+
+res_corr <- res |> mutate(nxt_temp = lag(temp), nxt_.pred = lag(.pred))
+
+res_corr |> group_by(hour) |> summarize(cor(temp, nxt_temp, use = "complete.obs"))
+res_corr |> group_by(hour) |> summarize(cor(.pred, nxt_.pred, use = "complete.obs"))
+
 ```
 
