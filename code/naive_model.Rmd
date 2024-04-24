@@ -10,9 +10,9 @@ library("tidymodels")
 library("data.table")
 library("report")
 
-reanalysis <- fread('reanalysis_training_data.csv') |>
+reanalysis <- fread('reanalysis_tas_training_data.csv') |>
               mutate(month = as.factor(month), day = as.factor(day), hour = as.factor(hour))
-cmip_6 <- fread('cmip6_to_predict_data.csv') |>
+cmip_6 <- fread('cmip6_tas_to_downscale_data.csv') |>
           mutate(month = as.factor(month), day = as.factor(day), hour = as.factor(hour))
 ```
 
@@ -87,4 +87,11 @@ res_corr |> group_by(hour) |> summarize(cor(temp, prev_temp, use = "complete.obs
 res_corr |> group_by(hour) |> summarize(cor(.pred, prev_.pred, use = "complete.obs"))
 
 ```
+```{r }
+res |> mutate(nxt_temp = if_else(lead(temp) > temp, 1, -1), 
+              nxt_.pred = if_else(lead(.pred) > .pred, 1, -1)) |> 
+      mutate(same_behaviour = if_else(nxt_temp == nxt_.pred,1, 0)) |>
+      summarise(cor = sum(same_behaviour)/n())
+```
+
 

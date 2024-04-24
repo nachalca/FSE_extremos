@@ -16,7 +16,7 @@ library("report")
 
 reanalysis <- fread('reanalysis_wind_training_data.csv') |>
               mutate(month = as.factor(month), day = as.factor(day), hour = as.factor(hour))
-cmip_6 <- fread('cmip6_wind_to_predict_data.csv') |>
+cmip_6 <- fread('cmip6_wind_to_downscale_data.csv') |>
           mutate(month = as.factor(month), day = as.factor(day), hour = as.factor(hour))
 ```
 
@@ -90,4 +90,12 @@ ggplot(data_long, aes(x = avg, fill = origin)) +
        y = "Frequency") +
   scale_fill_manual(values = c("cmip" = "skyblue", "reanalyis" = "lightgreen"))
 
+```
+
+```{r }
+res |> mutate(nxt_sfc_wind = if_else(lead(sfc_wind) > sfc_wind, 1, -1), 
+              nxt_.pred = if_else(lead(.pred) > .pred, 1, -1)) |> 
+      mutate(same_behaviour = if_else(nxt_sfc_wind == nxt_.pred,1, 0)) |>
+      filter(row_number() <= n() - 1) |>
+      summarise(cor = sum(same_behaviour)/n())
 ```
