@@ -14,16 +14,16 @@ library("tidymodels")
 library("data.table")
 library("report")
 
-reanalysis <- fread('reanalysis_wind_training_data.csv') |>
+reanalysis <- fread('reanalysis_sfcWind_training_data.csv') |>
               mutate(month = as.factor(month), day = as.factor(day), hour = as.factor(hour))
-cmip_6 <- fread('cmip6_wind_to_downscale_data.csv') |>
+cmip_6 <- fread('cmip6_sfcWind_to_downscale_data.csv') |>
           mutate(month = as.factor(month), day = as.factor(day), hour = as.factor(hour))
 ```
 
 ```{r define_model, message=FALSE}
-model_recipe <- recipe(sfc_wind ~ hour + month + avg_sfc_wind, data = reanalysis) |>
+model_recipe <- recipe(sfcWind ~ hour + month + avg_sfcWind, data = reanalysis) |>
                 step_dummy(all_integer()) |>
-                step_interact(~ hour:avg_sfc_wind)
+                step_interact(~ hour:avg_sfcWind)
 
 model <- linear_reg() %>% set_engine("lm")
 
@@ -34,29 +34,45 @@ model_workflow <-
 
 model_fit <- fit(model_workflow, reanalysis)
 
+
 predicted <- predict(model_fit, cmip_6)
+cmip_6$sfcWind <- predicted$.pred
+
 ```
 
 ## Results
 
-Hours are statistically significant, as is their interaction with the avg_sfc_winderature; months are not. 
+Hours are statistically significant, as is their interaction with the avg_sfcWinderature; months are not. 
 
 ```{r show_summary, echo=FALSE}
 engine <- extract_fit_engine(model_fit)
-#Hours are statistically significant, as is their interaction with the avg_sfc_winderature; months are not. 
+#Hours are statistically significant, as is their interaction with the avg_sfcWinderature; months are not. 
 engine |> report_table()
 ```
 
 ```{r show_metrics, echo=FALSE}
 
 res <-  reanalysis |>
-  select(time, sfc_wind, avg_sfc_wind) |>
+  select(time, sfcWind, avg_sfcWind) |>
   inner_join(cmip_6, by = join_by(time)) |>
-  bind_cols(predicted)
+  rename("obs_sfcWind" = "sfcWind.x", "nv_sfcWind" = "sfcWind.y" )
 
 metrics <- metric_set(rmse, mape)
-metrics(res, sfc_wind, .pred)
+metrics(res, obs_sfcWind, nv_sfcWind)
 ```
+
+
+```{r}
+predictions <- fread('predictions_2.csv') |>
+              mutate(hour = as.factor(hour))
+
+res <-  res |>
+  inner_join(predictions, by = join_by(time)) |>
+  rename("knnr_sfcWind" = "sfcWind")
+
+metrics(res, obs_sfcWind, knnr_sfcWind)
+```
+
 
 Plot (hourly) of three days.
 
@@ -64,10 +80,11 @@ Plot (hourly) of three days.
 res_to_plot <- res[0:240,]
 
 ggplot(res_to_plot, aes(x=time)) +
-  geom_line(aes(y=sfc_wind)) +
-  geom_line(aes(y=.pred), color = "red") +
-  geom_line(aes(y=avg_sfc_wind.x), linetype="dotted", color = "black") +
-  geom_line(aes(y=avg_sfc_wind.y), linetype="dotted", color = "red") +
+  geom_line(aes(y=obs_sfcWind)) +
+  geom_line(aes(y=nv_sfcWind), color = "red") + 
+  geom_line(aes(y=knnr_sfcWind), color = "green") +
+  geom_line(aes(y=avg_sfcWind.x), linetype="dotted", color = "black") +
+  geom_line(aes(y=avg_sfcWind.y), linetype="dotted", color = "red") +
   xlab("")
 ```
 
@@ -75,7 +92,7 @@ ggplot(res_to_plot, aes(x=time)) +
 temp_data <- res |> 
   mutate(date = strftime(time, format="%Y-%m-%d", tz="GMT")) |> 
   group_by(date) |> 
-  summarize(reanalyis = min(avg_sfc_wind.x), cmip = min(avg_sfc_wind.y)) |> ungroup() 
+  summarize(reanalyis = min(avg_sfcWind.x), cmip = min(avg_sfcWind.y)) |> ungroup() 
 
 metrics(temp_data, reanalyis, cmip)
 
@@ -93,9 +110,17 @@ ggplot(data_long, aes(x = avg, fill = origin)) +
 ```
 
 ```{r }
-res |> mutate(nxt_sfc_wind = if_else(lead(sfc_wind) > sfc_wind, 1, -1), 
-              nxt_.pred = if_else(lead(.pred) > .pred, 1, -1)) |> 
-      mutate(same_behaviour = if_else(nxt_sfc_wind == nxt_.pred,1, 0)) |>
+res |> mutate(nxt_obs_sfcWind = if_else(lead(obs_sfcWind) > obs_sfcWind, 1, -1), 
+              nxt_nv_sfcWind = if_else(lead(nv_sfcWind) > nv_sfcWind, 1, -1)) |> 
+      mutate(same_behaviour = if_else(nxt_obs_sfcWind == nxt_nv_sfcWind,1, 0)) |>
+      filter(row_number() <= n() - 1) |>
+      summarise(cor = sum(same_behaviour)/n())
+```
+
+```{r }
+res |> mutate(nxt_obs_sfcWind = if_else(lead(obs_sfcWind) > obs_sfcWind, 1, -1), 
+              nxt_knnr_sfcWind = if_else(lead(knnr_sfcWind) > knnr_sfcWind, 1, -1)) |> 
+      mutate(same_behaviour = if_else(nxt_obs_sfcWind == nxt_knnr_sfcWind,1, 0)) |>
       filter(row_number() <= n() - 1) |>
       summarise(cor = sum(same_behaviour)/n())
 ```
