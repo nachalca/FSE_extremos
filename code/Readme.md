@@ -7,4 +7,9 @@
 |`cmip6_tas_to_downscale_data.csv`, <br>`cmip6_tas_to_downscale_data.csv`,<br>`reanalysis_sfcWind_training_data.csv`,<br>`cmip6_sfcWind_to_downscale_data`|Output of `prepare_data.ipynb`|
 |`naive_model.Rmd`|It features a first model in which we employ a linear model, trained with the reanalysis data, to downscale the CMIP6 data. We focus on the temperature variable|
 |`wind_model.Rmd`|Similar to `naive_model.Rmd` but applied to wind speed.|
-|`spatial_downscaling.R`|Spatial downscaling of CESM2-WACCM using climate4R, it's not used|
+|`spatial_downscaling.R`|Spatial downscaling of CESM2-WACCM using climate4R, it's not used.|
+|`KNNR_GA.py`|Implements the algorithm shown in Taesam Lee and Changsam Jeong (2014) [^1]|
+|`metrics.R`|Implements useful new metrics for evaluating the downscaling model.|
+|`utils.R`|Common use functions.|
+
+[^1] https://www.sciencedirect.com/science/article/pii/S0022169413009244

@@ -6,22 +6,27 @@ Work in progress, don't pay attention.
 
 Analagous to the temp model.
 
-$$y_i = \beta_0 + \beta_1*hour + \beta_2*month + \beta_3*avg\_sfc\_wind + \beta_4*avg\_sfc\_wind*hour + \epsilon_i $$
+$$y_{ih} = \beta_0 + \beta_{1h} + \beta_{2m} + \beta_3*avg\_sfcWind + \beta_{4h}*avg\_sfcWind + \epsilon_i $$
 The data was generated in the notebook `prepare_data.ipnyb`
 
 ```{r load_packages, results='hide', message=FALSE}
 library("tidymodels")
 library("data.table")
 library("report")
+library("gridExtra")
+library("extremogram")
+source("utils.R")
+source("metrics.R")
 
-reanalysis <- fread('reanalysis_sfcWind_training_data.csv') |>
-              mutate(month = as.factor(month), day = as.factor(day), hour = as.factor(hour))
-cmip_6 <- fread('cmip6_sfcWind_to_downscale_data.csv') |>
-          mutate(month = as.factor(month), day = as.factor(day), hour = as.factor(hour))
+reanalysis <- fread('reanalysis_sfcWind_training_data.csv') 
+
+cmip_6 <- fread('cmip6_sfcWind_to_downscale_data.csv') 
 ```
 
 ```{r define_model, message=FALSE}
-model_recipe <- recipe(sfcWind ~ hour + month + avg_sfcWind, data = reanalysis) |>
+model_recipe <- recipe(sfcWind ~ ., data = reanalysis) |>
+                update_role(time, new_role = "ID") |>
+                step_mutate(hour = as.factor(getHour(time)), month = as.factor(getMonth(time))) |>
                 step_dummy(all_integer()) |>
                 step_interact(~ hour:avg_sfcWind)
 
@@ -55,72 +60,60 @@ engine |> report_table()
 res <-  reanalysis |>
   select(time, sfcWind, avg_sfcWind) |>
   inner_join(cmip_6, by = join_by(time)) |>
-  rename("obs_sfcWind" = "sfcWind.x", "nv_sfcWind" = "sfcWind.y" )
+  rename("obs_sfcWind" = "sfcWind.x", "nv_sfcWind" = "sfcWind.y", "obs_avg_sfcWind" = "avg_sfcWind.x", "cmip_avg_sfcWind" = "avg_sfcWind.y")
 
-metrics <- metric_set(rmse, mape)
-metrics(res, obs_sfcWind, nv_sfcWind)
-```
-
-
-```{r}
 predictions <- fread('predictions_2.csv') |>
-              mutate(hour = as.factor(hour))
+              mutate(hour = as.factor(hour)) |>
+              select(-avg_sfcWind, -hour)  
 
 res <-  res |>
   inner_join(predictions, by = join_by(time)) |>
   rename("knnr_sfcWind" = "sfcWind")
-
-metrics(res, obs_sfcWind, knnr_sfcWind)
 ```
-
 
 Plot (hourly) of three days.
 
 ```{r show_plot, echo=FALSE}
-res_to_plot <- res[0:240,]
+res_to_plot <- res[0:72,]
 
-ggplot(res_to_plot, aes(x=time)) +
+p1 <- ggplot(res_to_plot, aes(x=time)) +
   geom_line(aes(y=obs_sfcWind)) +
   geom_line(aes(y=nv_sfcWind), color = "red") + 
-  geom_line(aes(y=knnr_sfcWind), color = "green") +
-  geom_line(aes(y=avg_sfcWind.x), linetype="dotted", color = "black") +
-  geom_line(aes(y=avg_sfcWind.y), linetype="dotted", color = "red") +
-  xlab("")
-```
+  geom_line(aes(y=obs_avg_sfcWind), linetype="dotted", color = "black") +
+  geom_line(aes(y=cmip_avg_sfcWind), linetype="dotted", color = "red") +
+  labs(y = "sfcWind", x = "")
+  
+p2 <- ggplot(res_to_plot, aes(x=time)) +
+  geom_line(aes(y=obs_sfcWind)) +
+  geom_line(aes(y=knnr_sfcWind), color = "red") + 
+  geom_line(aes(y=obs_avg_sfcWind), linetype="dotted", color = "black") +
+  geom_line(aes(y=cmip_avg_sfcWind), linetype="dotted", color = "red") +
+  labs(y = "sfcWind", x = "")
 
-```{r grouped_by_day}
-temp_data <- res |> 
-  mutate(date = strftime(time, format="%Y-%m-%d", tz="GMT")) |> 
-  group_by(date) |> 
-  summarize(reanalyis = min(avg_sfcWind.x), cmip = min(avg_sfcWind.y)) |> ungroup() 
-
-metrics(temp_data, reanalyis, cmip)
-
-
-data_long <- temp_data %>% pivot_longer(cols = c(reanalyis, cmip),     
-                                       names_to = "origin", 
-                                       values_to = "avg")
-
-ggplot(data_long, aes(x = avg, fill = origin)) +
-  geom_histogram(position = "identity", alpha = 0.5, bins = 20) +
-  labs(x = "avg",
-       y = "Frequency") +
-  scale_fill_manual(values = c("cmip" = "skyblue", "reanalyis" = "lightgreen"))
-
+grid.arrange(p1, p2, nrow = 1)
 ```
 
 ```{r }
-res |> mutate(nxt_obs_sfcWind = if_else(lead(obs_sfcWind) > obs_sfcWind, 1, -1), 
-              nxt_nv_sfcWind = if_else(lead(nv_sfcWind) > nv_sfcWind, 1, -1)) |> 
-      mutate(same_behaviour = if_else(nxt_obs_sfcWind == nxt_nv_sfcWind,1, 0)) |>
-      filter(row_number() <= n() - 1) |>
-      summarise(cor = sum(same_behaviour)/n())
+res |> rmse(obs_sfcWind, nv_sfcWind) |> select(.estimate) |> as.numeric()
+res |> mape(obs_sfcWind, nv_sfcWind) |> select(.estimate) |> as.numeric()
+sign_correlation(res$obs_sfcWind, res$nv_sfcWind)
+amplitude_rmse(res$time, res$obs_sfcWind, res$nv_sfcWind)
+amplitude_mape(res$time, res$obs_sfcWind, res$nv_sfcWind)
+maximum_correlation(res$time, res$obs_sfcWind, res$nv_sfcWind)
+maximum_difference(res$time, res$obs_sfcWind, res$nv_sfcWind)
+
+res |> rmse(obs_sfcWind, knnr_sfcWind) |> select(.estimate) |> as.numeric()
+res |> mape(obs_sfcWind, knnr_sfcWind) |> select(.estimate) |> as.numeric()
+sign_correlation(res$obs_sfcWind, res$knnr_sfcWind)
+amplitude_rmse(res$time, res$obs_sfcWind, res$knnr_sfcWind)
+amplitude_mape(res$time, res$obs_sfcWind, res$knnr_sfcWind)
+maximum_correlation(res$time, res$obs_sfcWind, res$knnr_sfcWind)
+maximum_difference(res$time, res$obs_sfcWind, res$knnr_sfcWind)
 ```
 
-```{r }
-res |> mutate(nxt_obs_sfcWind = if_else(lead(obs_sfcWind) > obs_sfcWind, 1, -1), 
-              nxt_knnr_sfcWind = if_else(lead(knnr_sfcWind) > knnr_sfcWind, 1, -1)) |> 
-      mutate(same_behaviour = if_else(nxt_obs_sfcWind == nxt_knnr_sfcWind,1, 0)) |>
-      filter(row_number() <= n() - 1) |>
-      summarise(cor = sum(same_behaviour)/n())
+## Extremograms
+
+```{r}
+ggplot(res, aes(x=nv_sfcWind))+
+  geom_density()
 ```

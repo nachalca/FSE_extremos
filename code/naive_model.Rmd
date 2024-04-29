@@ -10,16 +10,16 @@ library("tidymodels")
 library("data.table")
 library("report")
 
-reanalysis <- fread('reanalysis_tas_training_data.csv') |>
-              mutate(month = as.factor(month), day = as.factor(day), hour = as.factor(hour))
-cmip_6 <- fread('cmip6_tas_to_downscale_data.csv') |>
-          mutate(month = as.factor(month), day = as.factor(day), hour = as.factor(hour))
+reanalysis <- fread('reanalysis_tas_training_data.csv') 
+cmip_6 <- fread('cmip6_tas_to_downscale_data.csv') 
 ```
 
 ```{r define_model, message=FALSE}
-model_recipe <- recipe(temp ~ hour + month + avg_temp, data = reanalysis) |>
+model_recipe <- recipe(tas ~ ., data = reanalysis) |>
+                update_role(time, new_role = "ID") |>
+                step_mutate(hour = as.factor(getHour(time)), month = as.factor(getMonth(time))) |>
                 step_dummy(all_integer()) |>
-                step_interact(~ hour:avg_temp)
+                step_interact(~ hour:avg_tas)
 
 model <- linear_reg() %>% set_engine("lm")
 
@@ -35,11 +35,11 @@ predicted <- predict(model_fit, cmip_6)
 
 ## Results
 
-Hours are statistically significant, as is their interaction with the avg_temperature; months are not. 
+Hours are statistically significant, as is their interaction with the avg_taserature; months are not. 
 
 ```{r show_summary, echo=FALSE}
 engine <- extract_fit_engine(model_fit)
-#Hours are statistically significant, as is their interaction with the avg_temperature; months are not. 
+#Hours are statistically significant, as is their interaction with the avg_taserature; months are not. 
 engine |> report_table()
 ```
 
@@ -48,13 +48,13 @@ We have that the RMSE when comparing the data at the daily level, by taking the 
 ```{r show_metrics, echo=FALSE}
 
 res <-  reanalysis |>
-  select(time, temp, avg_temp) |>
+  select(time, tas, avg_tas) |>
   inner_join(cmip_6, by = join_by(time)) |>
   bind_cols(predicted) |>
-  mutate(error = temp - .pred)
+  mutate(error = tas.x - .pred)
 
 metrics <- metric_set(rmse, mape)
-metrics(res, temp, .pred)
+metrics(res, tas.x, .pred)
 ```
 
 Plot (hourly) of the first three days. The red line is the downscaled temperature and the black line is the temperature from the reanalysis model. The dashed lines are the average temp of the day, the colors follow the same criteria.
@@ -63,35 +63,36 @@ Plot (hourly) of the first three days. The red line is the downscaled temperatur
 res_to_plot <- res[1:96,]
 
 ggplot(res_to_plot, aes(x=time)) +
-  geom_line(aes(y=temp)) +
+  geom_line(aes(y=tas.x)) +
   geom_line(aes(y=.pred), color = "red") +
-  geom_line(aes(y=avg_temp.x), linetype="dotted", color = "black") +
-  geom_line(aes(y=avg_temp.y), linetype="dotted", color = "red") +
+  geom_line(aes(y=avg_tas.x), linetype="dotted", color = "black") +
+  geom_line(aes(y=avg_tas.y), linetype="dotted", color = "red") +
   xlab("")
 ```
 
 Boxplot with the error (reanalysis - downscaled) by hour.
 
 ```{r show_plot_2, echo=FALSE}
-ggplot(res, aes(x=hour, y=error)) +
-  geom_boxplot()
+res |> mutate(hour = as.factor(getHour(time))) |> 
+  ggplot(aes(x=hour, y=error)) +
+    geom_boxplot()
 ```
 
 Lag 1 - correlation. We have a problem with the 0-23 correlation, i.e, at the change of day.
 
 ```{r correlation}
 
-res_corr <- res |> mutate(prev_temp = lag(temp), prev_.pred = lag(.pred))
+res_corr <- res |> mutate(prev_temp = lag(tas.x), prev_.pred = lag(.pred))
 
-res_corr |> group_by(hour) |> summarize(cor(temp, prev_temp, use = "complete.obs"))
-res_corr |> group_by(hour) |> summarize(cor(.pred, prev_.pred, use = "complete.obs"))
+res_corr |> mutate(hour = as.factor(getHour(time))) |> group_by(hour) |> summarize(cor(tas.x, prev_temp, use = "complete.obs"))
+
+res_corr |> mutate(hour = as.factor(getHour(time))) |> group_by(hour) |> summarize(cor(.pred, prev_.pred, use = "complete.obs"))
 
 ```
+
 ```{r }
-res |> mutate(nxt_temp = if_else(lead(temp) > temp, 1, -1), 
-              nxt_.pred = if_else(lead(.pred) > .pred, 1, -1)) |> 
-      mutate(same_behaviour = if_else(nxt_temp == nxt_.pred,1, 0)) |>
-      summarise(cor = sum(same_behaviour)/n())
+sign_correlation(res$tas.x, res$.pred)
+maximum_correlation(res$time,res$tas.x, res$.pred)
 ```
 
 
