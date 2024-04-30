@@ -9,6 +9,8 @@ We train the data on the reanalysis, and with the model fitted we predict on the
 library("tidymodels")
 library("data.table")
 library("report")
+source("metrics.R")
+source("utils.R")
 
 reanalysis <- fread('reanalysis_tas_training_data.csv') 
 cmip_6 <- fread('cmip6_tas_to_downscale_data.csv') 
@@ -35,6 +37,8 @@ predicted <- predict(model_fit, cmip_6)
 
 ## Results
 
+
+
 Hours are statistically significant, as is their interaction with the avg_taserature; months are not. 
 
 ```{r show_summary, echo=FALSE}
@@ -42,6 +46,25 @@ engine <- extract_fit_engine(model_fit)
 #Hours are statistically significant, as is their interaction with the avg_taserature; months are not. 
 engine |> report_table()
 ```
+
+```{r}
+slope <- c()
+intercept <- c()
+
+for(i in 1:23){
+  slope <- append(slope, engine$coefficients[sprintf("hour%s_x_avg_tas", i)][[1]])
+  intercept <- append(intercept, engine$coefficients[sprintf("hour%s", i)][[1]])
+}
+
+lines_df <- data.frame(slope = slope,
+                       intercept = intercept,
+                       index = as.factor(1:23)) 
+ggplot() + 
+  geom_abline(data = lines_df, aes(slope = slope, intercept = intercept, color = index)) +
+  ylim(-5, 8) +
+  xlim(min(reanalysis$avg_tas),max(reanalysis$avg_tas))
+```
+
 
 We have that the RMSE when comparing the data at the daily level, by taking the mean of the reanalysis data per day as the true value and the CMIP data as the predicted value, was 4.26. Now, the RMSE at the hourly level, by considering the reanalysis data as the true value and the data predicted with the model for the CMIP data, is 4.53.
 
@@ -95,4 +118,7 @@ sign_correlation(res$tas.x, res$.pred)
 maximum_correlation(res$time,res$tas.x, res$.pred)
 ```
 
+```{r}
+maximum_histograms(res$time,res$tas.x, res$.pred)
+```
 

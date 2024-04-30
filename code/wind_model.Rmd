@@ -54,6 +54,24 @@ engine <- extract_fit_engine(model_fit)
 #Hours are statistically significant, as is their interaction with the avg_sfcWinderature; months are not. 
 engine |> report_table()
 ```
+```{r}
+slope <- c()
+intercept <- c()
+
+for(i in 1:23){
+  slope <- append(slope, engine$coefficients[sprintf("hour%s_x_avg_sfcWind", i)][[1]])
+  intercept <- append(intercept, engine$coefficients[sprintf("hour%s", i)][[1]])
+}
+
+lines_df <- data.frame(slope = slope,
+                       intercept = intercept,
+                       index = as.factor(1:23)) 
+
+ggplot() + 
+  geom_abline(data = lines_df, aes(slope = slope, intercept = intercept, color = index)) +
+  xlim(0, 12) +
+  ylim(-3,12)
+```
 
 ```{r show_metrics, echo=FALSE}
 
@@ -111,9 +129,38 @@ maximum_correlation(res$time, res$obs_sfcWind, res$knnr_sfcWind)
 maximum_difference(res$time, res$obs_sfcWind, res$knnr_sfcWind)
 ```
 
+```{r}
+p1 <- maximum_histograms(res$time, res$obs_sfcWind, res$nv_sfcWind) + scale_fill_discrete(labels = c("nv", "obs"))
+p2 <- maximum_histograms(res$time, res$obs_sfcWind, res$knnr_sfcWind) + scale_fill_discrete(labels = c("knnr", "obs"))
+grid.arrange(p1, p2, nrow = 2, top = "How Often Peaks Hit Hourly")
+```
+
 ## Extremograms
 
 ```{r}
-ggplot(res, aes(x=nv_sfcWind))+
+res_to_plot <- res |> 
+    select(!ends_with("avg_sfcWind")) |>
+    pivot_longer(
+     cols = ends_with("_sfcWind"),
+     names_to = "model",
+     names_pattern = "(.*)_sfcWind",
+     values_to = "sfcWind",
+     values_drop_na = TRUE
+    ) 
+  
+ggplot(res_to_plot, aes(x=sfcWind, color = model))+
   geom_density()
+```
+
+```{r}
+p1 <- extremogram1(res$obs_sfcWind, quant = .97, maxlag = 48, type = 1, ploting = 0)
+p2 <- extremogram1(res$nv_sfcWind, quant = .97, maxlag = 48, type = 1, ploting = 0)
+p3 <- extremogram1(res$knnr_sfcWind, quant = .97, maxlag = 48, type = 1,  ploting = 0)
+res_to_plot <- data.frame(model = c(rep("obs", 48), rep("nv", 48), rep("knnr", 48)),
+                          lag = c(1:48, 1:48, 1:48),
+                          extremogram = c(p1,p2,p3))
+
+ggplot(res_to_plot, mapping = aes(x = lag, y = extremogram)) +
+    geom_segment(mapping = aes(xend = lag, yend = 0)) +
+    facet_wrap(~ model, nrow = 1)
 ```
