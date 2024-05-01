@@ -19,8 +19,27 @@ source("utils.R")
 source("metrics.R")
 
 reanalysis <- fread('reanalysis_sfcWind_training_data.csv') 
-
 cmip_6 <- fread('cmip6_sfcWind_to_downscale_data.csv') 
+```
+
+### Preparate the data for the naive model v2.0
+
+```{r}
+temp <- reanalysis |> mutate(date = getDate(time)) |> 
+    group_by(date) |> summarize(avg_sfcWind = mean(avg_sfcWind)) |> 
+    mutate(prev_avg_sfcWind = lag(avg_sfcWind), nxt_avg_sfcWind = lead(avg_sfcWind)) |>
+    select(-avg_sfcWind) |>
+    na.omit()
+reanalysis_v2 <- reanalysis |> mutate(date = getDate(time)) |> inner_join(temp) |> select(-date)
+rm(temp)
+
+temp <- cmip_6 |> mutate(date = getDate(time)) |> 
+    group_by(date) |> summarize(avg_sfcWind = mean(avg_sfcWind)) |> 
+    mutate(prev_avg_sfcWind = lag(avg_sfcWind), nxt_avg_sfcWind = lead(avg_sfcWind)) |>
+    select(-avg_sfcWind) |>
+    na.omit()
+cmip_6_v2 <- cmip_6 |> mutate(date = getDate(time)) |> inner_join(temp) |> select(-date)
+rm(temp)
 ```
 
 ```{r define_model, message=FALSE}
@@ -39,10 +58,67 @@ model_workflow <-
 
 model_fit <- fit(model_workflow, reanalysis)
 
-
 predicted <- predict(model_fit, cmip_6)
 cmip_6$sfcWind <- predicted$.pred
+```
 
+### Naive model v2.0
+
+```{r naive_model_2, message=FALSE}
+model_recipe_v2 <- recipe(sfcWind ~ ., data = reanalysis_v2) |>
+                update_role(time, new_role = "ID") |>
+                step_mutate(hour = as.factor(getHour(time)), month = as.factor(getMonth(time))) |>
+                step_dummy(all_integer()) |>
+                step_interact(~ hour:avg_sfcWind + hour:nxt_avg_sfcWind + hour:prev_avg_sfcWind)
+
+
+model_v2 <- linear_reg() %>% set_engine("lm")
+
+model_workflow_v2 <- 
+  workflow() %>% 
+  add_model(model_v2) %>% 
+  add_recipe(model_recipe_v2)
+
+model_fit_v2 <- fit(model_workflow_v2, reanalysis_v2)
+
+
+predicted_v2 <- predict(model_fit_v2, cmip_6_v2)
+cmip_6_v2$sfcWind <- predicted_v2$.pred
+cmip_6_v2 <- cmip_6_v2 |> select(time, sfcWind) |> rename("nv2_sfcWind" = "sfcWind")
+```
+
+### KNNReg
+
+```{r}
+knnreg <- copy(reanalysis) |> filter(time = NA) |> select(-avg_sfcWind) #Copy dataframe for structure
+
+for(i in 0:23){
+  reanalysis_1 <- reanalysis |> filter(getHour(time) == i)
+  cmip_6_1 <- cmip_6 |> filter(getHour(time) == i)
+
+
+  knnreg_recipe <- recipe(sfcWind ~ avg_sfcWind, data = reanalysis_1) |>
+    step_scale(all_predictors()) |>
+    step_center(all_predictors())
+
+  knnreg_model <- nearest_neighbor(weight_func = "rectangular",
+                                neighbors = floor(sqrt(nrow(reanalysis_1)))) |>
+                                set_engine("kknn") |>
+                                set_mode("regression")
+
+  knnreg_wkflw <- workflow() |>
+    add_recipe(knnreg_recipe) |>
+    add_model(knnreg_model)
+  
+  knnreg_fit <- fit(knnreg_wkflw, reanalysis_1)
+  
+  cmip_6_1$sfcWind <- knnreg_fit |>
+                        predict(cmip_6_1)
+  cmip_6_1 <- cmip_6_1 |> select(-avg_sfcWind)
+  knnreg <- knnreg |> bind_rows(cmip_6_1)
+}
+
+knnreg <- knnreg |> rename("knnreg_sfcWind" = "sfcWind")
 ```
 
 ## Results
@@ -73,13 +149,21 @@ ggplot() +
   ylim(-3,12)
 ```
 
+```{r show_summary_v2, echo=FALSE}
+engine <- extract_fit_engine(model_fit_v2)
+#Hours are statistically significant, as is their interaction with the avg_sfcWinderature; months are not. 
+engine |> report_table()
+```
+
 ```{r show_metrics, echo=FALSE}
 
 res <-  reanalysis |>
   select(time, sfcWind, avg_sfcWind) |>
   inner_join(cmip_6, by = join_by(time)) |>
-  rename("obs_sfcWind" = "sfcWind.x", "nv_sfcWind" = "sfcWind.y", "obs_avg_sfcWind" = "avg_sfcWind.x", "cmip_avg_sfcWind" = "avg_sfcWind.y")
-
+  rename("obs_sfcWind" = "sfcWind.x", "nv_sfcWind" = "sfcWind.y", "obs_avg_sfcWind" = "avg_sfcWind.x", "cmip_avg_sfcWind" = "avg_sfcWind.y") |>
+  inner_join(cmip_6_v2, by = join_by(time)) |>
+  inner_join(knnreg, by = join_by(time))
+  
 predictions <- fread('predictions_2.csv') |>
               mutate(hour = as.factor(hour)) |>
               select(-avg_sfcWind, -hour)  
@@ -125,6 +209,7 @@ res |> mape(obs_sfcWind, knnr_sfcWind) |> select(.estimate) |> as.numeric()
 sign_correlation(res$obs_sfcWind, res$knnr_sfcWind)
 amplitude_rmse(res$time, res$obs_sfcWind, res$knnr_sfcWind)
 amplitude_mape(res$time, res$obs_sfcWind, res$knnr_sfcWind)
+amplitude_difference_of_means(res$time, res$obs_sfcWind, res$knnr_sfcWind)
 maximum_correlation(res$time, res$obs_sfcWind, res$knnr_sfcWind)
 maximum_difference(res$time, res$obs_sfcWind, res$knnr_sfcWind)
 ```
@@ -132,7 +217,10 @@ maximum_difference(res$time, res$obs_sfcWind, res$knnr_sfcWind)
 ```{r}
 p1 <- maximum_histograms(res$time, res$obs_sfcWind, res$nv_sfcWind) + scale_fill_discrete(labels = c("nv", "obs"))
 p2 <- maximum_histograms(res$time, res$obs_sfcWind, res$knnr_sfcWind) + scale_fill_discrete(labels = c("knnr", "obs"))
-grid.arrange(p1, p2, nrow = 2, top = "How Often Peaks Hit Hourly")
+p3 <- maximum_histograms(res$time, res$obs_sfcWind, res$nv2_sfcWind) + scale_fill_discrete(labels = c("knnr", "obs"))
+p4 <- maximum_histograms(res$time, res$obs_sfcWind, res$knnreg_sfcWind) + scale_fill_discrete(labels = c("knnr", "obs"))
+
+grid.arrange(p1, p2, p3, p4, nrow = 4, top = "How Often Peaks Hit Hourly")
 ```
 
 ## Extremograms

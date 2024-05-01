@@ -31,6 +31,27 @@ amplitude_mape <- function(time, truth, estimate){
   r[[3]]
 }
 
+amplitude_difference_of_means <- function(time, truth, estimate){
+  df <- data.frame("time" = time, "truth" = truth, "estimate" = estimate)
+  r <- df |> mutate(date = getDate(time)) |> 
+    group_by(date) |>
+    summarize(truth_amplitude = max(truth) - min(truth), estimate_amplitude = max(estimate) - min(estimate)) |>
+    ungroup() |>
+    summarize(difference_of_means = mean(truth_amplitude) - mean(estimate_amplitude))
+  r[[1]]
+}
+
+amplitude_mean <- function(time, var){
+  df <- data.frame("time" = time, "var" = var)
+  r <- df |> mutate(date = getDate(time)) |> 
+    group_by(date) |>
+    summarize(amplitude = max(var) - min(var)) |>
+    ungroup() |>
+    summarize(amplitude_mean = mean(amplitude))
+  r[[1]]
+}
+
+
 ## For internal use 
 maximum_hour <- function(time, truth, estimate){
   #Returns the hour where the max value happen
