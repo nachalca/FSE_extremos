@@ -118,7 +118,7 @@ for(i in 0:23){
   knnreg <- knnreg |> bind_rows(cmip_6_1)
 }
 
-knnreg <- knnreg |> rename("knnreg_sfcWind" = "sfcWind")
+knnreg <- knnreg |> rename("knnreg_sfcWind" = "sfcWind") |> arrange(time)
 ```
 
 ## Results
@@ -130,6 +130,7 @@ engine <- extract_fit_engine(model_fit)
 #Hours are statistically significant, as is their interaction with the avg_sfcWinderature; months are not. 
 engine |> report_table()
 ```
+
 ```{r}
 slope <- c()
 intercept <- c()
@@ -176,7 +177,7 @@ res <-  res |>
 Plot (hourly) of three days.
 
 ```{r show_plot, echo=FALSE}
-res_to_plot <- res[0:72,]
+res_to_plot <- res[0:72,] 
 
 p1 <- ggplot(res_to_plot, aes(x=time)) +
   geom_line(aes(y=obs_sfcWind)) +
@@ -192,33 +193,38 @@ p2 <- ggplot(res_to_plot, aes(x=time)) +
   geom_line(aes(y=cmip_avg_sfcWind), linetype="dotted", color = "red") +
   labs(y = "sfcWind", x = "")
 
-grid.arrange(p1, p2, nrow = 1)
+p3 <- ggplot(res_to_plot, aes(x=time)) +
+  geom_line(aes(y=obs_sfcWind)) +
+  geom_line(aes(y=nv2_sfcWind), color = "red") + 
+  geom_line(aes(y=obs_avg_sfcWind), linetype="dotted", color = "black") +
+  geom_line(aes(y=cmip_avg_sfcWind), linetype="dotted", color = "red") +
+  labs(y = "sfcWind", x = "")
+
+p4 <- ggplot(res_to_plot, aes(x=time)) +
+  geom_line(aes(y=obs_sfcWind)) +
+  geom_line(aes(y=knnreg_sfcWind), color = "red") + 
+  geom_line(aes(y=obs_avg_sfcWind), linetype="dotted", color = "black") +
+  geom_line(aes(y=cmip_avg_sfcWind), linetype="dotted", color = "red") +
+  labs(y = "sfcWind", x = "")
+
+grid.arrange(p1, p2, p3, p4, nrow = 2)
 ```
 
 ```{r }
-res |> rmse(obs_sfcWind, nv_sfcWind) |> select(.estimate) |> as.numeric()
-res |> mape(obs_sfcWind, nv_sfcWind) |> select(.estimate) |> as.numeric()
-sign_correlation(res$obs_sfcWind, res$nv_sfcWind)
-amplitude_rmse(res$time, res$obs_sfcWind, res$nv_sfcWind)
-amplitude_mape(res$time, res$obs_sfcWind, res$nv_sfcWind)
-maximum_correlation(res$time, res$obs_sfcWind, res$nv_sfcWind)
-maximum_difference(res$time, res$obs_sfcWind, res$nv_sfcWind)
-
-res |> rmse(obs_sfcWind, knnr_sfcWind) |> select(.estimate) |> as.numeric()
-res |> mape(obs_sfcWind, knnr_sfcWind) |> select(.estimate) |> as.numeric()
-sign_correlation(res$obs_sfcWind, res$knnr_sfcWind)
-amplitude_rmse(res$time, res$obs_sfcWind, res$knnr_sfcWind)
-amplitude_mape(res$time, res$obs_sfcWind, res$knnr_sfcWind)
-amplitude_difference_of_means(res$time, res$obs_sfcWind, res$knnr_sfcWind)
-maximum_correlation(res$time, res$obs_sfcWind, res$knnr_sfcWind)
-maximum_difference(res$time, res$obs_sfcWind, res$knnr_sfcWind)
+r <- rbind(
+        metrics(res$time, res$obs_sfcWind, res$nv_sfcWind, "nv"),
+        metrics(res$time, res$obs_sfcWind, res$knnr_sfcWind, "knnr"),
+        metrics(res$time, res$obs_sfcWind, res$nv2_sfcWind, "nv_2"),
+        metrics(res$time, res$obs_sfcWind, res$knnreg_sfcWind, "knnreg")
+      )
+r
 ```
 
 ```{r}
 p1 <- maximum_histograms(res$time, res$obs_sfcWind, res$nv_sfcWind) + scale_fill_discrete(labels = c("nv", "obs"))
 p2 <- maximum_histograms(res$time, res$obs_sfcWind, res$knnr_sfcWind) + scale_fill_discrete(labels = c("knnr", "obs"))
-p3 <- maximum_histograms(res$time, res$obs_sfcWind, res$nv2_sfcWind) + scale_fill_discrete(labels = c("knnr", "obs"))
-p4 <- maximum_histograms(res$time, res$obs_sfcWind, res$knnreg_sfcWind) + scale_fill_discrete(labels = c("knnr", "obs"))
+p3 <- maximum_histograms(res$time, res$obs_sfcWind, res$nv2_sfcWind) + scale_fill_discrete(labels = c("nv2", "obs"))
+p4 <- maximum_histograms(res$time, res$obs_sfcWind, res$knnreg_sfcWind) + scale_fill_discrete(labels = c("knnreg", "obs"))
 
 grid.arrange(p1, p2, p3, p4, nrow = 4, top = "How Often Peaks Hit Hourly")
 ```
@@ -244,11 +250,14 @@ ggplot(res_to_plot, aes(x=sfcWind, color = model))+
 p1 <- extremogram1(res$obs_sfcWind, quant = .97, maxlag = 48, type = 1, ploting = 0)
 p2 <- extremogram1(res$nv_sfcWind, quant = .97, maxlag = 48, type = 1, ploting = 0)
 p3 <- extremogram1(res$knnr_sfcWind, quant = .97, maxlag = 48, type = 1,  ploting = 0)
-res_to_plot <- data.frame(model = c(rep("obs", 48), rep("nv", 48), rep("knnr", 48)),
-                          lag = c(1:48, 1:48, 1:48),
-                          extremogram = c(p1,p2,p3))
+p4 <- extremogram1(res$nv2_sfcWind, quant = .97, maxlag = 48, type = 1,  ploting = 0)
+p5 <- extremogram1(res$knnreg_sfcWind, quant = .97, maxlag = 48, type = 1,  ploting = 0)
+
+res_to_plot <- data.frame(model = c(rep("obs", 48), rep("nv", 48), rep("knnr", 48), rep("nv2", 48), rep("knnreg", 48)),
+                          lag = c(1:48, 1:48, 1:48, 1:48, 1:48),
+                          extremogram = c(p1,p2,p3,p4,p5))
 
 ggplot(res_to_plot, mapping = aes(x = lag, y = extremogram)) +
     geom_segment(mapping = aes(xend = lag, yend = 0)) +
-    facet_wrap(~ model, nrow = 1)
+    facet_wrap(~ model, nrow = 2)
 ```

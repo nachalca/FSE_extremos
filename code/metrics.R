@@ -1,6 +1,28 @@
 library(ggplot2)
 source("utils.R")
 
+
+metrics <- function(time, truth, estimate, model){
+  df <- data.frame(
+    "rmse" = c(rmse(truth, estimate)),
+    "mape" = c(mape(truth, estimate)),
+    "sign_correlation" = c(sign_correlation(truth, estimate)),
+    "amplitude_rmse" = c(amplitude_rmse(time, truth, estimate)),
+    "amplitude_ratio_of_means" = c(amplitude_ratio_of_means(time, truth, estimate)),
+    "maximum_correlation" = c(maximum_correlation(time, truth, estimate)),
+    "maximum_difference" = c(maximum_difference(time, truth, estimate))
+  )
+  rownames(df) <- c(model)
+  df
+}
+
+rmse <- function(truth, estimate){
+  sqrt(sum((truth - estimate)^2)/length(truth))
+}
+mape <- function(truth, estimate){
+  (sum(abs((truth - estimate)/truth))/length(truth))*100
+}
+
 sign_correlation <- function(truth, estimate) {
   df <- data.frame("truth" = truth, "estimate" = estimate)
   cor <- df |> mutate(nxt_truth = if_else(lead(truth) > truth, 1, -1), 
@@ -16,9 +38,9 @@ amplitude_rmse <- function(time, truth, estimate){
   r <- df |> mutate(date = getDate(time)) |> 
     group_by(date) |>
     summarize(truth_amplitude = max(truth) - min(truth), estimate_amplitude = max(estimate) - min(estimate)) |>
-    ungroup() |>
-    rmse(truth_amplitude, estimate_amplitude)
-  r[[3]]
+    ungroup() 
+  
+  rmse(r$truth_amplitude, r$estimate_amplitude)
 }
 
 amplitude_mape <- function(time, truth, estimate){
@@ -26,9 +48,9 @@ amplitude_mape <- function(time, truth, estimate){
   r <- df |> mutate(date = getDate(time)) |> 
     group_by(date) |>
     summarize(truth_amplitude = max(truth) - min(truth), estimate_amplitude = max(estimate) - min(estimate)) |>
-    ungroup() |>
-    mape(truth_amplitude, estimate_amplitude)
-  r[[3]]
+    ungroup() 
+  mape(r$truth_amplitude, r$estimate_amplitude)
+ 
 }
 
 amplitude_difference_of_means <- function(time, truth, estimate){
@@ -38,6 +60,16 @@ amplitude_difference_of_means <- function(time, truth, estimate){
     summarize(truth_amplitude = max(truth) - min(truth), estimate_amplitude = max(estimate) - min(estimate)) |>
     ungroup() |>
     summarize(difference_of_means = mean(truth_amplitude) - mean(estimate_amplitude))
+  r[[1]]
+}
+
+amplitude_ratio_of_means <- function(time, truth, estimate){
+  df <- data.frame("time" = time, "truth" = truth, "estimate" = estimate)
+  r <- df |> mutate(date = getDate(time)) |> 
+    group_by(date) |>
+    summarize(truth_amplitude = max(truth) - min(truth), estimate_amplitude = max(estimate) - min(estimate)) |>
+    ungroup() |>
+    summarize(difference_of_means = mean(estimate_amplitude)/mean(truth_amplitude))
   r[[1]]
 }
 
@@ -85,7 +117,7 @@ maximum_correlation <- function(time, truth, estimate){
   
   result <- maximum_hour(time, truth, estimate) |> 
     mutate(coincidence = if_else(truth_hour == est_hour, 1, 0)) |>
-    summarize(sum(coincidence))
+    summarize(sum(coincidence)/n())
   
   result[[1]]
 }
@@ -94,7 +126,7 @@ maximum_difference <- function(time, truth, estimate){
   
   result <- maximum_hour(time, truth, estimate)  |> 
     mutate(dif = abs(truth_hour - est_hour)) |>
-    summarize(sum(dif))
+    summarize(sum(dif)/n())
   
   result[[1]]
 }
