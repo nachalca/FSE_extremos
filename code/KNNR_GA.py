@@ -5,8 +5,13 @@ variable = "sfcWind"
 avg_variable = "avg_" + variable
 
 def prepare_data(data):
+
+    # create a new column with the hour
+    data["hour"] = data["time"].apply(lambda x: int(x.split(" ")[1].split(":")[0]))
+
     # transform the first column to get only the date without time
     data["time"] = data["time"].apply(lambda x: x.split(" ")[0])
+
 
     # Reshape the dataframe to a wide format (| avg_variable | hour_1 | hour_2 | ... | hour_24)
     data = data.pivot(index=['time', avg_variable], columns=['hour'], values=variable).reset_index()
@@ -81,16 +86,23 @@ def main():
     results = []
 
     for day in targets.index:
-        k_nearest = k_nearest_neighbours(observations, targets, day, k)
-        
-        first, second = select(k_nearest)
-        prediction = crossover(first, second, 0)
-        prediction["time"] = day
-        adjust(prediction,targets.loc[day][avg_variable])
+        temp_results = []
+        #We repeat the process 10 times 
+        for i in range(0,10):
+            k_nearest = k_nearest_neighbours(observations, targets, day, k)
+            
+            first, second = select(k_nearest)
+            prediction = crossover(first, second, 0.3)
+            prediction["time"] = day
+            adjust(prediction,targets.loc[day][avg_variable])
 
-        #drop the last three columns
-        prediction = prediction.drop(columns=["difference","prob","cum_prob"])
-        results.append(prediction)
+            #drop the last three columns
+            prediction = prediction.drop(columns=["difference","prob","cum_prob"])
+            temp_results.append(prediction)
+        #get the mean of the 30 predictions
+        temp_results = pd.concat(temp_results).groupby("time").mean().reset_index()
+        adjust(temp_results,targets.loc[day][avg_variable])
+        results.append(temp_results)
     
     predictions = pd.concat(results)
     
@@ -104,7 +116,7 @@ def main():
     predictions = predictions.sort_values(by="time")
 
     print(predictions.head())
-    predictions.to_csv("code/predictions_2.csv", index=False)
+    predictions.to_csv("code/predictions.csv", index=False)
 main()
 
 # 0.5274469

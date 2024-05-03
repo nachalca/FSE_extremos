@@ -11,6 +11,14 @@ codigo/*.zip
 *.aux
 *.log
 *.out
+*.snm
+*.nav
+*.toc
+*.vrb
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+.vscode
 
 Downscaling/experimentation_bruno/credentials.csv
 code/naive_model.html

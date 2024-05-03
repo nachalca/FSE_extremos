@@ -131,25 +131,6 @@ engine <- extract_fit_engine(model_fit)
 engine |> report_table()
 ```
 
-```{r}
-slope <- c()
-intercept <- c()
-
-for(i in 1:23){
-  slope <- append(slope, engine$coefficients[sprintf("hour%s_x_avg_sfcWind", i)][[1]])
-  intercept <- append(intercept, engine$coefficients[sprintf("hour%s", i)][[1]])
-}
-
-lines_df <- data.frame(slope = slope,
-                       intercept = intercept,
-                       index = as.factor(1:23)) 
-
-ggplot() + 
-  geom_abline(data = lines_df, aes(slope = slope, intercept = intercept, color = index)) +
-  xlim(0, 12) +
-  ylim(-3,12)
-```
-
 ```{r show_summary_v2, echo=FALSE}
 engine <- extract_fit_engine(model_fit_v2)
 #Hours are statistically significant, as is their interaction with the avg_sfcWinderature; months are not. 
@@ -165,7 +146,7 @@ res <-  reanalysis |>
   inner_join(cmip_6_v2, by = join_by(time)) |>
   inner_join(knnreg, by = join_by(time))
   
-predictions <- fread('predictions_2.csv') |>
+predictions <- fread('predictions.csv') |>
               mutate(hour = as.factor(hour)) |>
               select(-avg_sfcWind, -hour)  
 
@@ -184,28 +165,28 @@ p1 <- ggplot(res_to_plot, aes(x=time)) +
   geom_line(aes(y=nv_sfcWind), color = "red") + 
   geom_line(aes(y=obs_avg_sfcWind), linetype="dotted", color = "black") +
   geom_line(aes(y=cmip_avg_sfcWind), linetype="dotted", color = "red") +
-  labs(y = "sfcWind", x = "")
+  labs(y = "sfcWind", x = "", title = "naive model")
   
 p2 <- ggplot(res_to_plot, aes(x=time)) +
   geom_line(aes(y=obs_sfcWind)) +
   geom_line(aes(y=knnr_sfcWind), color = "red") + 
   geom_line(aes(y=obs_avg_sfcWind), linetype="dotted", color = "black") +
   geom_line(aes(y=cmip_avg_sfcWind), linetype="dotted", color = "red") +
-  labs(y = "sfcWind", x = "")
+  labs(y = "sfcWind", x = "", title = "knnr model")
 
 p3 <- ggplot(res_to_plot, aes(x=time)) +
   geom_line(aes(y=obs_sfcWind)) +
   geom_line(aes(y=nv2_sfcWind), color = "red") + 
   geom_line(aes(y=obs_avg_sfcWind), linetype="dotted", color = "black") +
   geom_line(aes(y=cmip_avg_sfcWind), linetype="dotted", color = "red") +
-  labs(y = "sfcWind", x = "")
+  labs(y = "sfcWind", x = "", title = "naive 2.0 model ")
 
 p4 <- ggplot(res_to_plot, aes(x=time)) +
   geom_line(aes(y=obs_sfcWind)) +
   geom_line(aes(y=knnreg_sfcWind), color = "red") + 
   geom_line(aes(y=obs_avg_sfcWind), linetype="dotted", color = "black") +
   geom_line(aes(y=cmip_avg_sfcWind), linetype="dotted", color = "red") +
-  labs(y = "sfcWind", x = "")
+  labs(y = "sfcWind", x = "", title = "knn regression model")
 
 grid.arrange(p1, p2, p3, p4, nrow = 2)
 ```
@@ -217,7 +198,7 @@ r <- rbind(
         metrics(res$time, res$obs_sfcWind, res$nv2_sfcWind, "nv_2"),
         metrics(res$time, res$obs_sfcWind, res$knnreg_sfcWind, "knnreg")
       )
-r
+r 
 ```
 
 ```{r}
