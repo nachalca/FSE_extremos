@@ -4,16 +4,23 @@ source("utils.R")
 
 metrics <- function(time, truth, estimate, model){
   df <- data.frame(
-    "rmse" = c(rmse(truth, estimate)),
-    "mape" = c(mape(truth, estimate)),
-    "sign_correlation" = c(sign_correlation(truth, estimate)),
-    "amplitude_rmse" = c(amplitude_rmse(time, truth, estimate)),
+    "diff_of_means" = c(diff_of_means(truth, estimate)),
+    "ratio_of_sd" = c(ratio_of_sd(truth, estimate)),
+    "ks_test" = c(ks(truth, estimate)),
     "amplitude_ratio_of_means" = c(amplitude_ratio_of_means(time, truth, estimate)),
-    "maximum_correlation" = c(maximum_correlation(time, truth, estimate)),
-    "maximum_difference" = c(maximum_difference(time, truth, estimate))
+    "maximum_error" = c(maximum_error(time, truth, estimate)),
+    "sign_correlation" = c(sign_correlation(time, truth, estimate))
   )
   rownames(df) <- c(model)
   df
+}
+
+diff_of_means <- function(truth, estimate){
+  mean(truth) - mean(estimate)
+}
+
+ratio_of_sd <- function(truth, estimate){
+  sd(estimate)/sd(truth)
 }
 
 rmse <- function(truth, estimate){
@@ -23,13 +30,23 @@ mape <- function(truth, estimate){
   (sum(abs((truth - estimate)/truth))/length(truth))*100
 }
 
-sign_correlation <- function(truth, estimate) {
-  df <- data.frame("truth" = truth, "estimate" = estimate)
-  cor <- df |> mutate(nxt_truth = if_else(lead(truth) > truth, 1, -1), 
-                nxt_estimate = if_else(lead(estimate) > estimate, 1, -1)) |> 
-    mutate(same_behaviour = if_else(nxt_truth == nxt_estimate,1, 0)) |>
-    filter(row_number() <= n() - 1) |>
-    summarise(cor = sum(sign_correlation = same_behaviour)/n())
+ks <- function(truth, estimate){
+  p <- ks.test(truth, estimate)
+  p$p.value
+}
+
+sign_error <- function(time, truth, estimate) {
+  n <- n_distinct(getDate(time))
+  df <- data.frame("time" = time, "truth" = truth, "estimate" = estimate)
+  
+  cor <- df |> mutate(hour = getHour(time),
+                      nxt_truth = if_else(lead(truth) > truth, 1, 0), 
+                      nxt_estimate = if_else(lead(estimate) > estimate, 1, 0)) |>
+               na.omit() |>
+               group_by(hour) |>
+               summarise(sgn = abs(sum(nxt_truth)/n - sum(nxt_estimate)/n)) |>
+               ungroup() |>
+               summarise(result = sum(sgn)/24)
   cor[[1]]
 }
 
@@ -41,6 +58,7 @@ amplitude_rmse <- function(time, truth, estimate){
     ungroup() 
   
   rmse(r$truth_amplitude, r$estimate_amplitude)
+  delete(r)
 }
 
 amplitude_mape <- function(time, truth, estimate){
@@ -140,4 +158,16 @@ maximum_histograms <- function(time, truth, estimate){
                                                           ) |> mutate(hour = as.factor(hour))
   ggplot(r, aes(x = hour, fill = model)) + 
     geom_bar(position = "dodge2") 
+}
+
+maximum_error <- function(time, truth, estimate){
+  n <- n_distinct(getDate(time))
+  temp <- maximum_hour(time, truth, estimate)
+  t <- temp |> group_by(truth_hour) |> summarize(n_t_hour = n())
+  e <- temp |> group_by(est_hour) |> summarize(n_e_hour = n())
+  result <- t |> 
+              inner_join(e, by = join_by(truth_hour == est_hour)) |> 
+              mutate(diff = abs(n_t_hour - n_e_hour)) |> 
+              summarise(maximum_error = sum(diff)/(2*n))
+  result[[1]]
 }

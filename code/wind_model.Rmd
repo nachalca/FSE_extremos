@@ -116,8 +116,9 @@ for(i in 0:23){
                         predict(cmip_6_1)
   cmip_6_1 <- cmip_6_1 |> select(-avg_sfcWind)
   knnreg <- knnreg |> bind_rows(cmip_6_1)
+  
 }
-
+rm(cmip_6_1)
 knnreg <- knnreg |> rename("knnreg_sfcWind" = "sfcWind") |> arrange(time)
 ```
 
@@ -191,14 +192,13 @@ p4 <- ggplot(res_to_plot, aes(x=time)) +
 grid.arrange(p1, p2, p3, p4, nrow = 2)
 ```
 
-```{r }
+```{r, warning=FALSE}
 r <- rbind(
         metrics(res$time, res$obs_sfcWind, res$nv_sfcWind, "nv"),
         metrics(res$time, res$obs_sfcWind, res$knnr_sfcWind, "knnr"),
         metrics(res$time, res$obs_sfcWind, res$nv2_sfcWind, "nv_2"),
         metrics(res$time, res$obs_sfcWind, res$knnreg_sfcWind, "knnreg")
       )
-r 
 ```
 
 ```{r}
@@ -241,4 +241,45 @@ res_to_plot <- data.frame(model = c(rep("obs", 48), rep("nv", 48), rep("knnr", 4
 ggplot(res_to_plot, mapping = aes(x = lag, y = extremogram)) +
     geom_segment(mapping = aes(xend = lag, yend = 0)) +
     facet_wrap(~ model, nrow = 2)
+```
+
+```{r}
+p1 <- acf(res$obs_sfcWind,  lag.max = 47, plot = F)
+p2 <- acf(res$nv_sfcWind,  lag.max = 47, plot = F)
+p3 <- acf(res$knnr_sfcWind, lag.max = 47, plot = F)
+p4 <- acf(res$nv2_sfcWind, lag.max = 47, plot = F)
+p5 <- acf(res$knnreg_sfcWind, lag.max = 47, plot = F)
+
+res_to_plot <- data.frame(model = c(rep("obs", 48), rep("nv", 48), rep("knnr", 48), rep("nv2", 48), rep("knnreg", 48)),
+                          lag = c(1:48, 1:48, 1:48, 1:48, 1:48),
+                          acf = c(p1$acf,p2$acf,p3$acf,p4$acf,p5$acf))
+
+ggplot(res_to_plot, mapping = aes(x = lag, y = acf)) +
+    geom_segment(mapping = aes(xend = lag, yend = 0)) +
+    facet_wrap(~ model, nrow = 2)
+```
+
+```{r}
+## For test only, this kind of work will be moved to the diagnoses of the cmip model
+
+reanalysis_by_day <- reanalysis |> 
+                      mutate(day = getDate(time)) |>
+                      group_by(day) |>
+                      summarise(reanalysis = mean(avg_sfcWind)) |>
+                      ungroup() |>
+                      mutate(reanalysis = reanalysis - mean(reanalysis))
+cmip_6_by_day <- cmip_6 |> 
+                  mutate(day = getDate(time)) |>
+                  group_by(day) |>
+                  summarise(cmip_6 = mean(avg_sfcWind)) |>
+                  ungroup() |>
+                  mutate(cmip_6 = cmip_6 - mean(cmip_6))
+
+df <- reanalysis_by_day |> inner_join(cmip_6_by_day) 
+
+ks.test(df$reanalysis, df$cmip_6)
+
+ggplot(df) +
+  geom_density(aes(x=reanalysis)) +
+  geom_density(aes(x=cmip_6), color = "red")
 ```

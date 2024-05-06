@@ -3,6 +3,9 @@
 \usepackage{amsmath}
 \usepackage{listings}
 \usepackage{outlines}
+\usepackage{graphicx}
+\usepackage{amsfonts}
+\usepackage{bbm}
 
 \usetheme{Madrid}
 \useoutertheme{miniframes} % Alternatively: miniframes, infolines, split
@@ -136,21 +139,42 @@
            \end{outline}
     \end{frame}
 
-    \begin{frame}{Metrics}
-        \begin{table}[htbp]
+    \subsection{Metrics}
+    \begin{frame}{}
+        \scalebox{0.85}{
+        
             \centering
-            \begin{tabular}{|l|c|c|c|c|c|c|c|}
+            \begin{tabular}{|l|c|c|c|c|c|c|}
             \hline
-            & rmse & mape & sign\_correlation & amp\_rmse & amp\_rtio\_means   \\
+            & diff\_of\_means & ratio\_of\_sd & ks\_test & amp\_rtio\_means & max\_error & sign\_cor \\
             \hline
-            nv & 1.771 & 36.176 & 0.603 & 1.770 & 0.322  \\
-            knnr & 1.789 & 36.532 & 0.543 & 1.427 & 0.554 \\
-            nv\_2 & 1.791 & 36.679 & 0.591 & 1.493 & 0.523   \\
-            knnreg & 1.761 & 35.970 & 0.593 & 1.732 & 0.342 \\
+            nv & 0.240 & 0.840 & 0 & 0.322 & 0.488 & 0.265 \\
+            knnr & 0.240 & 0.861 & 0 & 0.554 & 0.210 & 0.040 \\
+            nv\_2 & 0.240 & 0.863 & 0 & 0.523 & 0.344 & 0.175 \\
+            knnreg & 0.236 & 0.828 & 0 & 0.342 & 0.313 & 0.205 \\
             \hline
             \end{tabular}
-            \label{tab:metrics}
-        \end{table}
+        }
+    \end{frame}
+
+    \begin{frame}{Comments 1/2}
+        \begin{outline}
+            \1 $diff\_of\_means = \bar{Y} - \bar{\hat{Y}}$
+            \1 $ratio\_of\_sd = \frac{\sigma_{\hat{Y}}}{\sigma_{Y}}$    
+            \1 $ks\_test$ is the p-value of the Kolmogorov-Smirnov test
+            \1 $amp\_rtio\_means = \sum_{d=1}^{n}\frac{max({y \in D_d}) - min({y \in D_d})}{max({\hat{y} \in D_d}) - min({\hat{y} \in D_d})}$
+            \1 $max\_error = \frac{\sum_{h=1}^{24}\#maximum_h(Y) - \#maximum_h(\hat{Y})}{2n}$
+            \1 $sign\_cor = \frac{\sum_{h=1}^{24}(\sum_{i \in N_h}\mathbbm{1}(y_i > y_{i+1}) - \sum_{i \in N_h}\mathbbm{1}(\hat{y}_i > \hat{y}_{i+1}))}{24n}$    
+        \end{outline}
+    \end{frame}
+
+    \begin{frame}{Comments 2/2}
+        \begin{outline}
+            \1 $n$: Number of days
+            \1 $D_d$: Day $d$
+            \1 $maximum_h(Y)$: Returns the days where the maximum of the day is at hour $h$
+            \1 $N_h = \{h + 24z: z \in {1, \ldots, n}\}$
+        \end{outline}
     \end{frame}
 
     \subsection{How Often Peaks Hit Hourly}
@@ -194,8 +218,23 @@
     \begin{frame}{Comments}
         \begin{outline}
             \1 In all the models we have that the likelihood of an extreme value appearing with a large lag is consistently overestimated i.e. all the extremograms had a slower decay than the extremogram of the reanalysis.
-            \1 In every model, the extremogram shows a rise around the lag 24, indicating that when an extreme value occurs, the next day is more likely to also experience an extreme value, in comparison withthe reanalysis.
+            \1 In every model, the extremogram shows a rise around the lag 24, indicating that when an extreme value occurs, the next day is more likely to also experience an extreme value, in comparison with the reanalysis.
         \end{outline}
     \end{frame}    
+
+    \subsection{ACF}
+    \begin{frame}{}
+        \begin{figure}
+            \centering
+                \includegraphics[width=0.57\textwidth]{images/acf.png}
+       \end{figure}
+    \end{frame}
+
+    \begin{frame}{Comments}
+        \begin{outline}
+            \1 The reanalysis acf plot has a considerable steepest decay
+            \1 An interest result that I don't here is the acf by hour, there we can see that for the hour that are different of the 0 hour the acf is overestimated and for the 0 hour the acf is underestimated.
+        \end{outline}
+    \end{frame}   
 
 \end{document}
