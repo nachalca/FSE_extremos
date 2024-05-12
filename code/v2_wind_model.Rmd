@@ -1,8 +1,13 @@
----
-title: "v2_wind_model"
-output: html_document
-date: "2024-05-07"
----
+# Wind model
+
+Work in progress, don't pay attention.
+
+## Naive Model
+
+Analagous to the temp model.
+
+$$y_{ih} = \beta_0 + \beta_{1h} + \beta_{2m} + \beta_3*avg\_sfcWind + \beta_{4h}*avg\_sfcWind + \epsilon_i $$
+The data was generated in the notebook `prepare_data.ipnyb`
 
 ```{r load_packages, results='hide', message=FALSE}
 library("tidymodels")
@@ -10,14 +15,15 @@ library("data.table")
 library("report")
 library("gridExtra")
 library("extremogram")
+library("doParallel")
 source("utils.R")
 source("metrics.R")
 
-reanalysis <- fread('reanalysis_sfcWind_training_data.csv') 
-cmip_6 <- fread('cmip6_sfcWind_to_downscale_data.csv') 
+reanalysis <- fread('reanalysis_sfcWind_training_data.csv') |> mutate(month = as.factor(getMonth(time)),
+                                                                      hour = as.factor(getHour(time)))
 ```
 
-### Preparate the data for the naive model v2.0
+### Add last avg and next avg
 
 ```{r}
 temp <- reanalysis |> mutate(date = getDate(time)) |> 
@@ -25,101 +31,284 @@ temp <- reanalysis |> mutate(date = getDate(time)) |>
     mutate(prev_avg_sfcWind = lag(avg_sfcWind), nxt_avg_sfcWind = lead(avg_sfcWind)) |>
     select(-avg_sfcWind) |>
     na.omit()
-reanalysis_v2 <- reanalysis |> mutate(date = getDate(time)) |> inner_join(temp) |> select(-date)
+reanalysis <- reanalysis |> mutate(date = getDate(time)) |> inner_join(temp) |> select(-date)
 rm(temp)
+```
 
-temp <- cmip_6 |> mutate(date = getDate(time)) |> 
-    group_by(date) |> summarize(avg_sfcWind = mean(avg_sfcWind)) |> 
-    mutate(prev_avg_sfcWind = lag(avg_sfcWind), nxt_avg_sfcWind = lead(avg_sfcWind)) |>
-    select(-avg_sfcWind) |>
-    na.omit()
-cmip_6_v2 <- cmip_6 |> mutate(date = getDate(time)) |> inner_join(temp) |> select(-date)
-rm(temp)
+## Add the other variables
+
+```{r}
+temp_1 <- fread('reanalysis_tas_training_data.csv') |> 
+          mutate(date = getDate(time)) |>
+          group_by(date) |>
+          summarize(tas_max = max(tas), tas_min = min(tas))
+temperature <- fread('reanalysis_tas_training_data.csv') |> 
+          mutate(date = getDate(time)) |>
+          inner_join(temp_1, by=join_by(date)) |> select(-date)
+
+precipitation <- fread('reanalysis_precipitation_training_data.csv') |> filter(time < as.Date('2015-01-01')) |> select(-pr)
+
+surface_pressure <- fread('reanalysis_surface_pressure_training_data.csv') |> 
+  filter(time < as.Date('2015-01-01')) |> 
+  select(-sp) |>
+  mutate(sp_daily = sp_daily/100)
+
+reanalysis <- reanalysis |> inner_join(precipitation) |> inner_join(surface_pressure) |> inner_join(temperature)
+rm(precipitation, temp_1, temperature, surface_pressure)
 ```
 
 ```{r}
 reanalysis_train <- reanalysis |> filter(time < as.Date('2014-01-01'))
 reanalysis_test <- reanalysis |> filter(time >= as.Date('2014-01-01'))
 
-reanalysis_v2_train <- reanalysis_v2 |> filter(time < as.Date('2014-01-01'))
-reanalysis_v2_test  <- reanalysis_v2 |> filter(time >= as.Date('2014-01-01'))
+reanalysis_reduced_train <- reanalysis_train |> select(-c(pr_daily,sp_daily,avg_tas,tas,tas_max,tas_min))
+reanalysis_reduced_test <- reanalysis_test |> select(-c(pr_daily,sp_daily,avg_tas,tas,tas_max,tas_min))
 ```
 
 ```{r define_model, message=FALSE}
-model_recipe <- recipe(sfcWind ~ ., data = reanalysis_train) |>
+nv_recipe <- recipe(sfcWind ~ ., data = reanalysis_train) |>
                 update_role(time, new_role = "ID") |>
-                step_mutate(hour = as.factor(getHour(time)), month = as.factor(getMonth(time))) |>
-                step_dummy(all_integer()) |>
                 step_interact(~ hour:avg_sfcWind)
 
-model <- linear_reg() %>% set_engine("lm")
+nv_model <- linear_reg() %>% set_engine("lm")
 
-model_workflow <- 
+nv_workflow <- 
   workflow() %>% 
-  add_model(model) %>% 
-  add_recipe(model_recipe)
+  add_model(nv_model) %>% 
+  add_recipe(nv_recipe)
 
-model_fit <- fit(model_workflow, reanalysis_train)
+nv_fit <- fit(nv_workflow, reanalysis_train)
 
-predicted <- predict(model_fit, reanalysis_test)
+nv_pred <- predict(nv_fit, reanalysis_test)
+rm(nv_recipe, nv_model, nv_workflow)
 ```
 
-
-```{r naive_model_2, message=FALSE}
-model_recipe_v2 <- recipe(sfcWind ~ ., data = reanalysis_v2_train) |>
+```{r, message=FALSE}
+nv_reduced_recipe <- recipe(sfcWind ~ ., data = reanalysis_reduced_train) |>
                 update_role(time, new_role = "ID") |>
-                step_mutate(hour = as.factor(getHour(time)), month = as.factor(getMonth(time))) |>
-                step_dummy(all_integer()) |>
-                step_interact(~ hour:avg_sfcWind + hour:nxt_avg_sfcWind + hour:prev_avg_sfcWind)
+                step_interact(~ hour:avg_sfcWind)
 
+nv_reduced_model <- linear_reg() |> set_engine("lm")
 
-model_v2 <- linear_reg() %>% set_engine("lm")
+nv_reduced_wf <- 
+  workflow() |>
+  add_model(nv_reduced_model) |>
+  add_recipe(nv_reduced_recipe)
 
-model_workflow_v2 <- 
-  workflow() %>% 
-  add_model(model_v2) %>% 
-  add_recipe(model_recipe_v2)
+nv_reduced_fit <- fit(nv_reduced_wf, reanalysis_reduced_train)
 
-model_fit_v2 <- fit(model_workflow_v2, reanalysis_v2_train)
-
-
-predicted_v2 <- reanalysis_v2_test |> cbind(predict(model_fit_v2, reanalysis_v2_test)) |> select(time,.pred)
+nv_reduced_pred <- predict(nv_reduced_fit, reanalysis_reduced_test)
+rm(nv_reduced_recipe, nv_reduced_model, nv_reduced_wf)
 ```
 
+### KNNReg
 
 ```{r}
-knnreg <- copy(reanalysis_train) |> filter(time = NA) |> select(-avg_sfcWind) #Copy dataframe for structure
+knnreg <- copy(reanalysis) |> filter(time = NA) |> select(-c(avg_sfcWind,hour)) #Copy dataframe for structure
 
 for(i in 0:23){
-  train <- reanalysis_train |> filter(getHour(time) == i)
-  test <- reanalysis_test |> filter(getHour(time) == i)
+  reanalysis_train_hour <- reanalysis_train |> filter(hour == i) |> select(-hour)
+  reanalysis_test_hour <- reanalysis_test |> filter(hour == i) |> select(-hour)
 
 
-  knnreg_recipe <- recipe(sfcWind ~ avg_sfcWind, data = train) |>
-    step_scale(all_predictors()) |>
-    step_center(all_predictors())
+  knnreg_recipe <- recipe(sfcWind ~ ., data = reanalysis_train_hour) |>
+    step_scale(all_numeric_predictors()) |>
+    step_center(all_numeric_predictors())
 
   knnreg_model <- nearest_neighbor(weight_func = "rectangular",
-                                neighbors = 10) |>
+                                neighbors = floor(sqrt(nrow(reanalysis_train_hour)))) |>
                                 set_engine("kknn") |>
                                 set_mode("regression")
 
-  knnreg_wkflw <- workflow() |>
+  knnreg_wf <- workflow() |>
     add_recipe(knnreg_recipe) |>
     add_model(knnreg_model)
   
-  knnreg_fit <- fit(knnreg_wkflw, train)
+  knnreg_fit <- fit(knnreg_wf, reanalysis_train_hour)
   
-  test$sfcWind <- knnreg_fit |>
-                        predict(test)
-  test <- test |> select(-avg_sfcWind)
-  knnreg <- knnreg |> bind_rows(test)
-  
+  reanalysis_test_hour$sfcWind <- knnreg_fit |>
+                        predict(reanalysis_test_hour)
+  reanalysis_test_hour <- reanalysis_test_hour |> select(-avg_sfcWind)
+  knnreg <- knnreg |> bind_rows(reanalysis_test_hour)
 }
-rm(test)
-knnreg <- knnreg |> rename("knnreg_sfcWind" = "sfcWind") |> arrange(time)
+
+knnreg_pred <- knnreg |> rename("knnreg_sfcWind" = "sfcWind") |> arrange(time) |> select(c(time, knnreg_sfcWind))
+rm(knnreg_recipe, knnreg_model, knnreg_wf, reanalysis_test_hour, reanalysis_train_hour, knnreg_fit, knnreg)
 ```
 
+```{r}
+knnreg <- copy(reanalysis_reduced_train) |> filter(time = NA) |> select(-c(avg_sfcWind,hour)) #Copy dataframe for structure
+
+for(i in 0:23){
+  reanalysis_train_hour <- reanalysis_reduced_train |> filter(hour == i) |> select(-hour)
+  reanalysis_test_hour <- reanalysis_reduced_test |> filter(hour == i) |> select(-hour)
+
+
+  knnreg_reduced_recipe <- recipe(sfcWind ~ ., data = reanalysis_train_hour)  |>
+    step_scale(all_numeric_predictors()) |>
+    step_center(all_numeric_predictors())
+  
+  knnreg_reduced_model <- nearest_neighbor(weight_func = "rectangular",
+                                neighbors = floor(sqrt(nrow(reanalysis_train_hour)))) |>
+                                set_engine("kknn") |>
+                                set_mode("regression")
+
+  knnreg_reduced_wf <- workflow() |>
+    add_recipe(knnreg_reduced_recipe) |>
+    add_model(knnreg_reduced_model)
+  
+  knnreg_reduced_fit <- fit(knnreg_reduced_wf, reanalysis_train_hour)
+  
+  reanalysis_test_hour$sfcWind <- knnreg_reduced_fit |>
+                        predict(reanalysis_test_hour)
+  reanalysis_test_hour <- reanalysis_test_hour |> select(-avg_sfcWind)
+  knnreg <- knnreg |> bind_rows(reanalysis_test_hour)
+}
+
+knnreg_reduced_pred <- knnreg |> rename("knnreg_reduced_sfcWind" = "sfcWind") |> arrange(time) |> select(c(time, knnreg_sfcWind))
+
+rm(knnreg_reduced_recipe, knnreg_reduced_model, knnreg_reduced_wf, reanalysis_test_hour, reanalysis_train_hour, knnreg_reduced_fit, knnreg)
+```
+
+### XGBoost 
+```{r}
+xgb_recipe <- recipe(sfcWind ~ ., data = reanalysis_train) |>
+                update_role(time, new_role = "ID") |>
+                step_dummy(all_nominal()) 
+                
+
+xgb_model <- boost_tree(
+  trees = 1000,
+  tree_depth = tune(), min_n = tune(),
+  loss_reduction = tune(),                     ## first three: model complexity
+  sample_size = tune(), mtry = tune(),         ## randomness
+  learn_rate = tune()                          ## step size
+) %>%
+  set_engine("xgboost") %>%
+  set_mode("regression")
+
+xgb_wf <- workflow() %>%
+  add_recipe(xgb_recipe) %>%
+  add_model(xgb_model)
+
+xgb_grid <- grid_latin_hypercube(
+  tree_depth(),
+  min_n(),
+  loss_reduction(),
+  sample_size = sample_prop(),
+  finalize(mtry(), reanalysis_train),
+  learn_rate(),
+  size = 20
+)
+
+xgb_folds <- vfold_cv(reanalysis_train)
+
+cl <- makeCluster(4)
+registerDoParallel(cl)
+
+xgb_tune_res <- tune_grid(
+  xgb_wf,
+  resamples = xgb_folds,
+  grid = xgb_grid,
+  control = control_grid(save_pred = TRUE)
+)
+
+
+### USE THE BEST XGBOOST
+xgb_best <- select_best(xgb_tune_res, "rmse")
+
+xgb_workflow <- xgb_wf |> finalize_workflow(xgb_best)
+
+xgb_fit <- fit(xgb_workflow, reanalysis_train)
+
+xgb_predicted <- predict(xgb_fit, reanalysis_test)
+
+rm(xgb_wf, xgb_recipe, xgb_model, xgb_tune_res, xgb_folds, xgb_grid)
+```
+
+```{r}
+xgb_reduced_recipe <- recipe(sfcWind ~ ., data = reanalysis_reduced_train) |>
+                update_role(time, new_role = "ID") |>
+                step_dummy(all_nominal()) 
+                
+
+xgb_reduced_model <- boost_tree(
+  trees = 1000,
+  tree_depth = tune(), min_n = tune(),
+  loss_reduction = tune(),                     ## first three: model complexity
+  sample_size = tune(), mtry = tune(),         ## randomness
+  learn_rate = tune()                          ## step size
+) %>%
+  set_engine("xgboost") %>%
+  set_mode("regression")
+
+xgb_reduced_wf <- workflow() %>%
+  add_recipe(xgb_reduced_recipe) %>%
+  add_model(xgb_reduced_model)
+
+xgb_reduced_grid <- grid_latin_hypercube(
+  tree_depth(),
+  min_n(),
+  loss_reduction(),
+  sample_size = sample_prop(),
+  finalize(mtry(), reanalysis_reduced_train),
+  learn_rate(),
+  size = 20
+)
+
+xgb_reduced_folds <- vfold_cv(reanalysis_reduced_train)
+
+cl <- makeCluster(4)
+registerDoParallel(cl)
+
+xgb_reduced_tune_res <- tune_grid(
+  xgb_reduced_wf,
+  resamples = xgb_reduced_folds,
+  grid = xgb_reduced_grid,
+  control = control_grid(save_pred = TRUE)
+)
+
+
+### USE THE BEST XGBOOST
+xgb_reduced_best <- select_best(xgb_reduced_tune_res, "rmse")
+
+xgb_reduced_wf <- xgb_reduced_wf |> finalize_workflow(xgb_reduced_best)
+
+xgb_reduced_fit <- fit(xgb_reduced_wf, reanalysis_reduced_train)
+
+xgb_reduced_predicted <- predict(xgb_reduced_fit, reanalysis_reduced_test)
+
+rm(xgb_reduced_wf, xgb_reduced_recipe, xgb_reduced_model, xgb_reduced_tune_res, xgb_reduced_folds, xgb_reduced_grid)
+```
+
+## Results
+
+Hours are statistically significant, as is their interaction with the avg_sfcWinderature; months are not. 
+
+```{r show_summary, echo=FALSE}
+engine <- extract_fit_engine(model_fit)
+#Hours are statistically significant, as is their interaction with the avg_sfcWinderature; months are not. 
+engine |> report_table()
+```
+
+```{r show_summary_v2, echo=FALSE}
+engine <- extract_fit_engine(model_fit_v2)
+#Hours are statistically significant, as is their interaction with the avg_sfcWinderature; months are not. 
+engine |> report_table()
+```
+
+```{r, echo=FALSE}
+res <-  reanalysis_test |> rename("obs_sfcWind" = "sfcWind") |>
+  cbind(nv_pred) |> rename("nv_sfcWind" = ".pred") |>
+  cbind(nv_reduced_pred) |> rename("nv_reduced_sfcWind" = ".pred") |>
+  inner_join(knnreg_pred, by = join_by(time)) |>
+  inner_join(knnreg_reduced_pred, by = join_by(time)) |>
+  cbind(xgb_predicted) |> rename("xgb_sfcWind" = ".pred") |>
+  cbind(xgb_reduced_predicted) |> rename("xgb_reduced_sfcWind" = ".pred") |>
+  select(c(time, obs_sfcWind, nv_sfcWind, nv_reduced_sfcWind, knnreg_sfcWind, knnreg_reduced_sfcWind, xgb_sfcWind, xgb_reduced_sfcWind))
+```
+
+Plot (hourly) of three days.
 
 ```{r show_plot, echo=FALSE}
 res_to_plot <- res[0:72,] 
@@ -128,38 +317,42 @@ p1 <- ggplot(res_to_plot, aes(x=time)) +
   geom_line(aes(y=obs_sfcWind)) +
   geom_line(aes(y=nv_sfcWind), color = "red") + 
   labs(y = "sfcWind", x = "", title = "naive model")
-
+  
+p2 <- ggplot(res_to_plot, aes(x=time)) +
+  geom_line(aes(y=obs_sfcWind)) +
+  geom_line(aes(y=knnreg_sfcWind), color = "red") + 
+  labs(y = "sfcWind", x = "", title = "knnreg model")
 
 p3 <- ggplot(res_to_plot, aes(x=time)) +
   geom_line(aes(y=obs_sfcWind)) +
-  geom_line(aes(y=nv2_sfcWind), color = "red") + 
-  labs(y = "sfcWind", x = "", title = "naive 2.0 model ")
+  geom_line(aes(y=xgb_sfcWind), color = "red") + 
+  labs(y = "sfcWind", x = "", title = "xgboost model ")
 
-p4 <- ggplot(res_to_plot, aes(x=time)) +
-  geom_line(aes(y=obs_sfcWind)) +
-  geom_line(aes(y=knnreg_sfcWind), color = "red") + 
-  labs(y = "sfcWind", x = "", title = "knn regression model")
-
-grid.arrange(p1, p3, p4, nrow = 2)
+grid.arrange(p1, p2, p3, nrow = 2)
 ```
 
-
-```{r}
-res <- reanalysis_test |> 
-        cbind(predicted) |> 
-        rename("obs_sfcWind" = "sfcWind", "nv_sfcWind"  = ".pred") |>
-        inner_join(predicted_v2) |>
-        rename("nv2_sfcWind" = ".pred") |>
-        inner_join(knnreg)
-```
-
-```{r}
+```{r, warning=FALSE}
 r <- rbind(
         metrics(res$time, res$obs_sfcWind, res$nv_sfcWind, "nv"),
-        metrics(res$time, res$obs_sfcWind, res$nv2_sfcWind, "nv_2"),
-        metrics(res$time, res$obs_sfcWind, res$knnreg_sfcWind, "knnreg")
-      )
+        metrics(res$time, res$obs_sfcWind, res$nv_reduced_sfcWind, "nv_reduced"),
+        metrics(res$time, res$obs_sfcWind, res$knnreg_sfcWind, "knnreg"),
+        metrics(res$time, res$obs_sfcWind, res$knnreg_reduced_sfcWind, "knnreg_reduced"),
+        metrics(res$time, res$obs_sfcWind, res$xgb_sfcWind, "xgboost"),
+        metrics(res$time, res$obs_sfcWind, res$xgb_reduced_sfcWind, "xgboost_reduced")
+    )
+r
 ```
+
+```{r}
+p1 <- maximum_histograms(res$time, res$obs_sfcWind, res$nv_sfcWind) + scale_fill_discrete(labels = c("nv", "obs"))
+p2 <- maximum_histograms(res$time, res$obs_sfcWind, res$knnreg_sfcWind) + scale_fill_discrete(labels = c("knnreg", "obs"))
+p3 <- maximum_histograms(res$time, res$obs_sfcWind, res$xgb_sfcWind) + scale_fill_discrete(labels = c("xgboost", "obs"))
+p4 <- maximum_histograms(res$time, res$obs_sfcWind, res$xgb_reduced_sfcWind) + scale_fill_discrete(labels = c("xg_reduced", "obs"))
+
+grid.arrange(p1, p2, p3, p4, nrow = 4, top = "How Often Peaks Hit Hourly")
+```
+
+## Extremograms
 
 ```{r}
 res_to_plot <- res |> 
@@ -177,21 +370,18 @@ ggplot(res_to_plot, aes(x=sfcWind, color = model))+
 ```
 
 ```{r}
-p1 <- maximum_histograms(res$time, res$obs_sfcWind, res$nv_sfcWind) + scale_fill_discrete(labels = c("nv", "obs"))
-p2 <- maximum_histograms(res$time, res$obs_sfcWind, res$knnreg_sfcWind) + scale_fill_discrete(labels = c("knnr", "obs"))
-p3 <- maximum_histograms(res$time, res$obs_sfcWind, res$nv2_sfcWind) + scale_fill_discrete(labels = c("nv2", "obs"))
-
-grid.arrange(p1, p2, p3,  nrow = 3, top = "How Often Peaks Hit Hourly")
-```
-```{r}
 p1 <- extremogram1(res$obs_sfcWind, quant = .97, maxlag = 48, type = 1, ploting = 0)
-p2 <- extremogram1(res$nv_sfcWind, quant = .97, maxlag = 48, type = 1, ploting = 0)
-p3 <- extremogram1(res$nv2_sfcWind, quant = .97, maxlag = 48, type = 1,  ploting = 0)
-p4 <- extremogram1(res$knnreg_sfcWind, quant = .97, maxlag = 48, type = 1,  ploting = 0)
+p2 <- extremogram1(res$nv_sfcWind, quant = .97, maxlag = 48, type = 1,  ploting = 0)
+p3 <- extremogram1(res$knnreg_sfcWind, quant = .97, maxlag = 48, type = 1,  ploting = 0)
+p4 <- extremogram1(res$xgb_sfcWind, quant = .97, maxlag = 48, type = 1,  ploting = 0)
+p5 <- extremogram1(res$nv_reduced_sfcWind, quant = .97, maxlag = 48, type = 1,  ploting = 0)
+p6 <- extremogram1(res$knnreg_reduced_sfcWind, quant = .97, maxlag = 48, type = 1,  ploting = 0)
+p7 <- extremogram1(res$xgb_reduced_sfcWind, quant = .97, maxlag = 48, type = 1,  ploting = 0)
 
-res_to_plot <- data.frame(model = c(rep("obs", 48), rep("knnr", 48), rep("nv2", 48), rep("knnreg", 48)),
-                          lag = c(1:48, 1:48, 1:48, 1:48),
-                          extremogram = c(p1,p2,p3,p4))
+res_to_plot <- data.frame(model = c(rep("obs", 48), rep("nv", 48), rep("knnreg", 48), rep("xgboost", 48),
+                                    rep("nv_reduced", 48), rep("knnreg_reduced", 48), rep("xgboost_reduced", 48)),
+                          lag = c(1:48, 1:48, 1:48, 1:48, 1:48, 1:48, 1:48),
+                          extremogram = c(p1,p2,p3,p4,p5,p6,p7))
 
 ggplot(res_to_plot, mapping = aes(x = lag, y = extremogram)) +
     geom_segment(mapping = aes(xend = lag, yend = 0)) +
@@ -199,18 +389,20 @@ ggplot(res_to_plot, mapping = aes(x = lag, y = extremogram)) +
 ```
 
 ```{r}
-p1 <- acf(res$obs_sfcWind,  lag.max = 47, plot = F)
-p2 <- acf(res$nv_sfcWind,  lag.max = 47, plot = F)
-p3 <- acf(res$nv2_sfcWind, lag.max = 47, plot = F)
-p4 <- acf(res$knnreg_sfcWind, lag.max = 47, plot = F)
+p1 <- acf(res$obs_sfcWind, lag.max = 47, plot = F)
+p2 <- acf(res$nv_sfcWind, lag.max = 47, plot = F)
+p3 <- acf(res$knnreg_sfcWind, lag.max = 47, plot = F)
+p4 <- acf(res$xgb_sfcWind, lag.max = 47, plot = F)
+p5 <- acf(res$nv_reduced_sfcWind, lag.max = 47, plot = F)
+p6 <- acf(res$knnreg_reduced_sfcWind, lag.max = 47, plot = F)
+p7 <- acf(res$xgb_reduced_sfcWind, lag.max = 47, plot = F)
 
-res_to_plot <- data.frame(model = c(rep("obs", 48), rep("nv", 48), rep("nv2", 48), rep("knnreg", 48)),
-                          lag = c(1:48, 1:48, 1:48, 1:48),
-                          acf = c(p1$acf,p2$acf,p3$acf,p4$acf))
+res_to_plot <- data.frame(model = c(rep("obs", 48), rep("nv", 48), rep("knnreg", 48), rep("xgboost", 48),
+                                    rep("nv_reduced", 48), rep("knnreg_reduced", 48), rep("xgboost_reduced", 48)),
+                          lag = c(1:48, 1:48, 1:48, 1:48, 1:48, 1:48, 1:48),
+                          acf = c(p1$acf,p2$acf,p3$acf,p4$acf,p5$acf, p6$acf, p7$acf))
 
 ggplot(res_to_plot, mapping = aes(x = lag, y = acf)) +
     geom_segment(mapping = aes(xend = lag, yend = 0)) +
     facet_wrap(~ model, nrow = 2)
 ```
-
-
