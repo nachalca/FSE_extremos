@@ -10,4 +10,8 @@ getHour <- function(time) {
   strtoi(strftime(time, format="%H", tz="GMT"), base=10)
 }
 
+getYear <- function(time) {
+  strtoi(strftime(time, format="%Y", tz="GMT"), base=10)
+}
+
 date()
