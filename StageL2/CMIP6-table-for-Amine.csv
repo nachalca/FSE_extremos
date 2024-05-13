@@ -14,7 +14,7 @@ monthly;historical;total_cloud_cover_percentage;cesm2_waccm;Yes
 monthly;historical;total_cloud_cover_percentage;cnrm_cm6_1_hr;Yes
 monthly;historical;total_cloud_cover_percentage;mri_esm2_0;Yes
 monthly;historical;total_cloud_cover_percentage;ukesm1_0_ll;Yes
-monthly;ssp4_3_4;surface_downwelling_shortwave_radiation;ec_earth3_cc;Yes
+#monthly;ssp4_3_4;surface_downwelling_shortwave_radiation;ec_earth3_cc;Yes
 monthly;ssp4_3_4;surface_downwelling_shortwave_radiation;mri_esm2_0;Yes
 monthly;ssp4_3_4;surface_downwelling_shortwave_radiation;ukesm1_0_ll;Yes
 monthly;ssp4_3_4;toa_incident_shortwave_radiation;ec_earth3_cc;Yes
