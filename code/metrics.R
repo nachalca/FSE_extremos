@@ -35,7 +35,7 @@ ks <- function(truth, estimate){
   p$p.value
 }
 
-sign_error <- function(time, truth, estimate) {
+sign_correlation <- function(time, truth, estimate) {
   n <- n_distinct(getDate(time))
   df <- data.frame("time" = time, "truth" = truth, "estimate" = estimate)
   

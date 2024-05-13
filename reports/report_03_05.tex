@@ -146,7 +146,7 @@
             \centering
             \begin{tabular}{|l|c|c|c|c|c|c|}
             \hline
-            & diff\_of\_means & ratio\_of\_sd & ks\_test & amp\_rtio\_means & max\_error & sign\_cor \\
+            & diff\_of\_means & ratio\_of\_sd & ks\_test & amp\_rtio\_means & max\_error & sign\_error \\
             \hline
             nv & 0.240 & 0.840 & 0 & 0.322 & 0.488 & 0.265 \\
             knnr & 0.240 & 0.861 & 0 & 0.554 & 0.210 & 0.040 \\
@@ -164,7 +164,7 @@
             \1 $ks\_test$ is the p-value of the Kolmogorov-Smirnov test
             \1 $amp\_rtio\_means = \frac{\sum_{d=1}^{n} max({\hat{y} \in D_d}) - min({\hat{y} \in D_d})}{\sum_{d=1}^{n} max({y \in D_d}) - min({y \in D_d})}$
             \1 $max\_error = \frac{\sum_{h=1}^{24}\#maximum_h(Y) - \#maximum_h(\hat{Y})}{2n}$
-            \1 $sign\_cor = \frac{\sum_{h=1}^{24}(\sum_{i \in N_h}\mathbbm{1}(y_i > y_{i+1}) - \sum_{i \in N_h}\mathbbm{1}(\hat{y}_i > \hat{y}_{i+1}))}{24n}$    
+            \1 $sign\_error = \frac{\sum_{h=1}^{24}(\sum_{i \in N_h}\mathbbm{1}(y_i > y_{i+1}) - \sum_{i \in N_h}\mathbbm{1}(\hat{y}_i > \hat{y}_{i+1}))}{24n}$    
         \end{outline}
     \end{frame}
 
