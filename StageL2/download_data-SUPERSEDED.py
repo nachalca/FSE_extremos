@@ -7,6 +7,10 @@
 #             The 'historical' experiment downloads are separated as the dates of 
 #             availability go up to 2014 (the other experiments are projective up to 2100).
 
+## # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # ##
+## THIS FILE IS ONLY FOR COMPARISON PURPOSES -- do not use it to download  ##
+## # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # ##
+
 import cdsapi
 import zipfile
 from os.path import exists
