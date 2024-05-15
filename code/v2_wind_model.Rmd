@@ -19,7 +19,7 @@ library("doParallel")
 source("utils.R")
 source("metrics.R")
 
-seed(1234)
+set.seed(1234) #TODO: Re run all with this seed
 ```
 
 ### Add last avg and next avg
@@ -420,11 +420,12 @@ p4 <- acf(res$xgb_sfcWind, lag.max = 47, plot = F)
 p5 <- acf(res$nv_reduced_sfcWind, lag.max = 47, plot = F)
 p6 <- acf(res$knnreg_reduced_sfcWind, lag.max = 47, plot = F)
 p7 <- acf(res$xgb_reduced_sfcWind, lag.max = 47, plot = F)
+p8 <- acf(res$lstm_sfcWind, lag.max = 47, plot = F)
 
 res_to_plot <- data.frame(model = c(rep("obs", 48), rep("nv", 48), rep("knnreg", 48), rep("xgboost", 48),
-                                    rep("nv_reduced", 48), rep("knnreg_reduced", 48), rep("xgboost_reduced", 48)),
-                          lag = c(1:48, 1:48, 1:48, 1:48, 1:48, 1:48, 1:48),
-                          acf = c(p1$acf,p2$acf,p3$acf,p4$acf,p5$acf, p6$acf, p7$acf))
+                                    rep("nv_reduced", 48), rep("knnreg_reduced", 48), rep("xgboost_reduced", 48), rep("lstm", 48)),
+                          lag = c(1:48, 1:48, 1:48, 1:48, 1:48, 1:48, 1:48, 1:48),
+                          acf = c(p1$acf,p2$acf,p3$acf,p4$acf,p5$acf, p6$acf, p7$acf, p8$acf))
 
 ggplot(res_to_plot, mapping = aes(x = lag, y = acf)) +
     geom_segment(mapping = aes(xend = lag, yend = 0)) +

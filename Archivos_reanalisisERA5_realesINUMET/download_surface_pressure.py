@@ -42,5 +42,5 @@ def baja(year):
     },
     str(year)+'.zip')
 
-for y in [2005]:
+for y in range(2000,2024):
   baja(y)

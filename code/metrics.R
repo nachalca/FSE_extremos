@@ -72,7 +72,6 @@ amplitude_rmse <- function(time, truth, estimate){
     ungroup() 
   
   rmse(r$truth_amplitude, r$estimate_amplitude)
-  delete(r)
 }
 
 amplitude_mape <- function(time, truth, estimate){
