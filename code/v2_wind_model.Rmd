@@ -19,13 +19,14 @@ library("doParallel")
 source("utils.R")
 source("metrics.R")
 
-reanalysis <- fread('reanalysis_sfcWind_training_data.csv') |> mutate(month = as.factor(getMonth(time)),
-                                                                      hour = as.factor(getHour(time)))
+seed(1234)
 ```
 
 ### Add last avg and next avg
 
 ```{r}
+reanalysis <- fread('reanalysis_sfcWind_training_data.csv') |> mutate(month = as.factor(getMonth(time)),
+                                                                      hour = as.factor(getHour(time)))
 temp <- reanalysis |> mutate(date = getDate(time)) |> 
     group_by(date) |> summarize(avg_sfcWind = mean(avg_sfcWind)) |> 
     mutate(prev_avg_sfcWind = lag(avg_sfcWind), nxt_avg_sfcWind = lead(avg_sfcWind)) |>
@@ -297,6 +298,11 @@ engine <- extract_fit_engine(model_fit_v2)
 engine |> report_table()
 ```
 
+```{r}
+xgb_engine <- extract_fit_engine(xgb_fit)
+vip(xgb_engine)
+```
+
 ```{r, echo=FALSE}
 res <-  reanalysis_test |> rename("obs_sfcWind" = "sfcWind") |>
   cbind(nv_pred) |> rename("nv_sfcWind" = ".pred") |>
@@ -306,6 +312,14 @@ res <-  reanalysis_test |> rename("obs_sfcWind" = "sfcWind") |>
   cbind(xgb_predicted) |> rename("xgb_sfcWind" = ".pred") |>
   cbind(xgb_reduced_predicted) |> rename("xgb_reduced_sfcWind" = ".pred") |>
   select(c(time, obs_sfcWind, nv_sfcWind, nv_reduced_sfcWind, knnreg_sfcWind, knnreg_reduced_sfcWind, xgb_sfcWind, xgb_reduced_sfcWind))
+```
+
+```{r}
+## Load the predicted value of the LSTM model
+lstm_predicted <- fread('lstm_output.csv') 
+
+res <- res |> slice(6:nrow(res)) |> cbind(lstm_predicted) |> rename("lstm_sfcWind" = "V1") |> 
+  filter(time >= as.Date('2014-01-02'))
 ```
 
 Plot (hourly) of three days.
@@ -328,17 +342,23 @@ p3 <- ggplot(res_to_plot, aes(x=time)) +
   geom_line(aes(y=xgb_sfcWind), color = "red") + 
   labs(y = "sfcWind", x = "", title = "xgboost model ")
 
-grid.arrange(p1, p2, p3, nrow = 2)
+p4 <- ggplot(res_to_plot, aes(x=time)) +
+  geom_line(aes(y=obs_sfcWind)) +
+  geom_line(aes(y=lstm_sfcWind), color = "red") + 
+  labs(y = "sfcWind", x = "", title = "lstm model ")
+
+grid.arrange(p1, p2, p3, p4, nrow = 2)
 ```
 
 ```{r, warning=FALSE}
 r <- rbind(
-        metrics(res$time, res$obs_sfcWind, res$nv_sfcWind, "nv"),
-        metrics(res$time, res$obs_sfcWind, res$nv_reduced_sfcWind, "nv_reduced"),
-        metrics(res$time, res$obs_sfcWind, res$knnreg_sfcWind, "knnreg"),
-        metrics(res$time, res$obs_sfcWind, res$knnreg_reduced_sfcWind, "knnreg_reduced"),
-        metrics(res$time, res$obs_sfcWind, res$xgb_sfcWind, "xgboost"),
-        metrics(res$time, res$obs_sfcWind, res$xgb_reduced_sfcWind, "xgboost_reduced")
+        metrics_2(res$time, res$obs_sfcWind, res$nv_sfcWind, "nv"),
+        metrics_2(res$time, res$obs_sfcWind, res$nv_reduced_sfcWind, "nv_reduced"),
+        metrics_2(res$time, res$obs_sfcWind, res$knnreg_sfcWind, "knnreg"),
+        metrics_2(res$time, res$obs_sfcWind, res$knnreg_reduced_sfcWind, "knnreg_reduced"),
+        metrics_2(res$time, res$obs_sfcWind, res$xgb_sfcWind, "xgboost"),
+        metrics_2(res$time, res$obs_sfcWind, res$xgb_reduced_sfcWind, "xgboost_reduced"),
+        metrics_2(res$time, res$obs_sfcWind, res$lstm_sfcWind, "lstm")
     )
 r
 ```
@@ -348,8 +368,9 @@ p1 <- maximum_histograms(res$time, res$obs_sfcWind, res$nv_sfcWind) + scale_fill
 p2 <- maximum_histograms(res$time, res$obs_sfcWind, res$knnreg_sfcWind) + scale_fill_discrete(labels = c("knnreg", "obs"))
 p3 <- maximum_histograms(res$time, res$obs_sfcWind, res$xgb_sfcWind) + scale_fill_discrete(labels = c("xgboost", "obs"))
 p4 <- maximum_histograms(res$time, res$obs_sfcWind, res$xgb_reduced_sfcWind) + scale_fill_discrete(labels = c("xg_reduced", "obs"))
+p5 <- maximum_histograms(res$time, res$obs_sfcWind, res$lstm) + scale_fill_discrete(labels = c("lstm", "obs"))
 
-grid.arrange(p1, p2, p3, p4, nrow = 4, top = "How Often Peaks Hit Hourly")
+grid.arrange(p1, p2, p3, p4,p5, nrow = 5, top = "How Often Peaks Hit Hourly")
 ```
 
 ## Extremograms
@@ -364,6 +385,7 @@ res_to_plot <- res |>
      values_to = "sfcWind",
      values_drop_na = TRUE
     ) 
+#|> filter(model %in% c('obs', 'lstm', 'xgb'))
   
 ggplot(res_to_plot, aes(x=sfcWind, color = model))+
   geom_density()
@@ -377,11 +399,13 @@ p4 <- extremogram1(res$xgb_sfcWind, quant = .97, maxlag = 48, type = 1,  ploting
 p5 <- extremogram1(res$nv_reduced_sfcWind, quant = .97, maxlag = 48, type = 1,  ploting = 0)
 p6 <- extremogram1(res$knnreg_reduced_sfcWind, quant = .97, maxlag = 48, type = 1,  ploting = 0)
 p7 <- extremogram1(res$xgb_reduced_sfcWind, quant = .97, maxlag = 48, type = 1,  ploting = 0)
+p8 <- extremogram1(res$lstm_sfcWind, quant = .97, maxlag = 48, type = 1,  ploting = 0)
 
 res_to_plot <- data.frame(model = c(rep("obs", 48), rep("nv", 48), rep("knnreg", 48), rep("xgboost", 48),
-                                    rep("nv_reduced", 48), rep("knnreg_reduced", 48), rep("xgboost_reduced", 48)),
-                          lag = c(1:48, 1:48, 1:48, 1:48, 1:48, 1:48, 1:48),
-                          extremogram = c(p1,p2,p3,p4,p5,p6,p7))
+                                    rep("nv_reduced", 48), rep("knnreg_reduced", 48), rep("xgboost_reduced", 48),
+                                    rep("lstm",48)),
+                          lag = c(1:48, 1:48, 1:48, 1:48, 1:48, 1:48, 1:48, 1:48),
+                          extremogram = c(p1,p2,p3,p4,p5,p6,p7,p8))
 
 ggplot(res_to_plot, mapping = aes(x = lag, y = extremogram)) +
     geom_segment(mapping = aes(xend = lag, yend = 0)) +

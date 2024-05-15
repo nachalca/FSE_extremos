@@ -9,7 +9,21 @@ metrics <- function(time, truth, estimate, model){
     "ks_test" = c(ks(truth, estimate)),
     "amplitude_ratio_of_means" = c(amplitude_ratio_of_means(time, truth, estimate)),
     "maximum_error" = c(maximum_error(time, truth, estimate)),
-    "sign_correlation" = c(sign_correlation(time, truth, estimate))
+    "sign_error" = c(sign_error(time, truth, estimate))
+  )
+  rownames(df) <- c(model)
+  df
+}
+
+#use when the truth and the estimate come from the same model
+metrics_2 <- function(time, truth, estimate, model){
+  df <- data.frame(
+    "rmse" = c(rmse(truth, estimate)),
+    "ratio_of_sd" = c(ratio_of_sd(truth, estimate)),
+    "ks_test" = c(ks(truth, estimate)),
+    "amplitude_ratio_of_means" = c(amplitude_ratio_of_means(time, truth, estimate)),
+    "maximum_error" = c(maximum_error(time, truth, estimate)),
+    "sign_error" = c(sign_error(time, truth, estimate))
   )
   rownames(df) <- c(model)
   df
@@ -35,7 +49,7 @@ ks <- function(truth, estimate){
   p$p.value
 }
 
-sign_correlation <- function(time, truth, estimate) {
+sign_error <- function(time, truth, estimate) {
   n <- n_distinct(getDate(time))
   df <- data.frame("time" = time, "truth" = truth, "estimate" = estimate)
   
@@ -150,7 +164,6 @@ maximum_difference <- function(time, truth, estimate){
 }
 
 maximum_histograms <- function(time, truth, estimate){
-
   r <- maximum_hour(time, truth, estimate) |> pivot_longer(cols = c(truth_hour, est_hour),
                                                            names_to = "model",
                                                            values_to = "hour",
