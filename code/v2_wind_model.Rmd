@@ -45,7 +45,7 @@ temp_1 <- fread('reanalysis_tas_training_data.csv') |>
           summarize(tas_max = max(tas), tas_min = min(tas))
 temperature <- fread('reanalysis_tas_training_data.csv') |> 
           mutate(date = getDate(time)) |>
-          inner_join(temp_1, by=join_by(date)) |> select(-date)
+          inner_join(temp_1, by=join_by(date)) |> select(-c(date,tas))
 
 precipitation <- fread('reanalysis_precipitation_training_data.csv') |> filter(time < as.Date('2015-01-01')) |> select(-pr)
 
@@ -316,9 +316,9 @@ res <-  reanalysis_test |> rename("obs_sfcWind" = "sfcWind") |>
 
 ```{r}
 ## Load the predicted value of the LSTM model
-lstm_predicted <- fread('lstm_output.csv') 
+lstm_predicted <- fread('lstm_output_sfcWind.csv') 
 
-res <- res |> slice(6:nrow(res)) |> cbind(lstm_predicted) |> rename("lstm_sfcWind" = "V1") |> 
+res <- res |> slice(6:nrow(res)) |> cbind(lstm_predicted) |> rename("lstm_sfcWind" = "V1")  |> 
   filter(time >= as.Date('2014-01-02'))
 ```
 

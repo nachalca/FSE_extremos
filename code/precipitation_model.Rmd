@@ -13,18 +13,101 @@ library("extremogram")
 library("doParallel")
 source("utils.R")
 source("metrics.R")
-
-
-reanalysis <- fread('reanalysis_precipitation_training_data.csv')
-cmip_6 <- fread('cmip6_precipitation_to_downscale_data.csv') 
 ```
 
 ```{r}
-res_to_plot <- reanalysis |> inner_join(cmip_6, by = join_by(time)) |> rename("obs_pr_daily" = "pr_daily.x", "cmip_pr_daily" = "pr_daily.y")
+reanalysis <- fread('reanalysis_precipitation_training_data.csv') |> mutate(month = as.factor(getMonth(time)),
+                                                                      hour = as.factor(getHour(time)))
+temp <- reanalysis |> 
+    mutate(date = getDate(time)) |> 
+    group_by(date) |> summarize(pr_daily = mean(pr_daily)) |> 
+    mutate(pr_prev_daily = lag(pr_daily), pr_next_daily = lead(pr_daily)) |>
+    select(-pr_daily) |>
+    na.omit()
 
-ggplot(res_to_plot) +
-  geom_histogram(aes(x=obs_pr_daily), alpha=.5) +
-  geom_histogram(aes(x=cmip_pr_daily), fill = "red", alpha=.5)
+reanalysis <- reanalysis |> mutate(date = getDate(time)) |> inner_join(temp) |> select(-date)
+rm(temp)
+```
 
-rm(res_to_plot) 
+```{r}
+temp_1 <- fread('reanalysis_tas_training_data.csv') |> 
+          mutate(date = getDate(time)) |>
+          group_by(date) |>
+          summarize(tas_max_daily = max(tas), tas_min_daily = min(tas))
+
+temperature <- fread('reanalysis_tas_training_data.csv') |> 
+          mutate(date = getDate(time)) |>
+          inner_join(temp_1, by=join_by(date)) |> select(-c(date,tas))
+
+wind <- fread('reanalysis_sfcWind_training_data.csv') |> select(-sfcWind)
+
+surface_pressure <- fread('reanalysis_surface_pressure_training_data.csv') |> select(-sp) |> mutate(sp_daily = sp_daily/100)
+
+reanalysis <- reanalysis |> inner_join(temperature) |> inner_join(surface_pressure) |> inner_join(wind)
+rm(wind, temp_1, temperature, surface_pressure)
+```
+```{r}
+reanalysis_train <- reanalysis |> filter(time < as.Date('2014-01-01'))
+reanalysis_test <- reanalysis |> filter(time >= as.Date('2014-01-01'))
+
+reanalysis_reduced_train <- reanalysis_train |> select(-c(sfcWind_daily,sp_daily,sfcWind_daily,tas_max_daily,tas_min_daily))
+reanalysis_reduced_test <- reanalysis_test |> select(-c(sfcWind_daily,sp_daily,sfcWind_daily,tas_max_daily,tas_min_daily))
+```
+
+```{r define_model, message=FALSE}
+nv_recipe <- recipe(pr ~ ., data = reanalysis_train) |>
+                update_role(time, new_role = "ID") |>
+                step_interact(~ hour:pr_daily)
+
+nv_model <- linear_reg() %>% set_engine("lm")
+
+nv_workflow <- 
+  workflow() %>% 
+  add_model(nv_model) %>% 
+  add_recipe(nv_recipe)
+
+nv_fit <- fit(nv_workflow, reanalysis_train)
+
+nv_pred <- predict(nv_fit, reanalysis_test)
+rm(nv_recipe, nv_model, nv_workflow)
+```
+
+```{r show_summary, echo=FALSE}
+engine <- extract_fit_engine(nv_fit)
+#Hours are statistically significant, as is their interaction with the avg_sfcWinderature; months are not. 
+engine |> report_table()
+```
+
+```{r, echo=FALSE}
+res <-  reanalysis_test |> rename("obs_pr" = "pr") |>
+  cbind(nv_pred) |> rename("nv_pr" = ".pred") |>
+  select(c(time, obs_pr, nv_pr))
+
+lstm_predicted <- fread('lstm_output_pr.csv') 
+
+res <- res |> slice(6:nrow(res)) |> cbind(lstm_predicted) |> rename("lstm_pr" = "V1")  |> 
+  filter(time >= as.Date('2014-01-02'))
+```
+
+```{r, warning=FALSE}
+r <- rbind(
+        metrics_2(res$time, res$obs_pr, res$nv_pr, "nv"),
+        metrics_2(res$time, res$obs_pr, res$lstm_pr, "lstm")
+    )
+r
+```
+
+```{r}
+res_to_plot <- res |> 
+    pivot_longer(
+     cols = ends_with("_pr"),
+     names_to = "model",
+     names_pattern = "(.*)_pr",
+     values_to = "pr",
+     values_drop_na = TRUE
+    ) 
+#|> filter(model %in% c('obs', 'lstm', 'xgb'))
+  
+ggplot(res_to_plot, aes(x=pr, color = model))+
+  geom_density()
 ```

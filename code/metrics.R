@@ -40,6 +40,10 @@ ratio_of_sd <- function(truth, estimate){
 rmse <- function(truth, estimate){
   sqrt(sum((truth - estimate)^2)/length(truth))
 }
+
+mae <- function(truth, estimate){
+  sum(abs(truth - estimate))/length(truth)
+}
 mape <- function(truth, estimate){
   (sum(abs((truth - estimate)/truth))/length(truth))*100
 }
