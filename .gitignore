@@ -18,6 +18,7 @@ codigo/*.zip
 *.fls
 *.fdb_latexmk
 *.synctex.gz
+*.RData
 .vscode
 
 Downscaling/experimentation_bruno/credentials.csv

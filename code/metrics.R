@@ -20,6 +20,7 @@ metrics_2 <- function(time, truth, estimate, model){
   df <- data.frame(
     "rmse" = c(rmse(truth, estimate)),
     "ratio_of_sd" = c(ratio_of_sd(truth, estimate)),
+    "cor" = c(correlation(truth, estimate)),
     "ks_test" = c(ks(truth, estimate)),
     "amplitude_ratio_of_means" = c(amplitude_ratio_of_means(time, truth, estimate)),
     "maximum_error" = c(maximum_error(time, truth, estimate)),
@@ -31,6 +32,10 @@ metrics_2 <- function(time, truth, estimate, model){
 
 diff_of_means <- function(truth, estimate){
   mean(truth) - mean(estimate)
+}
+
+correlation <- function(truth, estimate){
+  cor(truth, estimate)
 }
 
 ratio_of_sd <- function(truth, estimate){

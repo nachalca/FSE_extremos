@@ -13,6 +13,8 @@ library("extremogram")
 library("doParallel")
 source("utils.R")
 source("metrics.R")
+
+set.seed(1234)
 ```
 
 ```{r}
@@ -72,6 +74,60 @@ nv_pred <- predict(nv_fit, reanalysis_test)
 rm(nv_recipe, nv_model, nv_workflow)
 ```
 
+```{r}
+xgb_recipe <- recipe(pr ~ ., data = reanalysis_train) |>
+                update_role(time, new_role = "ID") |>
+                step_dummy(all_nominal()) 
+                
+xgb_model <- boost_tree(
+  trees = 1000,
+  tree_depth = tune(), min_n = tune(),
+  loss_reduction = tune(),                     ## first three: model complexity
+  sample_size = tune(), mtry = tune(),         ## randomness
+  learn_rate = tune()                          ## step size
+) %>%
+  set_engine("xgboost") %>%
+  set_mode("regression")
+
+xgb_wf <- workflow() %>%
+  add_recipe(xgb_recipe) %>%
+  add_model(xgb_model)
+
+xgb_grid <- grid_latin_hypercube(
+  tree_depth(),
+  min_n(),
+  loss_reduction(),
+  sample_size = sample_prop(),
+  finalize(mtry(), reanalysis_train),
+  learn_rate(),
+  size = 20
+)
+
+xgb_folds <- vfold_cv(reanalysis_train)
+
+cl <- makeCluster(4)
+registerDoParallel(cl)
+
+xgb_tune_res <- tune_grid(
+  xgb_wf,
+  resamples = xgb_folds,
+  grid = xgb_grid,
+  control = control_grid(save_pred = TRUE)
+)
+
+
+### USE THE BEST XGBOOST
+xgb_best <- select_best(xgb_tune_res, "rmse")
+
+xgb_workflow <- xgb_wf |> finalize_workflow(xgb_best)
+
+xgb_fit <- fit(xgb_workflow, reanalysis_train)
+
+xgb_predicted <- predict(xgb_fit, reanalysis_test)
+
+rm(xgb_wf, xgb_recipe, xgb_model, xgb_tune_res, xgb_folds, xgb_grid)
+```
+
 ```{r show_summary, echo=FALSE}
 engine <- extract_fit_engine(nv_fit)
 #Hours are statistically significant, as is their interaction with the avg_sfcWinderature; months are not. 
@@ -81,21 +137,48 @@ engine |> report_table()
 ```{r, echo=FALSE}
 res <-  reanalysis_test |> rename("obs_pr" = "pr") |>
   cbind(nv_pred) |> rename("nv_pr" = ".pred") |>
-  select(c(time, obs_pr, nv_pr))
+  cbind(xgb_predicted) |> rename("xgb_pr" = ".pred") |>
+  select(c(time, obs_pr, nv_pr, xgb_pr))
 
 lstm_predicted <- fread('lstm_output_pr.csv') 
 
-res <- res |> slice(6:nrow(res)) |> cbind(lstm_predicted) |> rename("lstm_pr" = "V1")  |> 
+res <- res |> slice(6:nrow(res)) |> 
+   cbind(lstm_predicted) |> rename("lstm_pr" = "V1")
   filter(time >= as.Date('2014-01-02'))
+```
+
+```{r show_plot, echo=FALSE}
+res_to_plot <- res[0:72,] 
+
+p1 <- ggplot(res_to_plot, aes(x=time)) +
+  geom_line(aes(y=obs_pr)) +
+  geom_line(aes(y=nv_pr), color = "red") + 
+  labs(y = "pr", x = "", title = "naive model")
+  
+
+p2 <- ggplot(res_to_plot, aes(x=time)) +
+  geom_line(aes(y=obs_pr)) +
+  geom_line(aes(y=xgb_pr), color = "red") + 
+  labs(y = "pr", x = "", title = "xgboost model ")
+
+p3 <- ggplot(res_to_plot, aes(x=time)) +
+  geom_line(aes(y=obs_pr)) +
+  geom_line(aes(y=lstm_pr), color = "red") + 
+  labs(y = "pr", x = "", title = "lstm model ")
+
+grid.arrange(p1, p2, p3, nrow = 2)
 ```
 
 ```{r, warning=FALSE}
 r <- rbind(
         metrics_2(res$time, res$obs_pr, res$nv_pr, "nv"),
-        metrics_2(res$time, res$obs_pr, res$lstm_pr, "lstm")
+        metrics_2(res$time, res$obs_pr, res$xgb_pr, "xgb"),
+        metrics_2(res$time, res$obs_pr, res$lstm.v1_pr, "lstm_v1"),
+        metrics_2(res$time, res$obs_pr, res$lstm.v2_pr, "lstm_v2")
     )
 r
 ```
+
 
 ```{r}
 res_to_plot <- res |> 
@@ -106,8 +189,19 @@ res_to_plot <- res |>
      values_to = "pr",
      values_drop_na = TRUE
     ) 
-#|> filter(model %in% c('obs', 'lstm', 'xgb'))
   
 ggplot(res_to_plot, aes(x=pr, color = model))+
   geom_density()
+```
+```{r}
+# Reshape the data
+res_to_plot <- res |> select(-time) |>
+                      pivot_longer(cols = -obs_pr, names_to = "variable", values_to = "value")
+
+ggplot(res_to_plot, aes(x = obs_pr, y = value)) +
+  geom_point() +
+  facet_wrap(~ variable) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "red") +
+  theme_minimal() +
+  labs(x = "Observed", y = "Predicted")
 ```
