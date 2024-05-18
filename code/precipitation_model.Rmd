@@ -143,7 +143,7 @@ res <-  reanalysis_test |> rename("obs_pr" = "pr") |>
 lstm_predicted <- fread('lstm_output_pr.csv') 
 
 res <- res |> slice(6:nrow(res)) |> 
-   cbind(lstm_predicted) |> rename("lstm_pr" = "V1")
+   cbind(lstm_predicted) |> rename("lstm_pr" = "V1") |>
   filter(time >= as.Date('2014-01-02'))
 ```
 
@@ -173,8 +173,7 @@ grid.arrange(p1, p2, p3, nrow = 2)
 r <- rbind(
         metrics_2(res$time, res$obs_pr, res$nv_pr, "nv"),
         metrics_2(res$time, res$obs_pr, res$xgb_pr, "xgb"),
-        metrics_2(res$time, res$obs_pr, res$lstm.v1_pr, "lstm_v1"),
-        metrics_2(res$time, res$obs_pr, res$lstm.v2_pr, "lstm_v2")
+        metrics_2(res$time, res$obs_pr, res$lstm_pr, "lstm_pr")
     )
 r
 ```

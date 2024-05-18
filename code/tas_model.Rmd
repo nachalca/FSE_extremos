@@ -224,4 +224,16 @@ ggplot(res_to_plot, mapping = aes(x = lag, y = acf)) +
     geom_segment(mapping = aes(xend = lag, yend = 0)) +
     facet_wrap(~ model, nrow = 2)
 ```
+
+```{r}
+# Reshape the data
+res_to_plot <- res |> select(-time) |>
+                      pivot_longer(cols = -obs_tas, names_to = "variable", values_to = "value")
+
+ggplot(res_to_plot, aes(x = obs_tas, y = value)) +
+  geom_point() +
+  facet_wrap(~ variable) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "red") +
+  theme_minimal() +
+  labs(x = "Observed", y = "Predicted")
 ```
