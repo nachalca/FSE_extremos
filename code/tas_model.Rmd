@@ -179,6 +179,19 @@ res <- res |> slice(6:nrow(res)) |> cbind(lstm_predicted) |> rename("lstm_tas" =
   filter(time >= as.Date('2014-01-02'))
 ```
 
+### Non paired
+```{r, warning=FALSE}
+r <- rbind(
+        metrics(res$time, res$obs_tas, res$nv_tas, "nv"),
+        metrics(res$time, res$obs_tas, res$nv_reduced_tas, "nv_reduced"),
+        metrics(res$time, res$obs_tas, res$xgb_tas, "xgboost"),
+        metrics(res$time, res$obs_tas, res$lstm_tas, "lstm")
+    )
+r
+```
+
+### Paired
+
 ```{r, warning=FALSE}
 r <- rbind(
         metrics_2(res$time, res$obs_tas, res$nv_tas, "nv"),
@@ -187,6 +200,44 @@ r <- rbind(
         metrics_2(res$time, res$obs_tas, res$lstm_tas, "lstm")
     )
 r
+```
+```{r}
+# Function to create a Q-Q plot comparing quantiles of a sample column against a reference column
+qq_plot_against <- function(data, sample_col) {
+  ref_col <- "obs_tas"
+  sample_data <- data[[sample_col]]
+  ref_data <- data[[ref_col]]
+  
+  # Sort the data
+  sample_data_sorted <- sort(sample_data)
+  ref_data_sorted <- sort(ref_data)
+  
+  # Calculate quantiles
+  n <- min(length(sample_data_sorted), length(ref_data_sorted))
+  quantiles_sample <- sample_data_sorted[seq(1, length(sample_data_sorted), length.out = n)]
+  quantiles_ref <- ref_data_sorted[seq(1, length(ref_data_sorted), length.out = n)]
+  
+  # Create a data frame for plotting
+  quantile_df <- data.frame(Quantiles_Ref = quantiles_ref, Quantiles_Sample = quantiles_sample)
+  
+  # Generate the Q-Q plot
+  ggplot(quantile_df, aes(x = Quantiles_Ref, y = Quantiles_Sample)) +
+    geom_point() +
+    geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
+    ggtitle(paste("Q-Q Plot of", sample_col, "against", ref_col)) +
+    xlab(paste("Quantiles of", ref_col)) +
+    ylab(paste("Quantiles of", sample_col)) +
+    theme_minimal()
+}
+
+# Columns to compare against the reference column
+columns <- c("nv_tas", "xgb_tas", "lstm_tas")
+
+# Generate Q-Q plots
+plots <- lapply(columns, function(col) qq_plot_against(res, col))
+
+# Arrange the plots using gridExtra
+do.call(grid.arrange, c(plots, ncol = 2))  # Arrange in a grid
 ```
 
 ```{r}

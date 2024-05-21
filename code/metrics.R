@@ -19,12 +19,12 @@ metrics <- function(time, truth, estimate, model){
 metrics_2 <- function(time, truth, estimate, model){
   df <- data.frame(
     "rmse" = c(rmse(truth, estimate)),
-    "ratio_of_sd" = c(ratio_of_sd(truth, estimate)),
+    "mae" = c(mae(truth, estimate)),
     "cor" = c(correlation(truth, estimate)),
     "ks_test" = c(ks(truth, estimate)),
-    "amplitude_ratio_of_means" = c(amplitude_ratio_of_means(time, truth, estimate)),
-    "maximum_error" = c(maximum_error(time, truth, estimate)),
-    "sign_error" = c(sign_error(time, truth, estimate))
+    "amplitude_rmse" = c(amplitude_rmse(time, truth, estimate)),
+    "maximum_correlation" = c(maximum_correlation(time, truth, estimate)),
+    "sign_correlation" = c(sign_correlation(truth, estimate))
   )
   rownames(df) <- c(model)
   df
@@ -72,6 +72,17 @@ sign_error <- function(time, truth, estimate) {
                summarise(result = sum(sgn)/24)
   cor[[1]]
 }
+
+sign_correlation <- function(truth, estimate) {
+  df <- data.frame("truth" = truth, "estimate" = estimate)
+  cor <- df |> mutate(nxt_truth = if_else(lead(truth) > truth, 1, -1), 
+                      nxt_estimate = if_else(lead(estimate) > estimate, 1, -1)) |> 
+    mutate(same_behaviour = if_else(nxt_truth == nxt_estimate,1, 0)) |>
+    filter(row_number() <= n() - 1) |>
+    summarise(cor = sum(sign_correlation = same_behaviour)/n())
+  cor[[1]]
+}
+
 
 amplitude_rmse <- function(time, truth, estimate){
   df <- data.frame("time" = time, "truth" = truth, "estimate" = estimate)
