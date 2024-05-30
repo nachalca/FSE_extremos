@@ -2,24 +2,28 @@
 
 We will use this space to communicate about the tasks to be carried out and the progress of the work done during the internship. Please keep this file as clean as possible and keep it up to date.
 
-## List of tasks to be carried out
+## List of tasks to be carries out
+- [ ] add columns of the CMIP6 dataset (mostly historical scenario) for the temperature (tas)
+- [ ] metrics.R translate to Python and check whether the results with Python are indentical to those obtained with R
 
-- [x] Translate everything to English 🏴
+## List of tasks carried out
+
+- [X] Translate everything to English 🏴
 - [X] Familiarize yourself with the netCDF format (https://www.unidata.ucar.edu/software/netcdf/)
 - What Python modules exist for processing this data? If you need to run tests, feel free to explore the files in the "datos" folder at the root of the GitHub repository.
 - [ ] How to visualize the data? The default solution is Panoply (https://www.giss.nasa.gov/tools/panoply/)
   - Use the software to get acquainted (import a data file, produce some graphical representations)
   - Try and/or propose alternatives (e.g., very nice-looking -> https://github.com/blendernc/blendernc)
-- [X] Explore the [Climate Data Store](https://cds.climate.copernicus.eu/#!/home) (CDS) API
-- [X] Replicate the downloading of two files from the CDS
-- [X] Fusion the two files into on single tabular dataset (as below)
-- [ ] Produce a minimal dataset with the target format (this will help Bruno in the downscaling phase)
-  - [X] Copernicus => CMIP6 climate projections in order to retrieve datasets
-  - [X] Build an excel table with the following columns for each dataset retrived from Copernicus : time resolution, variable, experience, model, availability of the model based on previous columns
-  - [X] Write a python script that will enable the downloading of the files from the excel table previously created
-  - [ ] Write a function enabling the fusion of the previously downloaded nc files
+- [X] ~~Explore the [Climate Data Store](https://cds.climate.copernicus.eu/#!/home) (CDS) API~~
+- [X] ~~Replicate the downloading of two files from the CDS~~
+- [X] ~~Fusion the two files into on single tabular dataset (as below)~~
+- [X] ~~Produce a minimal dataset with the target format (this will help Bruno in the downscaling phase)~~
+  - [X] ~~Copernicus => CMIP6 climate projections in order to retrieve datasets~~
+  - [X] ~~Build an excel table with the following columns for each dataset retrived from Copernicus : time resolution, variable, experience, model, availability of the model based on previous columns~~
+  - [X] ~~Write a python script that will enable the downloading of the files from the excel table previously created~~
+  - [X] ~~Write a function enabling the fusion of the previously downloaded nc files~~
   - [ ] Following columns are needed in the dataframes' table :
-    * toy (time of the year) => possible values are expected to be between 0 and 1 ; possible implementation for day i = i-0.5/365
+    * ~~toy (time of the year) => possible values are expected to be between 0 and 1 ; possible implementation for day i = i-0.5/365~~
     * dow (day of the week)
     * trend => first row = 1, 2nd = 2, etc.
 - [ ] Visual tool. We need a graphical tool to represent the weather maps. From matrices (like the ones in the nc files) to actual maps. Maybe a different representation by kind of weather variable (e.g. wind should be 2d). Is it possible to construct 3d representations? (Look at raytracing kind of stuff)  
