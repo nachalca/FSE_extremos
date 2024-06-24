@@ -17,6 +17,7 @@ library("gridExtra")
 library("extremogram")
 library("doParallel")
 library("vip")
+library("butcher")
 source("utils.R")
 source("metrics.R")
 
@@ -228,6 +229,15 @@ xgb_predicted <- predict(xgb_fit, reanalysis_test)
 rm(xgb_wf, xgb_recipe, xgb_model, xgb_tune_res, xgb_folds, xgb_grid)
 ```
 
+Save the best model of xgboost
+
+```{r}
+xgb_fit_butched <- butcher(xgb_fit)
+saveRDS(xgb_fit_butched, file = "models/xgb_sfcWind.rds")
+rm(xgb_fit_butched)
+```
+
+
 ```{r}
 xgb_reduced_recipe <- recipe(sfcWind ~ ., data = reanalysis_reduced_train) |>
                 update_role(time, new_role = "ID") |>
@@ -317,11 +327,27 @@ res <-  reanalysis_test |> rename("obs_sfcWind" = "sfcWind") |>
 
 ```{r}
 ## Load the predicted value of the LSTM model
-lstm_predicted <- fread('lstm_output_sfcWind.csv') 
+cnn_predicted <- fread('cnn_output_sfcWind.csv') |> 
+                    rename("cnn_sfcWind" = "V1") #It's the one with the biggest lag-window
 
-res <- res |> slice(6:nrow(res)) |> cbind(lstm_predicted) |> rename("lstm_sfcWind" = "V1")  |> 
+lstm_predicted <- fread('lstm_output_sfcWind.csv') |> 
+                    slice(6:n()) |>
+                    rename("lstm_sfcWind" = "V1")
+
+res <- res |> 
+    slice(11:nrow(res)) |> 
+    cbind(lstm_predicted) |> 
+    cbind(cnn_predicted) |>
+    filter(time >= as.Date('2014-01-02'))
+```
+
+```{r}
+## Load the predicted value of the LSTM model
+
+res <- res |> cbind(cnn_predicted) |> rename("cnn_sfcWind" = "V1")  |> 
   filter(time >= as.Date('2014-01-02'))
 ```
+
 
 Plot (hourly) of three days.
 
@@ -341,14 +367,19 @@ p2 <- ggplot(res_to_plot, aes(x=time)) +
 p3 <- ggplot(res_to_plot, aes(x=time)) +
   geom_line(aes(y=obs_sfcWind)) +
   geom_line(aes(y=xgb_sfcWind), color = "red") + 
-  labs(y = "sfcWind", x = "", title = "xgboost model ")
+  labs(y = "sfcWind", x = "", title = "xgboost model")
 
 p4 <- ggplot(res_to_plot, aes(x=time)) +
   geom_line(aes(y=obs_sfcWind)) +
   geom_line(aes(y=lstm_sfcWind), color = "red") + 
-  labs(y = "sfcWind", x = "", title = "lstm model ")
+  labs(y = "sfcWind", x = "", title = "lstm model")
 
-grid.arrange(p1, p2, p3, p4, nrow = 2)
+p5 <- ggplot(res_to_plot, aes(x=time)) +
+  geom_line(aes(y=obs_sfcWind)) +
+  geom_line(aes(y=cnn_sfcWind), color = "red") + 
+  labs(y = "sfcWind", x = "", title = "cnn model")
+
+grid.arrange(p1, p2, p3, p4, p5, nrow = 3)
 ```
 
 ```{r, warning=FALSE}
@@ -359,7 +390,8 @@ r <- rbind(
         metrics(res$time, res$obs_sfcWind, res$knnreg_reduced_sfcWind, "knnreg_reduced"),
         metrics(res$time, res$obs_sfcWind, res$xgb_sfcWind, "xgboost"),
         metrics(res$time, res$obs_sfcWind, res$xgb_reduced_sfcWind, "xgboost_reduced"),
-        metrics(res$time, res$obs_sfcWind, res$lstm_sfcWind, "lstm")
+        metrics(res$time, res$obs_sfcWind, res$lstm_sfcWind, "lstm"),
+        metrics(res$time, res$obs_sfcWind, res$cnn_sfcWind, "cnn")
     )
 r
 ```
@@ -372,7 +404,8 @@ r <- rbind(
         metrics_2(res$time, res$obs_sfcWind, res$knnreg_reduced_sfcWind, "knnreg_reduced"),
         metrics_2(res$time, res$obs_sfcWind, res$xgb_sfcWind, "xgboost"),
         metrics_2(res$time, res$obs_sfcWind, res$xgb_reduced_sfcWind, "xgboost_reduced"),
-        metrics_2(res$time, res$obs_sfcWind, res$lstm_sfcWind, "lstm")
+        metrics_2(res$time, res$obs_sfcWind, res$lstm_sfcWind, "lstm"),
+        metrics_2(res$time, res$obs_sfcWind, res$cnn_sfcWind, "cnn")
     )
 r
 ```
@@ -383,8 +416,9 @@ p2 <- maximum_histograms(res$time, res$obs_sfcWind, res$knnreg_sfcWind) + scale_
 p3 <- maximum_histograms(res$time, res$obs_sfcWind, res$xgb_sfcWind) + scale_fill_discrete(labels = c("xgboost", "obs"))
 p4 <- maximum_histograms(res$time, res$obs_sfcWind, res$xgb_reduced_sfcWind) + scale_fill_discrete(labels = c("xg_reduced", "obs"))
 p5 <- maximum_histograms(res$time, res$obs_sfcWind, res$lstm) + scale_fill_discrete(labels = c("lstm", "obs"))
+p6 <- maximum_histograms(res$time, res$obs_sfcWind, res$cnn) + scale_fill_discrete(labels = c("cnn", "obs"))
 
-grid.arrange(p1, p2, p3, p4,p5, nrow = 5, top = "How Often Peaks Hit Hourly")
+grid.arrange(p1, p2, p3, p4,p5, p6, nrow = 6, top = "How Often Peaks Hit Hourly")
 ```
 
 ```{r}
@@ -432,7 +466,7 @@ qq_plot_against <- function(data, sample_col) {
 }
 
 # Columns to compare against the reference column
-columns <- c("nv_sfcWind", "xgb_sfcWind", "lstm_sfcWind")
+columns <- c("nv_sfcWind", "xgb_sfcWind", "lstm_sfcWind", "cnn_sfcWind")
 
 # Generate Q-Q plots
 plots <- lapply(columns, function(col) qq_plot_against(res, col))
@@ -451,12 +485,13 @@ p5 <- extremogram1(res$nv_reduced_sfcWind, quant = .97, maxlag = 48, type = 1,  
 p6 <- extremogram1(res$knnreg_reduced_sfcWind, quant = .97, maxlag = 48, type = 1,  ploting = 0)
 p7 <- extremogram1(res$xgb_reduced_sfcWind, quant = .97, maxlag = 48, type = 1,  ploting = 0)
 p8 <- extremogram1(res$lstm_sfcWind, quant = .97, maxlag = 48, type = 1,  ploting = 0)
+p9 <- extremogram1(res$cnn_sfcWind, quant = .97, maxlag = 48, type = 1,  ploting = 0)
 
 res_to_plot <- data.frame(model = c(rep("obs", 48), rep("nv", 48), rep("knnreg", 48), rep("xgboost", 48),
                                     rep("nv_reduced", 48), rep("knnreg_reduced", 48), rep("xgboost_reduced", 48),
-                                    rep("lstm",48)),
-                          lag = c(1:48, 1:48, 1:48, 1:48, 1:48, 1:48, 1:48, 1:48),
-                          extremogram = c(p1,p2,p3,p4,p5,p6,p7,p8))
+                                    rep("lstm",48), rep("cnn",48)),
+                          lag = c(1:48, 1:48, 1:48, 1:48, 1:48, 1:48, 1:48, 1:48, 1:48),
+                          extremogram = c(p1,p2,p3,p4,p5,p6,p7,p8,p9))
 
 ggplot(res_to_plot, mapping = aes(x = lag, y = extremogram)) +
     geom_segment(mapping = aes(xend = lag, yend = 0)) +
@@ -472,11 +507,13 @@ p5 <- acf(res$nv_reduced_sfcWind, lag.max = 47, plot = F)
 p6 <- acf(res$knnreg_reduced_sfcWind, lag.max = 47, plot = F)
 p7 <- acf(res$xgb_reduced_sfcWind, lag.max = 47, plot = F)
 p8 <- acf(res$lstm_sfcWind, lag.max = 47, plot = F)
+p9 <- acf(res$cnn_sfcWind, lag.max = 47, plot = F)
 
 res_to_plot <- data.frame(model = c(rep("obs", 48), rep("nv", 48), rep("knnreg", 48), rep("xgboost", 48),
-                                    rep("nv_reduced", 48), rep("knnreg_reduced", 48), rep("xgboost_reduced", 48), rep("lstm", 48)),
-                          lag = c(1:48, 1:48, 1:48, 1:48, 1:48, 1:48, 1:48, 1:48),
-                          acf = c(p1$acf,p2$acf,p3$acf,p4$acf,p5$acf, p6$acf, p7$acf, p8$acf))
+                                    rep("nv_reduced", 48), rep("knnreg_reduced", 48), rep("xgboost_reduced", 48), 
+                                    rep("lstm", 48), rep("cnn", 48)),
+                          lag = c(1:48, 1:48, 1:48, 1:48, 1:48, 1:48, 1:48, 1:48, 1:48),
+                          acf = c(p1$acf,p2$acf,p3$acf,p4$acf,p5$acf, p6$acf, p7$acf, p8$acf, p9$acf))
 
 ggplot(res_to_plot, mapping = aes(x = lag, y = acf)) +
     geom_segment(mapping = aes(xend = lag, yend = 0)) +
