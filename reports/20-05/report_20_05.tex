@@ -6,6 +6,7 @@
 \usepackage{graphicx}
 \usepackage{amsfonts}
 \usepackage{bbm}
+\usepackage{ulem}
 
 \usetheme{Madrid}
 \useoutertheme{miniframes} % Alternatively: miniframes, infolines, split
@@ -82,21 +83,22 @@
         \end{figure}
     \end{frame}
 
-    \section{Downscaling}
+    \section{Downscaling: Train Models}
 
     \begin{frame}
         \begin{outline}
+            \1 We train the models with the era5 data only. Split the data in train/validation/test. (2000-2013) train, 2014 test.            
             \1  If we choose to use all the variables as a predictor, we need to look for the variables that are available in both models. Also we need to check if are measured in the same way or a transformation is needed. Also we need to define the period, right now we are only working with the data between 2000-2014, but we can expand this period.
-            \1 We train the models with the era5 data only with the train/validation/test split. (2000-2013) train, 2014 test.
-            \1 With the predicted result for the test, we can measure the errors of the model using our metrics. (We need to define if here we use paired or non paired) 
-            \1 Right now the models are naive, xgboost and lstm (knn discarded (?)). The lstm is the one that is giving the best results, so we are going to focus on NN models.
+            \1 With the predicted result for the test, we can measure the errors of the model using our metrics. (We need to define if in this step we use paired or non paired metrics). 
+            \1 Right now the models are naive, xgboost, lstm and cnn (knn was discarded (?)). LSTM and CNN gave good results so we are going to focus on NN models.
            \end{outline}
     \end{frame}
 
-    \section{Downscaling}
+    \section{Downscaling: Apply Models}
 
     \begin{frame}
         \begin{outline}
+            \1 We apply the models trained with the era5 data to the cmip data.
             \1 We need to define if we are gonna preserve the cmip values or we are gonna use the predicted values without considering the conservation of the aggregated values.
             \1 With the downscaled data we can use our metrics (non paired) to evaluate the performance (taking into account the work done at the validation part).
         \end{outline}
@@ -107,7 +109,7 @@
         \begin{outline}
             \1 Validation
             \1 Look for the predictors that are available in both models.
-            \1 Look for new NN models (Convolutional NN, ...).
+            \1 Look for new NN models (\sout{Convolutional NN}, ...).
             \1 Preservation vs Non preservation
         \end{outline}
     \end{frame}
