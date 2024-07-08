@@ -7,15 +7,16 @@ import cdsapi
 import os
 
 YEARS = range(1980,2024)
-AREA = [-30, -59, -35, -53]
+AREA = [-30, -59, -35, -53] #If we want to do the Salto Grande area we need to set the invervals to  [-26,-60,-36,-48]
 CDS = cdsapi.Client()
+ROOT_FOLDER = os.getcwd()
 VARIABLES = {
-    "2m_temperature": {
-        "reanalysis_name": "t2m", 
-        "cmip6_name": "tas",
-        "hourly": True,
-        "need_to_transform": False,
-    },
+  "2m_temperature": {
+       "reanalysis_name": "t2m", 
+       "cmip6_name": "tas",
+       "hourly": True,
+       "need_to_transform": False,
+   },
     "total_precipitation": {
         "reanalysis_name": "tp", 
         "cmip6_name":"pr",
@@ -29,7 +30,7 @@ VARIABLES = {
         "need_to_transform": True, #We need to take the module sqrt(u10^2 + v10^2)
     },
     "10m_v_component_of_wind": {
-        "reanalysis_name": "u10", 
+        "reanalysis_name": "v10", 
         "cmip6_name":"vas",
         "hourly": True,   
         "need_to_transform": True, #We need to take the module sqrt(u10^2 + v10^2)
@@ -39,7 +40,6 @@ VARIABLES = {
         "cmip6_name":"tasmax",
         "hourly": True,
         "need_to_transform": False, #TODO: Check if this is correct
-
     },
     "minimum_2m_temperature_since_previous_post_processing": {
         "reanalysis_name": "mn2t", 
@@ -74,12 +74,14 @@ VARIABLES = {
 }
 
 def download_data(variable):
+    os.chdir(ROOT_FOLDER)
     variable_name = VARIABLES.get(variable).get("reanalysis_name")
     #If the directory does not exist, create it
     if not os.path.exists(f"data/reanalysis/reanalysis-{variable_name}"):
         os.makedirs(f"data/reanalysis/reanalysis-{variable_name}")
 
-    file = f"{os.getcwd()}/data/reanalysis/reanalysis-{variable_name}"    
+    
+    file = f"{ROOT_FOLDER}/data/reanalysis/reanalysis-{variable_name}"    
     os.chdir(file)
 
     for year in YEARS:
@@ -153,15 +155,34 @@ def download_data(variable):
                     ],
                 },
                 f"{year}.nc")
+        os.chdir(ROOT_FOLDER)
+
+            
+# A function to join all the nc files
+def join_files(variable):
+    os.chdir(ROOT_FOLDER)
+    variable_name = VARIABLES.get(variable).get("reanalysis_name")
+    #If the file already exists, remove it
+    if os.path.exists(f"data/reanalysis/reanalysis-{variable_name}/{variable_name}.nc"):
+        os.remove(f"data/reanalysis/reanalysis-{variable_name}/{variable_name}.nc")
+    os.chdir(f"{ROOT_FOLDER}/data/reanalysis/reanalysis-{variable_name}")
+    os.system(f"cdo -b F64 mergetime *.nc {variable_name}.nc")
+    os.chdir(ROOT_FOLDER)
 
 def main():
+
+    #Download the data for each variable
     for variable in VARIABLES:
         try:
-            print(f"\033[92mDownloading data for {variable}\033[0m")
-            download_data(variable)
+            print(f"\033[92mDownloading data for variable {variable}\033[0m")
+#            download_data(variable)
+            print(f"\033[92mJoining the data for variable {variable}\033[0m")
+            join_files(variable)
         except Exception as e:
             #Print with red color the error
-            print(f"\033[91mError downloading data for {variable}: {e}\033[0m")
+            print(f"\033[91mError with variable {variable}: {e}\033[0m")
+    #Join the files
+    
 
 if __name__ == "__main__":
     main()
