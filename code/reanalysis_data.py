@@ -51,9 +51,9 @@ VARIABLES = {
         "hourly": True,
         "need_to_transform": False, 
    },
-    "surface_pressure": {
-        "reanalysis_name": "sp", 
-        "cmip6_name":"ps",
+    "mean_sea_level_pressure": {
+        "reanalysis_name": "msl", 
+        "cmip6_name":"slp",
         "hourly": True,
         "need_to_transform": False, 
     },
@@ -67,13 +67,13 @@ VARIABLES = {
         "reanalysis_name": "tisr", 
         "cmip6_name":"rsdt",
         "hourly": False,
-        "need_to_transform": False, #TODO: Check if this is correct
+        "need_to_transform": True, # We need to transform Joules to Watts, so we need to divide by the amount of seconds 60*60*24
     },
     "surface_solar_radiation_downwards": {
         "reanalysis_name": "ssrd", 
         "cmip6_name":"rsds",
         "hourly": False,
-        "need_to_transform": False, # / 3600
+        "need_to_transform": True, # We need to transform Joules to Watts, so we need to divide by the amount of seconds 60*60*24
     },
 }
 
@@ -92,77 +92,79 @@ def download_data(variable):
     os.chdir(file)
 
     for year in YEARS:
-        if(VARIABLES.get(variable).get("hourly")):
-            CDS.retrieve(
-                'reanalysis-era5-single-levels',
-                {
-                    'variable': variable,
-                    'year': year,
-                    'area': AREA,
-                    'format': 'netcdf',
-                    'product_type': 'reanalysis',       
-                    'month': [
-                        '01', '02', '03',
-                        '04', '05', '06',
-                        '07', '08', '09',
-                        '10', '11', '12',
-                    ],
-                    'day': [
-                        '01', '02', '03',
-                        '04', '05', '06',
-                        '07', '08', '09',
-                        '10', '11', '12',
-                        '13', '14', '15',
-                        '16', '17', '18',
-                        '19', '20', '21',
-                        '22', '23', '24',
-                        '25', '26', '27',
-                        '28', '29', '30',
-                        '31',
-                    ],
-                    'time': [
-                        '00:00', '01:00', '02:00',
-                        '03:00', '04:00', '05:00',
-                        '06:00', '07:00', '08:00',
-                        '09:00', '10:00', '11:00',
-                        '12:00', '13:00', '14:00',
-                        '15:00', '16:00', '17:00',
-                        '18:00', '19:00', '20:00',
-                        '21:00', '22:00', '23:00',
-                    ],
-                },
-                f"{year}.nc")
-        else:
-            CDS.retrieve(
-                'reanalysis-era5-single-levels',
-                {
-                    'variable': variable,
-                    'year': year,
-                    'area': AREA,
-                    'format': 'netcdf',
-                    'product_type': 'reanalysis',       
-                    'month': [
-                        '01', '02', '03',
-                        '04', '05', '06',
-                        '07', '08', '09',
-                        '10', '11', '12',
-                    ],
-                    'day': [
-                        '01', '02', '03',
-                        '04', '05', '06',
-                        '07', '08', '09',
-                        '10', '11', '12',
-                        '13', '14', '15',
-                        '16', '17', '18',
-                        '19', '20', '21',
-                        '22', '23', '24',
-                        '25', '26', '27',
-                        '28', '29', '30',
-                        '31',
-                    ],
-                },
-                f"{year}.nc")
-        os.chdir(ROOT_FOLDER)
+        #If the file already exists, do not download it
+        if not os.path.exists(f"{year}.nc"):
+            if(VARIABLES.get(variable).get("hourly")):
+                CDS.retrieve(
+                    'reanalysis-era5-single-levels',
+                    {
+                        'variable': variable,
+                        'year': year,
+                        'area': AREA,
+                        'format': 'netcdf',
+                        'product_type': 'reanalysis',       
+                        'month': [
+                            '01', '02', '03',
+                            '04', '05', '06',
+                            '07', '08', '09',
+                            '10', '11', '12',
+                        ],
+                        'day': [
+                            '01', '02', '03',
+                            '04', '05', '06',
+                            '07', '08', '09',
+                            '10', '11', '12',
+                            '13', '14', '15',
+                            '16', '17', '18',
+                            '19', '20', '21',
+                            '22', '23', '24',
+                            '25', '26', '27',
+                            '28', '29', '30',
+                            '31',
+                        ],
+                        'time': [
+                            '00:00', '01:00', '02:00',
+                            '03:00', '04:00', '05:00',
+                            '06:00', '07:00', '08:00',
+                            '09:00', '10:00', '11:00',
+                            '12:00', '13:00', '14:00',
+                            '15:00', '16:00', '17:00',
+                            '18:00', '19:00', '20:00',
+                            '21:00', '22:00', '23:00',
+                        ],
+                    },
+                    f"{year}.nc")
+            else:
+                CDS.retrieve(
+                    'reanalysis-era5-single-levels',
+                    {
+                        'variable': variable,
+                        'year': year,
+                        'area': AREA,
+                        'format': 'netcdf',
+                        'product_type': 'reanalysis',       
+                        'month': [
+                            '01', '02', '03',
+                            '04', '05', '06',
+                            '07', '08', '09',
+                            '10', '11', '12',
+                        ],
+                        'day': [
+                            '01', '02', '03',
+                            '04', '05', '06',
+                            '07', '08', '09',
+                            '10', '11', '12',
+                            '13', '14', '15',
+                            '16', '17', '18',
+                            '19', '20', '21',
+                            '22', '23', '24',
+                            '25', '26', '27',
+                            '28', '29', '30',
+                            '31',
+                        ],
+                    },
+                    f"{year}.nc")
+            os.chdir(ROOT_FOLDER)
 
             
 # A function to join all the nc files
@@ -272,8 +274,10 @@ def final_dataset():
     data = data.drop(columns=['uas', 'vas'])
     #We need to transform the cloud cover to percentage
     data['clt'] = data['clt']*100
+    #We need to transform the toa_incident_solar_radiation to W m-2
+    data['rsdt'] = data['rsdt'] / (60*60*24)
     #We need to transform the solar radiation to W m-2
-    data['rsds'] = data['rsds'] / 3600
+    data['rsds'] = data['rsds'] / (60*60*24)
 
     #Get the solar position.
     data['time_2'] = pd.to_datetime(data['time'])
@@ -285,17 +289,17 @@ def final_dataset():
 
 
 def main():
-    #Download the data for each variable
-#     for variable in VARIABLES:
-#         try:
-# #            download_data(variable)
-#             join_files(variable)
-#             summarize_data(variable)
-#             if not VARIABLES.get(variable).get("hourly"):
-#                 expand_daily_to_hourly(variable)
+#    Download the data for each variable
+    for variable in VARIABLES:
+        try:
+            download_data(variable)
+            join_files(variable)
+            summarize_data(variable)
+            if not VARIABLES.get(variable).get("hourly"):
+                expand_daily_to_hourly(variable)
 
-#         except Exception as e:
-#             print(f"\033[91mError with variable {variable}: {e}\033[0m")
+        except Exception as e:
+            print(f"\033[91mError with variable {variable}: {e}\033[0m")
     
     merge_all_data()
     final_dataset()

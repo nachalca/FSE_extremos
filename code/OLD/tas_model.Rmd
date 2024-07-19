@@ -1,0 +1,290 @@
+---
+title: "tas_model"
+output: html_document
+date: "2024-05-16"
+---
+
+```{r load_packages, results='hide', message=FALSE}
+library("tidymodels")
+library("data.table")
+library("report")
+library("gridExtra")
+library("extremogram")
+library("doParallel")
+library("vip")
+source("utils.R")
+source("metrics.R")
+
+set.seed(1234)
+```
+
+```{r}
+reanalysis <- fread('reanalysis_tas_training_data.csv') |> mutate(month = as.factor(getMonth(time)),
+                                                                      hour = as.factor(getHour(time)))
+temp <- reanalysis |> mutate(date = getDate(time)) |> 
+    group_by(date) |> summarize(tas_daily = mean(tas_daily), tas_max_daily = max(tas), tas_min_daily = min(tas)) |> 
+    mutate(tas_prev_daily = lag(tas_daily), tas_next_daily = lead(tas_daily)) |>
+    select(-tas_daily) |>
+    na.omit()
+
+reanalysis <- reanalysis |> mutate(date = getDate(time)) |> inner_join(temp) |> select(-date)
+rm(temp)
+```
+
+```{r}
+precipitation <- fread('reanalysis_precipitation_training_data.csv') |> select(-pr)
+
+wind <- fread('reanalysis_sfcWind_training_data.csv') |> select(-sfcWind)
+
+surface_pressure <- fread('reanalysis_surface_pressure_training_data.csv') |> select(-sp) |> mutate(sp_daily = sp_daily/100)
+
+reanalysis <- reanalysis |> inner_join(precipitation) |> inner_join(surface_pressure) |> inner_join(wind)
+rm(precipitation, temp_1, temperature, surface_pressure)
+```
+
+```{r}
+reanalysis_train <- reanalysis |> filter(time < as.Date('2014-01-01'))
+reanalysis_test <- reanalysis |> filter(time >= as.Date('2014-01-01'))
+
+reanalysis_reduced_train <- reanalysis_train |> select(-c(pr_daily,sp_daily,sfcWind_daily,tas_max_daily,tas_min_daily))
+reanalysis_reduced_test <- reanalysis_test |> select(-c(pr_daily,sp_daily,sfcWind_daily,tas_max_daily,tas_min_daily))
+```
+
+```{r define_model, message=FALSE}
+nv_recipe <- recipe(tas ~ ., data = reanalysis_train) |>
+                update_role(time, new_role = "ID") |>
+                step_interact(~ hour:tas_daily)
+
+nv_model <- linear_reg() %>% set_engine("lm")
+
+nv_workflow <- 
+  workflow() %>% 
+  add_model(nv_model) %>% 
+  add_recipe(nv_recipe)
+
+nv_fit <- fit(nv_workflow, reanalysis_train)
+
+nv_pred <- predict(nv_fit, reanalysis_test)
+rm(nv_recipe, nv_model, nv_workflow)
+```
+
+```{r, message=FALSE}
+nv_reduced_recipe <- recipe(tas ~ ., data = reanalysis_reduced_train) |>
+                update_role(time, new_role = "ID") |>
+                step_interact(~ hour:tas_daily)
+
+nv_reduced_model <- linear_reg() |> set_engine("lm")
+
+nv_reduced_wf <- 
+  workflow() |>
+  add_model(nv_reduced_model) |>
+  add_recipe(nv_reduced_recipe)
+
+nv_reduced_fit <- fit(nv_reduced_wf, reanalysis_reduced_train)
+
+nv_reduced_pred <- predict(nv_reduced_fit, reanalysis_reduced_test)
+rm(nv_reduced_recipe, nv_reduced_model, nv_reduced_wf)
+```
+
+### XGBoost 
+```{r}
+xgb_recipe <- recipe(tas ~ ., data = reanalysis_train) |>
+                update_role(time, new_role = "ID") |>
+                step_dummy(all_nominal()) 
+                
+xgb_model <- boost_tree(
+  trees = 1000,
+  tree_depth = tune(), min_n = tune(),
+  loss_reduction = tune(),                     ## first three: model complexity
+  sample_size = tune(), mtry = tune(),         ## randomness
+  learn_rate = tune()                          ## step size
+) %>%
+  set_engine("xgboost") %>%
+  set_mode("regression")
+
+xgb_wf <- workflow() %>%
+  add_recipe(xgb_recipe) %>%
+  add_model(xgb_model)
+
+xgb_grid <- grid_latin_hypercube(
+  tree_depth(),
+  min_n(),
+  loss_reduction(),
+  sample_size = sample_prop(),
+  finalize(mtry(), reanalysis_train),
+  learn_rate(),
+  size = 20
+)
+
+xgb_folds <- vfold_cv(reanalysis_train)
+
+cl <- makeCluster(4)
+registerDoParallel(cl)
+
+xgb_tune_res <- tune_grid(
+  xgb_wf,
+  resamples = xgb_folds,
+  grid = xgb_grid,
+  control = control_grid(save_pred = TRUE)
+)
+
+
+### USE THE BEST XGBOOST
+xgb_best <- select_best(xgb_tune_res, "rmse")
+
+xgb_workflow <- xgb_wf |> finalize_workflow(xgb_best)
+
+xgb_fit <- fit(xgb_workflow, reanalysis_train)
+
+xgb_predicted <- predict(xgb_fit, reanalysis_test)
+
+rm(xgb_wf, xgb_recipe, xgb_model, xgb_tune_res, xgb_folds, xgb_grid)
+```
+
+```{r show_summary, echo=FALSE}
+engine <- extract_fit_engine(nv_fit)
+#Hours are statistically significant, as is their interaction with the avg_sfcWinderature; months are not. 
+engine |> report_table()
+```
+
+```{r show_summary_v2, echo=FALSE}
+engine <- extract_fit_engine(nv_fit)
+#Hours are statistically significant, as is their interaction with the avg_sfcWinderature; months are not. 
+engine |> report_table()
+```
+
+```{r show_summary_v2, echo=FALSE}
+engine <- extract_fit_engine(nv_reduced_fit)
+#Hours are statistically significant, as is their interaction with the avg_sfcWinderature; months are not. 
+engine |> report_table()
+```
+```{r}
+xgb_engine <- extract_fit_engine(xgb_fit)
+vip(xgb_engine)
+```
+
+```{r, echo=FALSE}
+res <-  reanalysis_test |> rename("obs_tas" = "tas") |>
+  cbind(nv_pred) |> rename("nv_tas" = ".pred") |>
+  cbind(nv_reduced_pred) |> rename("nv_reduced_tas" = ".pred") |>
+  cbind(xgb_predicted) |> rename("xgb_tas" = ".pred") |>
+  select(c(time, obs_tas, nv_tas, nv_reduced_tas, xgb_tas))
+```
+
+```{r}
+## Load the predicted value of the LSTM model
+lstm_predicted <- fread('lstm_output_tas.csv') 
+
+res <- res |> slice(6:nrow(res)) |> cbind(lstm_predicted) |> rename("lstm_tas" = "V1")  |> 
+  filter(time >= as.Date('2014-01-02'))
+```
+
+### Non paired
+```{r, warning=FALSE}
+r <- rbind(
+        metrics(res$time, res$obs_tas, res$nv_tas, "nv"),
+        metrics(res$time, res$obs_tas, res$nv_reduced_tas, "nv_reduced"),
+        metrics(res$time, res$obs_tas, res$xgb_tas, "xgboost"),
+        metrics(res$time, res$obs_tas, res$lstm_tas, "lstm")
+    )
+r
+```
+
+### Paired
+
+```{r, warning=FALSE}
+r <- rbind(
+        metrics_2(res$time, res$obs_tas, res$nv_tas, "nv"),
+        metrics_2(res$time, res$obs_tas, res$nv_reduced_tas, "nv_reduced"),
+        metrics_2(res$time, res$obs_tas, res$xgb_tas, "xgboost"),
+        metrics_2(res$time, res$obs_tas, res$lstm_tas, "lstm")
+    )
+r
+```
+```{r}
+# Function to create a Q-Q plot comparing quantiles of a sample column against a reference column
+qq_plot_against <- function(data, sample_col) {
+  ref_col <- "obs_tas"
+  sample_data <- data[[sample_col]]
+  ref_data <- data[[ref_col]]
+  
+  # Sort the data
+  sample_data_sorted <- sort(sample_data)
+  ref_data_sorted <- sort(ref_data)
+  
+  # Calculate quantiles
+  n <- min(length(sample_data_sorted), length(ref_data_sorted))
+  quantiles_sample <- sample_data_sorted[seq(1, length(sample_data_sorted), length.out = n)]
+  quantiles_ref <- ref_data_sorted[seq(1, length(ref_data_sorted), length.out = n)]
+  
+  # Create a data frame for plotting
+  quantile_df <- data.frame(Quantiles_Ref = quantiles_ref, Quantiles_Sample = quantiles_sample)
+  
+  # Generate the Q-Q plot
+  ggplot(quantile_df, aes(x = Quantiles_Ref, y = Quantiles_Sample)) +
+    geom_point() +
+    geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
+    ggtitle(paste("Q-Q Plot of", sample_col, "against", ref_col)) +
+    xlab(paste("Quantiles of", ref_col)) +
+    ylab(paste("Quantiles of", sample_col)) +
+    theme_minimal()
+}
+
+# Columns to compare against the reference column
+columns <- c("nv_tas", "xgb_tas", "lstm_tas")
+
+# Generate Q-Q plots
+plots <- lapply(columns, function(col) qq_plot_against(res, col))
+
+# Arrange the plots using gridExtra
+do.call(grid.arrange, c(plots, ncol = 2))  # Arrange in a grid
+```
+
+```{r}
+p1 <- maximum_histograms(res$time, res$obs_tas, res$nv_tas) + scale_fill_discrete(labels = c("nv", "obs"))
+p2 <- maximum_histograms(res$time, res$obs_tas, res$xgb_tas) + scale_fill_discrete(labels = c("xgboost", "obs"))
+p3 <- maximum_histograms(res$time, res$obs_tas, res$lstm) + scale_fill_discrete(labels = c("lstm", "obs"))
+
+grid.arrange(p1, p2, p3, nrow = 3, top = "How Often Peaks Hit Hourly")
+```
+```{r}
+p1 <- extremogram1(res$obs_tas, quant = .97, maxlag = 48, type = 1, ploting = 0)
+p2 <- extremogram1(res$nv_tas, quant = .97, maxlag = 48, type = 1,  ploting = 0)
+p3 <- extremogram1(res$xgb_tas, quant = .97, maxlag = 48, type = 1,  ploting = 0)
+p4 <- extremogram1(res$xgb_tas, quant = .97, maxlag = 48, type = 1,  ploting = 0)
+
+res_to_plot <- data.frame(model = c(rep("obs", 48), rep("nv", 48), rep("xgb", 48), rep("lstm", 48)),
+                          lag = c(1:48, 1:48, 1:48, 1:48),
+                          extremogram = c(p1,p2,p3,p4))
+
+ggplot(res_to_plot, mapping = aes(x = lag, y = extremogram)) +
+    geom_segment(mapping = aes(xend = lag, yend = 0)) +
+    facet_wrap(~ model, nrow = 2)
+```
+```{r}
+p1 <- acf(res$obs_tas, lag.max = 47, plot = F)
+p2 <- acf(res$nv_tas, lag.max = 47, plot = F)
+p3 <- acf(res$xgb_tas, lag.max = 47, plot = F)
+p4 <- acf(res$lstm_tas, lag.max = 47, plot = F)
+
+res_to_plot <- data.frame(model = c(rep("obs", 48), rep("nv", 48), rep("xgboost", 48), rep("lstm", 48)),
+                          lag = c(1:48, 1:48, 1:48, 1:48),
+                          acf = c(p1$acf,p2$acf,p3$acf,p4$acf))
+
+ggplot(res_to_plot, mapping = aes(x = lag, y = acf)) +
+    geom_segment(mapping = aes(xend = lag, yend = 0)) +
+    facet_wrap(~ model, nrow = 2)
+```
+
+```{r}
+# Reshape the data
+res_to_plot <- res |> select(-time) |>
+                      pivot_longer(cols = -obs_tas, names_to = "variable", values_to = "value")
+
+ggplot(res_to_plot, aes(x = obs_tas, y = value)) +
+  geom_point() +
+  facet_wrap(~ variable) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "red") +
+  theme_minimal() +
+  labs(x = "Observed", y = "Predicted")
+```

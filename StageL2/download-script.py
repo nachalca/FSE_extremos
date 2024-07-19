@@ -1,19 +1,9 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[6]:
-
-
 import pandas as pd
 import cdsapi
 import zipfile
 import re
 import os
 from os.path import exists
-
-
-# In[77]:
-
 
 def extract_criteria():
   file = pd.read_csv("CMIP6-table-for-Amine.csv", sep=";")

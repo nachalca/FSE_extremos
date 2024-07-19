@@ -1,0 +1,124 @@
+# Naive Model
+
+In this rmd we explore a model to predict the temperature at a certain hour (h) on a specific day (i), represented by $y_{ih}$. We use the hour, the month to which the day belongs (m) and the average temperature of that day as predictors. 
+
+$$y_{ih} = \beta_0 + \beta_{1h} + \beta_{2m} + \beta_3*avg\_temp + \beta_{4h}*avg\_temp + \epsilon_i $$
+We train the data on the reanalysis, and with the model fitted we predict on the cmip data (since we have the average temperature for that day). The data was generated in the notebook `prepare_data.ipnyb`
+
+```{r load_packages, results='hide', message=FALSE}
+library("tidymodels")
+library("data.table")
+library("report")
+source("metrics.R")
+source("utils.R")
+
+reanalysis <- fread('reanalysis_tas_training_data.csv') 
+cmip_6 <- fread('cmip6_tas_to_downscale_data.csv') 
+```
+
+```{r define_model, message=FALSE}
+model_recipe <- recipe(tas ~ ., data = reanalysis) |>
+                update_role(time, new_role = "ID") |>
+                step_mutate(hour = as.factor(getHour(time)), month = as.factor(getMonth(time))) |>
+                step_dummy(all_integer()) |>
+                step_interact(~ hour:avg_tas)
+
+model <- linear_reg() %>% set_engine("lm")
+
+model_workflow <- 
+  workflow() %>% 
+  add_model(model) %>% 
+  add_recipe(model_recipe)
+
+model_fit <- fit(model_workflow, reanalysis)
+
+predicted <- predict(model_fit, cmip_6)
+```
+
+## Results
+
+
+
+Hours are statistically significant, as is their interaction with the avg_taserature; months are not. 
+
+```{r show_summary, echo=FALSE}
+engine <- extract_fit_engine(model_fit)
+#Hours are statistically significant, as is their interaction with the avg_taserature; months are not. 
+engine |> report_table()
+```
+
+```{r}
+slope <- c()
+intercept <- c()
+
+for(i in 1:23){
+  slope <- append(slope, engine$coefficients[sprintf("hour%s_x_avg_tas", i)][[1]])
+  intercept <- append(intercept, engine$coefficients[sprintf("hour%s", i)][[1]])
+}
+
+lines_df <- data.frame(slope = slope,
+                       intercept = intercept,
+                       index = as.factor(1:23)) 
+ggplot() + 
+  geom_abline(data = lines_df, aes(slope = slope, intercept = intercept, color = index)) +
+  ylim(-5, 8) +
+  xlim(min(reanalysis$avg_tas),max(reanalysis$avg_tas))
+```
+
+
+We have that the RMSE when comparing the data at the daily level, by taking the mean of the reanalysis data per day as the true value and the CMIP data as the predicted value, was 4.26. Now, the RMSE at the hourly level, by considering the reanalysis data as the true value and the data predicted with the model for the CMIP data, is 4.53.
+
+```{r show_metrics, echo=FALSE}
+
+res <-  reanalysis |>
+  select(time, tas, avg_tas) |>
+  inner_join(cmip_6, by = join_by(time)) |>
+  bind_cols(predicted) |>
+  mutate(error = tas.x - .pred)
+
+metrics <- metric_set(rmse, mape)
+metrics(res, tas.x, .pred)
+```
+
+Plot (hourly) of the first three days. The red line is the downscaled temperature and the black line is the temperature from the reanalysis model. The dashed lines are the average temp of the day, the colors follow the same criteria.
+
+```{r show_plot, echo=FALSE}
+res_to_plot <- res[1:96,]
+
+ggplot(res_to_plot, aes(x=time)) +
+  geom_line(aes(y=tas.x)) +
+  geom_line(aes(y=.pred), color = "red") +
+  geom_line(aes(y=avg_tas.x), linetype="dotted", color = "black") +
+  geom_line(aes(y=avg_tas.y), linetype="dotted", color = "red") +
+  xlab("")
+```
+
+Boxplot with the error (reanalysis - downscaled) by hour.
+
+```{r show_plot_2, echo=FALSE}
+res |> mutate(hour = as.factor(getHour(time))) |> 
+  ggplot(aes(x=hour, y=error)) +
+    geom_boxplot()
+```
+
+Lag 1 - correlation. We have a problem with the 0-23 correlation, i.e, at the change of day.
+
+```{r correlation}
+
+res_corr <- res |> mutate(prev_temp = lag(tas.x), prev_.pred = lag(.pred))
+
+res_corr |> mutate(hour = as.factor(getHour(time))) |> group_by(hour) |> summarize(cor(tas.x, prev_temp, use = "complete.obs"))
+
+res_corr |> mutate(hour = as.factor(getHour(time))) |> group_by(hour) |> summarize(cor(.pred, prev_.pred, use = "complete.obs"))
+
+```
+
+```{r }
+sign_correlation(res$tas.x, res$.pred)
+maximum_correlation(res$time,res$tas.x, res$.pred)
+```
+
+```{r}
+maximum_histograms(res$time,res$tas.x, res$.pred)
+```
+
