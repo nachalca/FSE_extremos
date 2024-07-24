@@ -21,7 +21,8 @@ codigo/*.zip
 *.RData
 .vscode
 
-data/reanalysis/*.nc
+data/reanalysis/**/*.nc
+data/cmip/projections/**/*.nc
 
 Downscaling/experimentation_bruno/credentials.csv
 code/naive_model.html

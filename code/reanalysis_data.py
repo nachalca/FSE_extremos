@@ -53,7 +53,7 @@ VARIABLES = {
    },
     "mean_sea_level_pressure": {
         "reanalysis_name": "msl", 
-        "cmip6_name":"slp",
+        "cmip6_name":"psl",
         "hourly": True,
         "need_to_transform": False, 
     },
@@ -74,7 +74,7 @@ VARIABLES = {
         "cmip6_name":"rsds",
         "hourly": False,
         "need_to_transform": True, # We need to transform Joules to Watts, so we need to divide by the amount of seconds 60*60*24
-    },
+   },
 }
 
 def download_data(variable):
@@ -164,7 +164,7 @@ def download_data(variable):
                         ],
                     },
                     f"{year}.nc")
-            os.chdir(ROOT_FOLDER)
+    os.chdir(ROOT_FOLDER)
 
             
 # A function to join all the nc files
@@ -252,7 +252,6 @@ def merge_all_data():
 
 def sun_position(time):
     
-    print(time)
     latitude = (AREA[0] + AREA[2]) / 2
     longitude = (AREA[1] + AREA[3]) / 2
 
@@ -281,6 +280,7 @@ def final_dataset():
 
     #Get the solar position.
     data['time_2'] = pd.to_datetime(data['time'])
+    print("Getting the solar position, it may take some time")
     data[['elevation', 'azimuth']] = data['time_2'].apply(lambda x: pd.Series(sun_position(x)))    #Add the solar position
 
     data.drop(columns=['time_2'], inplace=True)
