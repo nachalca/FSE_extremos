@@ -4,7 +4,7 @@ output: pdf_document
 date: "2024-07-25"
 ---
 
-## PRECIPITATION
+## cltECIPITATION
 
 ```{r}
 library(ggplot2)
@@ -12,12 +12,12 @@ library(tidyverse)
 ```
 
 ```{r}
-pr <- read.csv('../data/validation/pr.csv')
-pr_long <- pr |> pivot_longer(!time, names_to = "model", values_to = "value")
+clt <- read.csv('../data/validation/clt.csv')
+clt_long <- clt |> pivot_longer(!time, names_to = "model", values_to = "value")
 ```
 
 
 ```{r}
-ggplot(pr_long) +
-  geom_histogram(aes(x=value,color=model))
+ggplot(clt_long) +
+  geom_density(aes(x=value,color=model))
 ```

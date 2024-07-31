@@ -26,13 +26,13 @@ VARIABLES = {
     "clt": {
         "daily": False,
     },   
-    # "rsdt": { 
-    #     "cmip6_name":"rsdt",
-    #     "daily": False,
-    # },
-    # "rsds": {
-    #     "daily": False,
-    # },
+    "rsdt": { 
+        "cmip6_name":"rsdt",
+        "daily": False,
+    },
+    "rsds": {
+        "daily": False,
+    },
 }
 
 #A function to find the folders that are completed
@@ -43,29 +43,29 @@ def find_folders(path):
             folders.append(folder)
     return folders
 
-def upscale(data, variable):
+def upscale_daily(data, variable):
     data["time"] = pd.to_datetime(data["time"])
-    if VARIABLES.get(variable).get("daily"):
-        data = data.set_index("time")
-        if variable == "tasmax":
-            data = data.resample("D").max()
-        elif variable == "tasmin":
-            data = data.resample("D").min()
-        else:
-            data = data.resample("D").mean()
-        data = data.reset_index()
+    data = data.set_index("time")
+    if variable == "tasmax":
+        data = data.resample("D").max()
+    elif variable == "tasmin":
+        data = data.resample("D").min()
     else:
-        #Extract the month and year from the time column
-        data["time"] = data.apply(lambda x: f"{x['time'].year}-{x['time'].month}-01", axis=1)
-        data = data.groupby("time").mean()
-        #Transform the time column to datetime
-        data["time"] = pd.to_datetime(data.index)
-        data.reset_index(drop=True, inplace=True)
-        #order by time
-        data = data.sort_values("time")
-        #Put time column always first
-        data = data[["time"] + [col for col in data.columns if col != "time"]]
-        print(data.shape)
+        data = data.resample("D").mean()
+    data = data.reset_index() 
+
+def upscale_monthly(data):
+    #Extract the month and year from the time column
+    data["time"] = pd.to_datetime(data["time"])
+    data["time"] = data.apply(lambda x: f"{x['time'].year}-{x['time'].month}-01", axis=1)
+    data = data.groupby("time").mean()
+    #Transform the time column to datetime
+    data["time"] = pd.to_datetime(data.index)
+    data.reset_index(drop=True, inplace=True)
+    #order by time
+    data = data.sort_values("time")
+    #Put time column always first
+    data = data[["time"] + [col for col in data.columns if col != "time"]]
     return data
 
 def generate_validation_dataset(variable):
@@ -73,7 +73,10 @@ def generate_validation_dataset(variable):
     data = data[["time", variable]]
     data = data[data["time"] >= "2015-01-01"]
     data = data.rename(columns={variable: "reanalysis"})
-    data = upscale(data, variable)
+    if VARIABLES[variable]["daily"]:
+        upscale_daily(data, variable)
+    else:
+        data = upscale_monthly(data)
 
     MODELS = [
                 "ec_earth3", 
@@ -92,7 +95,10 @@ def generate_validation_dataset(variable):
                 model_data = pd.read_csv(f"data/cmip/projections/{model}/{experiment}/{experiment}.csv")
                 model_data = model_data[["time", variable]]
                 model_data = model_data.rename(columns={variable: f"{model}_{experiment}"})
-                model_data = upscale(model_data, variable)
+                if VARIABLES[variable]["daily"]:
+                    upscale_daily(model_data, variable)
+                else:
+                    model_data = upscale_monthly(model_data)
                 data = pd.merge(data, model_data, on="time", how="left")
 
 
