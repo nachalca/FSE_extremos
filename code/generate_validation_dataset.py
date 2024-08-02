@@ -2,27 +2,27 @@ import pandas as pd
 import os
 
 VARIABLES = {
-#     "sfcWind": {
-#         "daily": True,
-#     },    
-#     "tas": {
-#        "daily": True,
-#     },
-#     "pr": {
-#         "daily": True,
-#     },
-#     "tasmax": {
-#         "dataset_name": "mx2t", 
-#         "cmip6_name":"tasmax",
-#         "daily": True,
-#     },
-#     "tasmin": {
-#         "daily": True,
-#    },
-#     "psl": {
-#         "cmip6_name":"psl",
-#         "daily": True,
-#     },
+    "sfcWind": {
+        "daily": True,
+    },    
+    "tas": {
+       "daily": True,
+    },
+    "pr": {
+        "daily": True,
+    },
+    "tasmax": {
+        "dataset_name": "mx2t", 
+        "cmip6_name":"tasmax",
+        "daily": True,
+    },
+    "tasmin": {
+        "daily": True,
+   },
+    "psl": {
+        "cmip6_name":"psl",
+        "daily": True,
+    },
     "clt": {
         "daily": False,
     },   

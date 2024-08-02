@@ -1,0 +1,67 @@
+---
+title: "`r params$variable`"
+params:
+  variable: "pr" #Use pr as default
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+library(here)
+knitr::opts_knit$set(root.dir = here(), echo = FALSE)
+```
+
+```{r imports, echo=FALSE}
+library(ggplot2)
+library(tidyverse)
+library(knitr)
+library("extremogram")
+source('code/metrics.R')
+```
+
+```{r data, echo=FALSE}
+x <- paste0('data/validation/', params$variable, ".csv")
+variable <- read.csv(x)
+variable_long <- variable |> pivot_longer(!time, names_to = "model", values_to = "value")
+```
+
+```{r metrics, echo=FALSE, warning=FALSE}
+variable_temp <- variable |> select(-c("time", "reanalysis"))
+r <- lapply(colnames(variable_temp), function(x) {
+  metrics_daily(time = variable$time, truth = variable$reanalysis, estimate = variable[[x]], model = x)
+} )
+results <- do.call(rbind, r)
+```
+
+```{r render_results, warning=FALSE}
+results <- results |>
+  mutate(diff_of_means = sprintf("%.2f%%", diff_of_means)) |>
+  mutate(across(where(is.numeric), round, digits = 3))
+         
+kable(results)
+```
+
+```{r density, echo=FALSE}
+ggplot(variable_long) +
+  geom_density(aes(x=value,color=model)) +
+  xlab(params$variable)
+```
+
+```{r}
+variable_temp <- variable |> select(-c("time"))
+r <- lapply(colnames(variable_temp), function(x) {
+  extremogram1(variable_temp[[x]], quant = .97, maxlag = 48, type = 1, ploting = 0)
+})
+
+results <- do.call(cbind, r)
+
+colnames(results) <- colnames(variable_temp)
+
+results <- as_data_frame(results)
+
+results <- results |> pivot_longer(cols = everything(), names_to = "model", values_to = "extremogram")
+results$lag <- sort(rep(1:48, length(colnames(variable_temp))))
+
+ggplot(results, mapping = aes(x = lag, y = extremogram)) +
+    geom_segment(mapping = aes(xend = lag, yend = 0)) +
+    facet_wrap(~ model, nrow = 2)
+```

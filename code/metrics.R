@@ -1,6 +1,7 @@
 library(ggplot2)
-source("utils.R")
-
+library('here')
+setwd(here())
+source('code/utils.R')
 
 metrics <- function(time, truth, estimate, model){
   df <- data.frame(
@@ -14,6 +15,17 @@ metrics <- function(time, truth, estimate, model){
   rownames(df) <- c(model)
   df
 }
+
+metrics_daily <- function(time, truth, estimate, model){
+  df <- data.frame(
+    "diff_of_means" = c(diff_of_means_per(truth, estimate)),
+    "ratio_of_sd" = c(ratio_of_sd(truth, estimate)),
+    "ks_test" = c(ks(truth, estimate))
+  )
+  rownames(df) <- c(model)
+  df
+}
+
 
 #use when the truth and the estimate come from the same model
 metrics_2 <- function(time, truth, estimate, model){
@@ -32,6 +44,10 @@ metrics_2 <- function(time, truth, estimate, model){
 
 diff_of_means <- function(truth, estimate){
   mean(truth) - mean(estimate)
+}
+
+diff_of_means_per <- function(truth, estimate){
+  100*diff_of_means(truth, estimate)/mean(truth)
 }
 
 correlation <- function(truth, estimate){
