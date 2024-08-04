@@ -8,12 +8,14 @@ output: pdf_document
 ```{r setup, include=FALSE}
 library(here)
 knitr::opts_knit$set(root.dir = here(), echo = FALSE)
+knitr::opts_chunk$set(echo = F, warning = F)
 ```
 
 ```{r imports, echo=FALSE}
 library(ggplot2)
 library(tidyverse)
 library(knitr)
+library(gridExtra)
 library("extremogram")
 source('code/metrics.R')
 ```
@@ -44,6 +46,62 @@ kable(results)
 ggplot(variable_long) +
   geom_density(aes(x=value,color=model)) +
   xlab(params$variable)
+```
+```{r qqplot, fig.height=10}
+# Function to create a Q-Q plot comparing quantiles of a sample column against a reference column
+qq_plot_against <- function(data, sample_col) {
+  ref_col <- "reanalysis"
+  sample_data <- data[[sample_col]]
+  ref_data <- data[[ref_col]]
+  
+  # Sort the data
+  sample_data_sorted <- sort(sample_data)
+  ref_data_sorted <- sort(ref_data)
+  
+  # Calculate quantiles
+  n <- min(length(sample_data_sorted), length(ref_data_sorted))
+  quantiles_sample <- sample_data_sorted[seq(1, length(sample_data_sorted), length.out = n)]
+  quantiles_ref <- ref_data_sorted[seq(1, length(ref_data_sorted), length.out = n)]
+  
+  # Create a data frame for plotting
+  quantile_df <- data.frame(Quantiles_Ref = quantiles_ref, Quantiles_Sample = quantiles_sample)
+  
+  # Generate the Q-Q plot
+  ggplot(quantile_df, aes(x = Quantiles_Ref, y = Quantiles_Sample)) +
+    geom_point() +
+    geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
+    ggtitle(paste(sample_col, "vs", ref_col)) +
+    labs(x = NULL, y = NULL) +
+    theme_minimal()
+}
+
+# Columns to compare against the reference column
+models <- variable |> select(-c("time", "reanalysis")) |> colnames()
+# Generate Q-Q plots
+plots <- lapply(models, function(col) qq_plot_against(variable, col))
+
+# Arrange the plots using gridExtra
+do.call(grid.arrange, c(plots, ncol = 2))  # Arrange in a grid
+```
+
+```{r acf}
+variable_temp <- variable |> select(-c("time"))
+r <- lapply(colnames(variable_temp), function(x) {
+  acf(variable_temp[[x]], lag.max = 47, plot = F)$acf
+})
+
+results <- do.call(cbind, r)
+
+colnames(results) <- colnames(variable_temp)
+
+results <- as_data_frame(results)
+
+results <- results |> pivot_longer(cols = everything(), names_to = "model", values_to = "acf")
+results$lag <- sort(rep(1:48, length(colnames(variable_temp))))
+
+ggplot(results, mapping = aes(x = lag, y = acf)) +
+    geom_segment(mapping = aes(xend = lag, yend = 0)) +
+    facet_wrap(~ model, nrow = 2)
 ```
 
 ```{r}
