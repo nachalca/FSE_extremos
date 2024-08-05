@@ -1,14 +1,21 @@
 ---
 title: "`r params$variable`"
 params:
-  variable: "pr" #Use pr as default
-output: pdf_document
+  variable: "sfcWind" #Use pr as default
+output: html_document
 ---
 
 ```{r setup, include=FALSE}
 library(here)
-knitr::opts_knit$set(root.dir = here(), echo = FALSE)
+knitr::opts_knit$set(root.dir = here())
 knitr::opts_chunk$set(echo = F, warning = F)
+```
+
+```{css echo=FALSE}
+/* Define a margin before h2 element */
+h2,h3  {
+  margin-top: 3em;
+}
 ```
 
 ```{r imports, echo=FALSE}
@@ -34,20 +41,28 @@ r <- lapply(colnames(variable_temp), function(x) {
 results <- do.call(rbind, r)
 ```
 
+### Metrics
+
 ```{r render_results, warning=FALSE}
 results <- results |>
+  arrange(by = abs(diff_of_means)) |>
   mutate(diff_of_means = sprintf("%.2f%%", diff_of_means)) |>
-  mutate(across(where(is.numeric), round, digits = 3))
-         
+  mutate(across(where(is.numeric), round, digits = 3)) 
+
 kable(results)
 ```
+
+### Density Plot
 
 ```{r density, echo=FALSE}
 ggplot(variable_long) +
   geom_density(aes(x=value,color=model)) +
   xlab(params$variable)
 ```
-```{r qqplot, fig.height=10}
+
+### QQ-Plot
+
+```{r qqplot, fig.height=8, fig.width=6}
 # Function to create a Q-Q plot comparing quantiles of a sample column against a reference column
 qq_plot_against <- function(data, sample_col) {
   ref_col <- "reanalysis"
@@ -84,6 +99,9 @@ plots <- lapply(models, function(col) qq_plot_against(variable, col))
 do.call(grid.arrange, c(plots, ncol = 2))  # Arrange in a grid
 ```
 
+### Autocorrelogram
+
+
 ```{r acf}
 variable_temp <- variable |> select(-c("time"))
 r <- lapply(colnames(variable_temp), function(x) {
@@ -103,6 +121,8 @@ ggplot(results, mapping = aes(x = lag, y = acf)) +
     geom_segment(mapping = aes(xend = lag, yend = 0)) +
     facet_wrap(~ model, nrow = 2)
 ```
+
+### Extremogram
 
 ```{r}
 variable_temp <- variable |> select(-c("time"))
