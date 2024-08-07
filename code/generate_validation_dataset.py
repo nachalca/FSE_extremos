@@ -44,16 +44,19 @@ def find_folders(path):
     return folders
 
 def upscale_daily(data, variable):
+    #Extract the month and year from the time column
     data["time"] = pd.to_datetime(data["time"])
-    data = data.set_index("time")
-    if variable == "tasmax":
-        data = data.resample("D").max()
-    elif variable == "tasmin":
-        data = data.resample("D").min()
-    else:
-        data = data.resample("D").mean()
-    data = data.reset_index() 
-
+    data["time"] = data["time"].dt.date
+    data = data.groupby("time").mean()
+    #Transform the time column to datetime
+    data["time"] = pd.to_datetime(data.index)
+    data.reset_index(drop=True, inplace=True)
+    #order by time
+    data = data.sort_values("time")
+    #Put time column always first
+    data = data[["time"] + [col for col in data.columns if col != "time"]]
+    return data
+    
 def upscale_monthly(data):
     #Extract the month and year from the time column
     data["time"] = pd.to_datetime(data["time"])
@@ -74,7 +77,7 @@ def generate_validation_dataset(variable):
     data = data[data["time"] >= "2015-01-01"]
     data = data.rename(columns={variable: "reanalysis"})
     if VARIABLES[variable]["daily"]:
-        upscale_daily(data, variable)
+        data = upscale_daily(data, variable)
     else:
         data = upscale_monthly(data)
 
@@ -92,11 +95,13 @@ def generate_validation_dataset(variable):
         completed_folders = find_folders(f"data/cmip/projections/{model}")
         for experiment in EXPERIMENTS:
             if experiment in completed_folders:
+                print("experiment", experiment)
                 model_data = pd.read_csv(f"data/cmip/projections/{model}/{experiment}/{experiment}.csv")
+                model_data = model_data[model_data["time"] < "2024-01-01"]
                 model_data = model_data[["time", variable]]
                 model_data = model_data.rename(columns={variable: f"{model}_{experiment}"})
                 if VARIABLES[variable]["daily"]:
-                    upscale_daily(model_data, variable)
+                    model_data = upscale_daily(model_data, variable)
                 else:
                     model_data = upscale_monthly(model_data)
                 data = pd.merge(data, model_data, on="time", how="left")

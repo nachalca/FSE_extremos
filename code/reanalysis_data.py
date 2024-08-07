@@ -74,7 +74,7 @@ VARIABLES = {
         "cmip6_name":"rsds",
         "hourly": True,
         "need_to_transform": True, # We need to transform Joules to Watts, so we need to divide by the amount of seconds 60*60*24
-   },
+    },
 }
 
 def download_data(variable):
@@ -174,7 +174,13 @@ def summarize_data(variable):
         assert days_between == len(reanalysis),\
             f"Time has the wrong size: {len(reanalysis)}, when it should be {days_between}"
     
-    reanalysis[variable_cmip6_name] = data_nc[variable_name].mean(dim=["latitude","longitude"]) 
+    if(variable_name == "mx2t"):
+        reanalysis[variable_cmip6_name] = data_nc[variable_name].max(dim=["latitude","longitude"])
+    elif(variable_name == "mn2t"):
+        reanalysis[variable_cmip6_name] = data_nc[variable_name].min(dim=["latitude","longitude"])
+    else:
+        reanalysis[variable_cmip6_name] = data_nc[variable_name].mean(dim=["latitude","longitude"]) 
+    
     reanalysis.to_csv(f"{variable_name}.csv", index=False)
     os.remove(f"{variable_name}.nc") #drop the nc file to realese space
     os.chdir(ROOT_FOLDER)
@@ -234,7 +240,7 @@ def main():
 #    Download the data for each variable
     # for variable in VARIABLES:
     #     try:
-    #         download_data(variable)
+    #         # download_data(variable)
     #         join_files(variable)
     #         summarize_data(variable)
 

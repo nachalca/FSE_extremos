@@ -14,4 +14,8 @@ getYear <- function(time) {
   strtoi(strftime(time, format="%Y", tz="GMT"), base=10)
 }
 
+getYearMonth <- function(time) {
+  strftime(time, format="%Y-%m", tz="GMT")
+}
+
 date()

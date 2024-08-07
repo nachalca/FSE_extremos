@@ -20,7 +20,21 @@ metrics_daily <- function(time, truth, estimate, model){
   df <- data.frame(
     "diff_of_means" = c(diff_of_means_per(truth, estimate)),
     "ratio_of_sd" = c(ratio_of_sd(truth, estimate)),
-    "ks_test" = c(ks(truth, estimate))
+    "monthly_amplitude_ratio_of_means" = c(monthly_amplitude_ratio_of_means(time, truth, estimate)),
+    "sign_correlation" = c(sign_correlation(truth, estimate)),
+    "qqplot_mape" = c(qqplot_mape(truth, estimate))
+  )
+  rownames(df) <- c(model)
+  df
+}
+
+metrics_monthly <- function(time, truth, estimate, model){
+  df <- data.frame(
+    "diff_of_means" = c(diff_of_means_per(truth, estimate)),
+    "ratio_of_sd" = c(ratio_of_sd(truth, estimate)),
+    "yearly_amplitude_ratio_of_means" = c(yearly_amplitude_ratio_of_means(time, truth, estimate)),
+    "sign_correlation" = c(sign_correlation(truth, estimate)),
+    "qqplot_mape" = c(qqplot_mape(truth, estimate))
   )
   rownames(df) <- c(model)
   df
@@ -130,6 +144,16 @@ amplitude_difference_of_means <- function(time, truth, estimate){
   r[[1]]
 }
 
+amplitude_mean <- function(time, var){
+  df <- data.frame("time" = time, "var" = var)
+  r <- df |> mutate(date = getDate(time)) |> 
+    group_by(date) |>
+    summarize(amplitude = max(var) - min(var)) |>
+    ungroup() |>
+    summarize(amplitude_mean = mean(amplitude))
+  r[[1]]
+}
+
 amplitude_ratio_of_means <- function(time, truth, estimate){
   df <- data.frame("time" = time, "truth" = truth, "estimate" = estimate)
   r <- df |> mutate(date = getDate(time)) |> 
@@ -140,13 +164,23 @@ amplitude_ratio_of_means <- function(time, truth, estimate){
   r[[1]]
 }
 
-amplitude_mean <- function(time, var){
-  df <- data.frame("time" = time, "var" = var)
-  r <- df |> mutate(date = getDate(time)) |> 
+monthly_amplitude_ratio_of_means <- function(time, truth, estimate){
+  df <- data.frame("time" = time, "truth" = truth, "estimate" = estimate)
+  r <- df |> mutate(date = getYearMonth(time)) |> 
     group_by(date) |>
-    summarize(amplitude = max(var) - min(var)) |>
+    summarize(truth_amplitude = max(truth) - min(truth), estimate_amplitude = max(estimate) - min(estimate)) |>
     ungroup() |>
-    summarize(amplitude_mean = mean(amplitude))
+    summarize(difference_of_means = mean(estimate_amplitude)/mean(truth_amplitude))
+  r[[1]]
+}
+
+yearly_amplitude_ratio_of_means <- function(time, truth, estimate){
+  df <- data.frame("time" = time, "truth" = truth, "estimate" = estimate)
+  r <- df |> mutate(date = getYear(time)) |> 
+    group_by(date) |>
+    summarize(truth_amplitude = max(truth) - min(truth), estimate_amplitude = max(estimate) - min(estimate)) |>
+    ungroup() |>
+    summarize(difference_of_means = mean(estimate_amplitude)/mean(truth_amplitude))
   r[[1]]
 }
 
@@ -218,4 +252,21 @@ maximum_error <- function(time, truth, estimate){
               mutate(diff = abs(n_t_hour - n_e_hour)) |> 
               summarise(maximum_error = sum(diff)/(2*n))
   result[[1]]
+}
+
+qqplot_mape <- function(truth, estimate){
+  ref_col <- "reanalysis"
+  sample_data <- estimate
+  ref_data <- truth
+  
+  # Sort the data
+  sample_data_sorted <- sort(sample_data)
+  ref_data_sorted <- sort(ref_data)
+  
+  # Calculate quantiles
+  n <- min(length(sample_data_sorted), length(ref_data_sorted))
+  quantiles_sample <- sample_data_sorted[seq(1, length(sample_data_sorted), length.out = n)]
+  quantiles_ref <- ref_data_sorted[seq(1, length(ref_data_sorted), length.out = n)]
+  
+  sum(abs((quantiles_ref - quantiles_sample)/quantiles_ref))/length(quantiles_ref)
 }
