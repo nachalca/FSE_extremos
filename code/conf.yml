@@ -1,0 +1,38 @@
+VARIABLES:
+  sfcWind:
+    cmip6_name: near_surface_wind_speed
+    daily: true
+  tas:
+    cmip6_name: near_surface_air_temperature
+    daily: true
+  pr:
+    cmip6_name: precipitation
+    daily: true
+  tasmax:
+    cmip6_name: daily_maximum_near_surface_air_temperature
+    daily: true
+  tasmin:
+    cmip6_name: daily_minimum_near_surface_air_temperature
+    daily: true
+  psl:
+    cmip6_name: sea_level_pressure
+    daily: true
+  clt:
+    cmip6_name: total_cloud_cover_percentage
+    daily: false
+  rsdt:
+    cmip6_name: toa_incident_shortwave_radiation
+    daily: false
+  rsds:
+    cmip6_name: surface_downwelling_shortwave_radiation
+    daily: false
+
+MODELS: [
+  "ec_earth3", 
+  "ec_earth3_veg_lr", 
+  "cesm2",
+  "cesm2_waccm",
+  "cnrm_cm6_1",
+  "mri_esm2_0", 
+  "ukesm1_0_ll"
+]

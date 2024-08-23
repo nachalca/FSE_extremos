@@ -1,0 +1,140 @@
+---
+title: "`r Model evaluation for params$variable`"
+params:
+  variable: "sfcWind" #Use pr as default
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(here)
+knitr::opts_knit$set(root.dir = here())
+knitr::opts_chunk$set(echo = F, warning = F)
+```
+
+```{css}
+/* Define a margin before h2 element */
+h2,h3  {
+  margin-top: 3em;
+}
+```
+
+```{r imports}
+library(ggplot2)
+library(tidyverse)
+library(knitr)
+library(gridExtra)
+Sys.setenv(RETICULATE_PYTHON = "/home/tancre/bin/miniconda3/bin/python")
+library(reticulate)
+library("extremogram")
+source('code/metrics.R')
+```
+
+```{r load_test_data}
+x <- paste0('data/testing/', params$variable, ".csv")
+variable <- read.csv(x)
+
+res <- data.frame(time = variable$time, reanalysis = variable$target)
+```
+
+```{r load_model}
+# Use reticulate to import Python modules
+pickle <- import("pickle")
+builtins <- import_builtins()  # This imports Python's built-in functions, including 'open'
+
+x <- paste0('models/', params$variable, "/xgboost.pkl")
+
+# Load the model from the pickle file
+with(builtins$open(x, "rb") %as% f, {
+  model <- pickle$load(f)
+})
+```
+
+```{r xgboost}
+X_test <- variable |> select(-c(target, time))
+
+# Prepare your data
+input_data <- as.matrix(X_test)
+
+# Make predictions
+predictions <- model$predict(input_data)
+res$xgboost <- predictions
+```
+
+```{r metrics_2}
+models <- res |> select(-c("time", "reanalysis")) |> colnames()
+
+r <- lapply(models, function(x) {
+    metrics_2(time = res$time, truth = res$reanalysis, estimate = res[[x]], model = x)
+} )
+
+results <- do.call(rbind, r)
+
+results <- results |>
+  mutate(across(where(is.numeric), round, digits = 3)) 
+
+kable(results)
+```
+
+```{r show_plot, echo=FALSE}
+res_to_plot <- res[0:72,] 
+
+series_plot <- function(data, col) {
+  time  <- data$time
+  reanalysis <- data$reanalysis
+  column <- data[[col]]
+  
+  p <- data.frame(time = time, reanalysis = reanalysis, column = column)
+
+  ggplot(p, aes(x=time)) +
+  geom_line(aes(y=reanalysis)) +
+  geom_line(aes(y=column), color = "red") + 
+  labs(y = "sfcWind", x = "", title = col)
+}
+
+# Serie to compare to reanalysis
+models <- res |> select(-c("time", "reanalysis")) |> colnames()
+
+# Generate Q-Q plots
+plots <- lapply(models, function(col) series_plot(res_to_plot, col))
+
+# Arrange the plots using gridExtra
+do.call(grid.arrange, c(plots, ncol = 1))
+```
+
+
+```{r qqplot, fig.height=8, fig.width=6}
+# Function to create a Q-Q plot comparing quantiles of a sample column against a reference column
+qq_plot_against <- function(data, sample_col) {
+  ref_col <- "reanalysis"
+  sample_data <- data[[sample_col]]
+  ref_data <- data[[ref_col]]
+  
+  # Sort the data
+  sample_data_sorted <- sort(sample_data)
+  ref_data_sorted <- sort(ref_data)
+  
+  # Calculate quantiles
+  n <- min(length(sample_data_sorted), length(ref_data_sorted))
+  quantiles_sample <- sample_data_sorted[seq(1, length(sample_data_sorted), length.out = n)]
+  quantiles_ref <- ref_data_sorted[seq(1, length(ref_data_sorted), length.out = n)]
+  
+  # Create a data frame for plotting
+  quantile_df <- data.frame(Quantiles_Ref = quantiles_ref, Quantiles_Sample = quantiles_sample)
+  
+  # Generate the Q-Q plot
+  ggplot(quantile_df, aes(x = Quantiles_Ref, y = Quantiles_Sample)) +
+    geom_point() +
+    geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
+    ggtitle(paste(sample_col)) +
+    labs(x = NULL, y = NULL) +
+    theme_minimal()
+}
+
+# Columns to compare against the reference column
+models <- res |> select(-c("time", "reanalysis")) |> colnames()
+# Generate Q-Q plots
+plots <- lapply(models, function(col) qq_plot_against(res, col))
+
+# Arrange the plots using gridExtra
+do.call(grid.arrange, c(plots, ncol = 2))  # Arrange in a grid
+```

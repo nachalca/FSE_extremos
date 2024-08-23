@@ -7,7 +7,7 @@ metrics <- function(time, truth, estimate, model){
   df <- data.frame(
     "diff_of_means" = c(diff_of_means(truth, estimate)),
     "ratio_of_sd" = c(ratio_of_sd(truth, estimate)),
-    "ks_test" = c(ks(truth, estimate)),
+   # "ks_test" = c(ks(truth, estimate)),
     "amplitude_ratio_of_means" = c(amplitude_ratio_of_means(time, truth, estimate)),
     "maximum_error" = c(maximum_error(time, truth, estimate)),
     "sign_error" = c(sign_error(time, truth, estimate))
@@ -19,7 +19,7 @@ metrics <- function(time, truth, estimate, model){
 metrics_daily <- function(time, truth, estimate, model){
   df <- data.frame(
     "diff_of_means" = c(diff_of_means_per(truth, estimate)),
-    "ratio_of_sd" = c(ratio_of_sd(truth, estimate)),
+  #  "ratio_of_sd" = c(ratio_of_sd(truth, estimate)),
     "monthly_amplitude_ratio_of_means" = c(monthly_amplitude_ratio_of_means(time, truth, estimate)),
     "sign_correlation" = c(sign_correlation(truth, estimate)),
     "qqplot_mape" = c(qqplot_mape(truth, estimate))
