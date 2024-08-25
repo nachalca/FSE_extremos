@@ -24,6 +24,6 @@ codigo/*.zip
 data/reanalysis/**/*.nc
 data/cmip/projections/**/*.nc
 data/training/*
-
+data/testing/* 
 Downscaling/experimentation_bruno/credentials.csv
 code/naive_model.html

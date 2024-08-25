@@ -1,5 +1,5 @@
 ---
-title: "`r Model evaluation for params$variable`"
+title: "`r paste0('Model evaluation for ', params$variable)`"
 params:
   variable: "sfcWind" #Use pr as default
 output: html_document
@@ -83,12 +83,14 @@ series_plot <- function(data, col) {
   reanalysis <- data$reanalysis
   column <- data[[col]]
   
-  p <- data.frame(time = time, reanalysis = reanalysis, column = column)
+  p <- data.frame(time =  as.POSIXct(time), #To plot the time as the x-axis 
+                  reanalysis = reanalysis, 
+                  column = column)
 
   ggplot(p, aes(x=time)) +
-  geom_line(aes(y=reanalysis)) +
-  geom_line(aes(y=column), color = "red") + 
-  labs(y = "sfcWind", x = "", title = col)
+    geom_line(aes(y=reanalysis)) +
+    geom_line(aes(y=column), color = "red") + 
+    labs(y = "sfcWind", x = "", title = col)
 }
 
 # Serie to compare to reanalysis
@@ -101,6 +103,19 @@ plots <- lapply(models, function(col) series_plot(res_to_plot, col))
 do.call(grid.arrange, c(plots, ncol = 1))
 ```
 
+### How Often Peaks Hit Hourly
+
+```{r maximum}
+models <- res |> select(-c("time", "reanalysis")) |> colnames()
+
+plots <- lapply(models, function(col) {
+  maximum_histograms(res$time, res$reanalysis, res[[col]]) + scale_fill_discrete(labels = c(col, "reanalysis"))
+})
+
+do.call(grid.arrange, c(plots, ncol = 1))
+```
+
+### QQ Plot
 
 ```{r qqplot, fig.height=8, fig.width=6}
 # Function to create a Q-Q plot comparing quantiles of a sample column against a reference column
@@ -136,5 +151,50 @@ models <- res |> select(-c("time", "reanalysis")) |> colnames()
 plots <- lapply(models, function(col) qq_plot_against(res, col))
 
 # Arrange the plots using gridExtra
-do.call(grid.arrange, c(plots, ncol = 2))  # Arrange in a grid
+do.call(grid.arrange, c(plots, ncol = 1))  # Arrange in a grid
+```
+
+### Autocorrelogram
+
+```{r acf}
+models <- res |> select(-c("time")) |> colnames()
+r <- lapply(models, function(x) {
+  acf(res[[x]], lag.max = 47, plot = F)$acf
+})
+
+results <- do.call(cbind, r)
+
+colnames(results) <- models
+
+results <- as_data_frame(results)
+
+results <- results |> pivot_longer(cols = everything(), names_to = "model", values_to = "acf")
+results$lag <- sort(rep(1:48, length(models)))
+
+ggplot(results, mapping = aes(x = lag, y = acf)) +
+    geom_segment(mapping = aes(xend = lag, yend = 0)) +
+    facet_wrap(~ model, nrow = 2) 
+```
+
+### Extremogram
+
+```{r extremogram}
+models <- res |> select(-c("time")) |> colnames()
+
+r <- lapply(models, function(x) {
+  extremogram1(res[[x]], quant = .97, maxlag = 48, type = 1, ploting = 0)
+})
+
+results <- do.call(cbind, r)
+
+colnames(results) <- models
+
+results <- as_data_frame(results)
+
+results <- results |> pivot_longer(cols = everything(), names_to = "model", values_to = "extremogram")
+results$lag <- sort(rep(1:48, length(models)))
+
+ggplot(results, mapping = aes(x = lag, y = extremogram)) +
+    geom_segment(mapping = aes(xend = lag, yend = 0)) +
+    facet_wrap(~ model, nrow = 2)
 ```
