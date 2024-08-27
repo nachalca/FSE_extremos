@@ -79,7 +79,8 @@ def main():
                 'reg_lambda': hp.uniform('reg_lambda', 1, 10),
                 'gamma': hp.loguniform('gamma', -10, 10), # regularization
                 'learning_rate': hp.loguniform('learning_rate', -7, 0),  # boosting
-                'random_state': 42
+                'random_state': 42,
+                'importance_type': 'gain' #Feature importance
             }     
             
             trials = Trials()

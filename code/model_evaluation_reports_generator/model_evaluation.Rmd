@@ -212,6 +212,8 @@ results <- as_data_frame(results)
 results <- results |> pivot_longer(cols = everything(), names_to = "model", values_to = "acf")
 results$lag <- sort(rep(1:48, length(models)))
 
+results <- results |> filter(lag > 1) #I don't want to plot the first lag
+
 ggplot(results, mapping = aes(x = lag, y = acf)) +
     geom_segment(mapping = aes(xend = lag, yend = 0)) +
     facet_wrap(~ model, nrow = 2) 
@@ -235,7 +237,29 @@ results <- as_data_frame(results)
 results <- results |> pivot_longer(cols = everything(), names_to = "model", values_to = "extremogram")
 results$lag <- sort(rep(1:48, length(models)))
 
+results <- results |> filter(lag > 1) #I don't want to plot the first lag
+
 ggplot(results, mapping = aes(x = lag, y = extremogram)) +
     geom_segment(mapping = aes(xend = lag, yend = 0)) +
     facet_wrap(~ model, nrow = 2)
+```
+
+## Model Explanation
+
+### XGBoost
+
+I have to check which metric is used (gain or weight).
+
+```{r xgboost_explanation}
+importance <- data.frame(features = unlist(model$feature_names_in_), importance = unlist(model$feature_importances_)) |>
+                arrange(desc(importance)) |> head(10)
+# Create a ggplot2-based variable importance plot
+ggplot(importance, aes(x = importance, y = reorder(features, importance))) +
+  geom_bar(stat = "identity", fill = "dodgerblue") +
+  labs(
+    title = "Variable Importance",
+    x = "Importance",
+    y = "Feature"
+  ) +
+  theme_minimal()
 ```
