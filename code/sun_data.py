@@ -41,10 +41,10 @@ def main():
     start = datetime(YEARS[0], 1, 1, 0, 0, 0)
     end = datetime(YEARS[-1], 12, 31, 23, 0, 0)
     
-    # time_range = pd.date_range(start=start, end=end, freq="H")
-    # elevation,azimuth = sun_position(time_range)
-    # output = pd.DataFrame({"time": time_range, "elevation": elevation, "azimuth": azimuth})
-    # output.to_csv("data/external_data/sun.csv", index=False)
+    time_range = pd.date_range(start=start, end=end, freq="H")
+    elevation,azimuth = sun_position(time_range)
+    output = pd.DataFrame({"time": time_range, "elevation": elevation, "azimuth": azimuth})
+    output.to_csv("data/external_data/sun.csv", index=False)
 
     # #Get frequence at day scale
     time_range = pd.date_range(start=start, end=end, freq="D")

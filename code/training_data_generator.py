@@ -1,54 +1,27 @@
 import pandas as pd
+import yaml
 import os
 
-VARIABLES = {
-    "sfcWind": {
-        "daily": True,
-    },    
-    "tas": {
-       "daily": True,
-    },
-    "pr": {
-        "daily": True,
-    },
-    "tasmax": {
-        "daily": True,
-    },
-    "tasmin": {
-        "daily": True,
-   },
-    "psl": {
-        "daily": True,
-    },
-    "clt": {
-        "daily": False,
-    },   
-    "rsdt": { 
-        "cmip6_name":"rsdt",
-        "daily": False,
-    },
-    "rsds": {
-        "daily": False,
-    },
-}
 
-VARIABLES_TO_BE_DOWNSCALED = {
-    "sfcWind": {
-        "daily": True,
-    },
-    "tas": {
-       "daily": True,
-    },
-    "pr": {
-        "daily": True,
-    },  
-    "clt": {
-        "daily": False,
-    },       
-    "rsds": {
-        "daily": False,
-    },    
-}
+VARIABLES = {}
+MODELS = []
+EXPERIMENTS = []
+VARIABLES_TO_BE_DOWNSCALED = {}
+SEED = 1234
+
+#Load the configuration from the conf.json file
+def load_configuration():
+    global VARIABLES, MODELS,EXPERIMENTS,VARIABLES_TO_BE_DOWNSCALED
+
+    with open("code/conf.yml", 'r') as file:
+        conf = yaml.safe_load(file)
+    
+    #OVERWRITE THE GLOBAL VARIABLES
+    VARIABLES = conf["VARIABLES"]
+    MODELS = conf["MODELS"]
+    EXPERIMENTS = conf["EXPERIMENTS"]
+    VARIABLES_TO_BE_DOWNSCALED = conf["VARIABLES_TO_BE_DOWNSCALED"]
+    return conf
 
 #First step, upscale the data to daily or monthly depending on the variable
 def upscale(data):
@@ -134,24 +107,29 @@ def add_past_future(data, window_size):
     
     return data
 
-def main():
-    data = pd.read_csv("data/reanalysis/reanalysis.csv")
-    data["time"] = pd.to_datetime(data["time"])
+#Truncate is used to truncate the data to the first N years, if it is -1 we don't truncate
+def generate_dataframe(model, experiment = "", truncate = -1):
+    data = pd.DataFrame()
+    if model == "reanalysis":
+        data = pd.read_csv(f"data/reanalysis/reanalysis.csv")
+    else:
+        data = pd.read_csv(f"data/cmip/projections/{model}/{experiment}/{experiment}.csv")
 
-    #Create main folder if non existent
-    if not os.path.exists("data/training"):
-        os.makedirs("data/training")
+    data["time"] = pd.to_datetime(data["time"])
 
     for variable in VARIABLES_TO_BE_DOWNSCALED:
 
-        print(f"Generating training dataset for \033[92m{variable}\033[0m")
+        print(f"Generating training dataset for \033[92m{variable}\033[0m of model \033[92m{model}\033[0m")
 
         data_variable = data.copy()
         data_variable["target"] = data_variable[variable]
 
-        #To test the model I will use the first 8 years
-        if(VARIABLES_TO_BE_DOWNSCALED.get(variable).get("daily")):
-            data_variable = data_variable[data_variable["time"] < "1988-01-01"]
+        #To test the model I will use the first 8 years (We don't truncate the dailies datasets)
+        if(VARIABLES_TO_BE_DOWNSCALED.get(variable).get("daily") and truncate != -1):
+            #Get the first day of the dataset
+            first_day = data_variable["time"].iloc[0]
+            #Truncate the data to the first N years
+            data_variable = data_variable[data_variable["time"] < f"{first_day.year + truncate}-01-01"]
 
         data_variable = upscale(data_variable)
 
@@ -177,7 +155,28 @@ def main():
         else:
             data_variable = add_past_future(data_variable, 1) #Add previous and next day
 
-        data_variable.to_csv(f"data/training/{variable}.csv", index=False)
+        if(model == "reanalysis"):
+            if not os.path.exists("data/training"):
+                os.makedirs("data/training")
+            data_variable.to_csv(f"data/training/{variable}.csv", index=False)
+        else:
+            if not os.path.exists(f"data/to_be_downscaled//{variable}"):
+                os.makedirs(f"data/to_be_downscaled/{variable}")            
+            data_variable.drop(columns=["target"], inplace=True) #We don't have the target for the cmip models
+            data_variable.to_csv(f"data/to_be_downscaled/{variable}/{model}_{experiment}.csv", index=False)
+
+def main():
+
+    load_configuration()
+
+    #Generate the training dataset for the reanalysis
+    generate_dataframe("reanalysis", truncate=10)
+
+    for model in MODELS:
+        for experiment in EXPERIMENTS:
+            #If the dataset of the model and experiment exists, we generate the dataset to be downscaled
+            if os.path.exists(f"data/cmip/projections/{model}/{experiment}/{experiment}.csv"):
+                generate_dataframe(model, experiment, 10)
 
 if __name__ == "__main__":
     main()

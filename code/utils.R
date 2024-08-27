@@ -18,4 +18,20 @@ getYearMonth <- function(time) {
   strftime(time, format="%Y-%m", tz="GMT")
 }
 
+flatten_list <- function(lst, parent_key = "") {
+  result <- list()
+  
+  for (name in names(lst)) {
+    full_name <- if (parent_key == "") name else paste(parent_key, name, sep = ".")
+    
+    if (is.list(lst[[name]])) {
+      result <- c(result, flatten_list(lst[[name]], full_name))
+    } else {
+      result[[full_name]] <- lst[[name]]
+    }
+  }
+  
+  return(result)
+}
+
 date()

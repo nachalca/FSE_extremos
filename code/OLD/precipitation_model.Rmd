@@ -48,6 +48,8 @@ surface_pressure <- fread('reanalysis_surface_pressure_training_data.csv') |> se
 reanalysis <- reanalysis |> inner_join(temperature) |> inner_join(surface_pressure) |> inner_join(wind)
 rm(wind, temp_1, temperature, surface_pressure)
 ```
+
+
 ```{r}
 reanalysis_train <- reanalysis |> filter(time < as.Date('2014-01-01'))
 reanalysis_test <- reanalysis |> filter(time >= as.Date('2014-01-01'))

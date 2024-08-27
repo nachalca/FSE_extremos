@@ -227,25 +227,19 @@ def final_dataset():
     #We need to transform the solar radiation to W m-2
     data['rsds'] = data['rsds'] / (60*60)
 
-    #Get the solar position.
-#    data['time_2'] = pd.to_datetime(data['time'])
-#    print("Getting the solar position, it may take some time")
-#    data[['elevation', 'azimuth']] = data['time_2'].apply(lambda x: pd.Series(sun_position(x)))    #Add the solar position
-#    data.drop(columns=['time_2'], inplace=True)
-
     data.to_csv("data/reanalysis/reanalysis.csv", index=False)
 
 
 def main():
 #    Download the data for each variable
-    # for variable in VARIABLES:
-    #     try:
-    #         # download_data(variable)
-    #         join_files(variable)
-    #         summarize_data(variable)
+    for variable in VARIABLES:
+        try:
+            # download_data(variable)
+            join_files(variable)
+            summarize_data(variable)
 
-    #     except Exception as e:
-    #         print(f"\033[91mError with variable {variable}: {e}\033[0m")
+        except Exception as e:
+            print(f"\033[91mError with variable {variable}: {e}\033[0m")
     
     merge_all_data()
     final_dataset()

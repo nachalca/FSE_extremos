@@ -25,8 +25,10 @@ library(knitr)
 library(gridExtra)
 Sys.setenv(RETICULATE_PYTHON = "/home/tancre/bin/miniconda3/bin/python")
 library(reticulate)
+library(yaml)
 library("extremogram")
 source('code/metrics.R')
+source('code/utils.R')
 ```
 
 ```{r load_test_data}
@@ -34,6 +36,9 @@ x <- paste0('data/testing/', params$variable, ".csv")
 variable <- read.csv(x)
 
 res <- data.frame(time = variable$time, reanalysis = variable$target)
+
+#Load configuration
+conf <- yaml.load_file("code/conf.yml")
 ```
 
 ```{r load_model}
@@ -75,6 +80,8 @@ results <- results |>
 kable(results)
 ```
 
+### Time series of the first days
+
 ```{r show_plot, echo=FALSE}
 res_to_plot <- res[0:72,] 
 
@@ -90,7 +97,7 @@ series_plot <- function(data, col) {
   ggplot(p, aes(x=time)) +
     geom_line(aes(y=reanalysis)) +
     geom_line(aes(y=column), color = "red") + 
-    labs(y = "sfcWind", x = "", title = col)
+    labs(y = params$variable, x = "", title = col)
 }
 
 # Serie to compare to reanalysis
@@ -103,16 +110,50 @@ plots <- lapply(models, function(col) series_plot(res_to_plot, col))
 do.call(grid.arrange, c(plots, ncol = 1))
 ```
 
-### How Often Peaks Hit Hourly
+`r  if (conf[["VARIABLES"]][[params$variable]][["daily"]]) {"### How Often Peaks Hit Hourly\n"} else {"### Distribution of daily values by month\n"}`
 
 ```{r maximum}
-models <- res |> select(-c("time", "reanalysis")) |> colnames()
+if (conf[["VARIABLES"]][[params$variable]][["daily"]]) {
+  models <- res |> select(-c("time", "reanalysis")) |> colnames()
+  
+  plots <- lapply(models, function(col) {
+    maximum_histograms(res$time, res$reanalysis, res[[col]]) + scale_fill_discrete(labels = c(col, "reanalysis"))
+  })
+  
+  do.call(grid.arrange, c(plots, ncol = 1))
+} else {
+  models <- res |> select(-c("time", "reanalysis")) |> colnames()
+  
+  plots <- lapply(models, function(col) {
+    monthly_boxplot(res$time, res$reanalysis, res[[col]]) + scale_fill_discrete(labels = c(col, "reanalysis"))
+  })
+  
+  do.call(grid.arrange, c(plots, ncol = 1))
+}
+```
 
-plots <- lapply(models, function(col) {
-  maximum_histograms(res$time, res$reanalysis, res[[col]]) + scale_fill_discrete(labels = c(col, "reanalysis"))
-})
+`r  if (conf[["VARIABLES"]][[params$variable]][["daily"]]) {"### New plot\n"}`
 
-do.call(grid.arrange, c(plots, ncol = 1))
+```{r, fig.height=9, fig.width=6}
+if (conf[["VARIABLES"]][[params$variable]][["daily"]]){
+  res_to_plot <- res |> 
+      mutate(date = getDate(time)) |> 
+      group_by(date) |>
+      mutate(daily_avg = mean(reanalysis)) |>
+      ungroup() |>
+      mutate(hour = getHour(time))
+
+  p1 <- ggplot(res_to_plot, aes(x=daily_avg, y=reanalysis)) +
+    geom_line() +
+    labs(title = "Reanalysis") +
+    facet_wrap(~hour)
+  
+  p2 <- ggplot(res_to_plot, aes(x=daily_avg, y=xgboost)) +
+    geom_line() +
+    labs(title = "Xgboost") +
+    facet_wrap(~hour)
+  grid.arrange(p1, p2, newpage = T)
+}
 ```
 
 ### QQ Plot

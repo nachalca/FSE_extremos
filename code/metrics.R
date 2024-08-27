@@ -1,5 +1,7 @@
 library(ggplot2)
 library('here')
+library('viridis')
+library('metrica')
 setwd(here())
 source('code/utils.R')
 
@@ -44,10 +46,12 @@ metrics_monthly <- function(time, truth, estimate, model){
 #use when the truth and the estimate come from the same model
 metrics_2 <- function(time, truth, estimate, model){
   df <- data.frame(
-    "rmse" = c(rmse(truth, estimate)),
+  #  "rmse" = c(rmse(truth, estimate)),
     "mae" = c(mae(truth, estimate)),
     "cor" = c(correlation(truth, estimate)),
-    "ks_test" = c(ks(truth, estimate)),
+    "ratio_of_sd" =  c(ratio_of_sd(truth, estimate)),
+    "KGE" = KGE(obs = truth, pred = estimate),
+  #  "ks_test" = c(ks(truth, estimate)),
     "amplitude_rmse" = c(amplitude_rmse(time, truth, estimate)),
     "maximum_correlation" = c(maximum_correlation(time, truth, estimate)),
     "sign_correlation" = c(sign_correlation(truth, estimate))
@@ -240,6 +244,20 @@ maximum_histograms <- function(time, truth, estimate){
                                                           ) |> mutate(hour = as.factor(hour))
   ggplot(r, aes(x = hour, fill = model)) + 
     geom_bar(position = "dodge2") 
+}
+
+monthly_boxplot <- function(time, truth, estimate){
+  p <- data.frame(time = time, truth = truth, estimate = estimate) |>
+        pivot_longer(cols = c(truth, estimate),
+                     names_to = "model",
+                     values_to = "value") |>
+        mutate(month = as.factor(getMonth(time)))
+    
+  ggplot(p, aes(x = model, y = value, fill = model)) +
+    geom_boxplot() + 
+    scale_color_viridis() +
+    theme(legend.position = "none") +
+    facet_wrap(~month)
 }
 
 maximum_error <- function(time, truth, estimate){

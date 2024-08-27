@@ -27,6 +27,24 @@ VARIABLES:
     cmip6_name: surface_downwelling_shortwave_radiation
     daily: false
 
+VARIABLES_TO_BE_DOWNSCALED:
+  sfcWind:
+    cmip6_name: near_surface_wind_speed
+    daily: true
+  tas:
+    cmip6_name: near_surface_air_temperature
+    daily: true
+  pr:
+    cmip6_name: precipitation
+    daily: true
+  clt:
+    cmip6_name: total_cloud_cover_percentage
+    daily: false
+  rsds:
+    cmip6_name: surface_downwelling_shortwave_radiation
+    daily: false
+
+
 MODELS: [
   "ec_earth3", 
   "ec_earth3_veg_lr", 
@@ -35,4 +53,11 @@ MODELS: [
   "cnrm_cm6_1",
   "mri_esm2_0", 
   "ukesm1_0_ll"
+]
+
+EXPERIMENTS: [
+  "ssp2_4_5",
+  "ssp4_3_4", 
+  "ssp3_7_0", 
+  "ssp5_8_5"
 ]

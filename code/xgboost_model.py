@@ -88,7 +88,7 @@ def main():
                     fn=lambda space: xgboost_fit(X_train=X_train, y_train=y_train, **space),            
                     space=hyper_params,           
                     algo=tpe.suggest,            
-                    max_evals=3,            
+                    max_evals=5,            
                     trials=trials
             )
 
