@@ -56,12 +56,9 @@ with(builtins$open(x, "rb") %as% f, {
 
 ```{r xgboost}
 X_test <- variable |> select(-c(target, time))
-
-# Prepare your data
 input_data <- as.matrix(X_test)
 
-# Make predictions
-predictions <- model$predict(input_data)
+predictions <- model$predict(X_test)
 res$xgboost <- predictions
 ```
 
@@ -70,7 +67,7 @@ models <- res |> select(-c("time", "reanalysis")) |> colnames()
 
 r <- lapply(models, function(x) {
     metrics_2(time = res$time, truth = res$reanalysis, estimate = res[[x]], model = x)
-} )
+})
 
 results <- do.call(rbind, r)
 
@@ -248,10 +245,9 @@ ggplot(results, mapping = aes(x = lag, y = extremogram)) +
 
 ### XGBoost
 
-I have to check which metric is used (gain or weight).
-
 ```{r xgboost_explanation}
-importance <- data.frame(features = unlist(model$feature_names_in_), importance = unlist(model$feature_importances_)) |>
+xgboost <- model['model']
+importance <- data.frame(features = unlist(xgboost$feature_names_in_), importance = unlist(xgboost$feature_importances_)) |>
                 arrange(desc(importance)) |> head(10)
 # Create a ggplot2-based variable importance plot
 ggplot(importance, aes(x = importance, y = reorder(features, importance))) +

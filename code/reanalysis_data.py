@@ -215,8 +215,8 @@ def final_dataset():
     print(f"\033[92mObtaining the final dataset\033[0m")
 
     data = pd.read_csv(f"data/reanalysis/reanalysis.csv")
-    #total_precipitation column needs to be transformed to kg m-2 s-1
-    data['pr'] = data['pr'] * 1000 / 3600
+    #total_precipitation column needs to be transformed to kg m-2 h-1 (Cmip6 pr is in kg m-2 s-1 but it's to small)
+    data['pr'] = data['pr'] * 1000
     #We need to take the module of the wind
     data['sfcWind'] = data['uas']
     data = data.drop(columns=['uas', 'vas'])
@@ -232,14 +232,14 @@ def final_dataset():
 
 def main():
 #    Download the data for each variable
-    for variable in VARIABLES:
-        try:
-            # download_data(variable)
-            join_files(variable)
-            summarize_data(variable)
+    # for variable in VARIABLES:
+    #     try:
+    #         # download_data(variable)
+    #         join_files(variable)
+    #         summarize_data(variable)
 
-        except Exception as e:
-            print(f"\033[91mError with variable {variable}: {e}\033[0m")
+    #     except Exception as e:
+    #         print(f"\033[91mError with variable {variable}: {e}\033[0m")
     
     merge_all_data()
     final_dataset()

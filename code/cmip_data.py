@@ -397,6 +397,7 @@ def merge_all_data(model):
                 else:
                     data = data.merge(pd.read_csv(f"data/cmip/projections/{model}/{experiment}/{variable_name}.csv"), how='inner', on='time')
 
+            data["pr"] = data["pr"]*3600
             data.to_csv(f"data/cmip/projections/{model}/{experiment}/{experiment}.csv", index=False)
 
 

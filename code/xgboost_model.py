@@ -26,14 +26,19 @@ def load_configuration():
 
     return conf
 
-def xgboost_fit(X_train, y_train, **space):
+def xgboost_fit(X_train, y_train, variable_name, **space):
 
-    # Define the model
-    model = xgboost.XGBRegressor(**space)
+    categorical_variables = ["month", "hour"] if VARIABLES[variable_name]["daily"] else ["month"]
+
+    pipe = pipeline.Pipeline([
+        ('onehot', encoding.OneHotEncoder(variables=categorical_variables)),
+        ('model', xgboost.XGBRegressor(**space))
+    ])
+
 
     # Do Cross Validation
-    score = model_selection.cross_val_score(model, X_train, y_train, cv=5, scoring="neg_mean_squared_error").mean()
-    return {'loss': -score, 'status': STATUS_OK, 'model': model}
+    score = model_selection.cross_val_score(pipe, X_train, y_train, cv=5, scoring="neg_mean_squared_error").mean()
+    return {'loss': -score, 'status': STATUS_OK, 'model': pipe}
 
 
 def main():
@@ -49,16 +54,15 @@ def main():
             data = pd.read_csv(f"data/training/{f}")
             data = data.set_index("time")
 
-            categorical_variables = ["month", "hour"] if VARIABLES[variable_name]["daily"] else ["month"]
-
             # Split the data into features and target
             X = data.drop(columns=["target"])
             y = data["target"]
 
-            # Do the OneHot Encoding
+            # # Do the OneHot Encoding
+            categorical_variables = ["month", "hour"] if VARIABLES[variable_name]["daily"] else ["month"]
             X[categorical_variables] = X[categorical_variables].astype("object")
-            encoder = encoding.OneHotEncoder(variables=categorical_variables)
-            X = encoder.fit_transform(X)
+            # encoder = encoding.OneHotEncoder(variables=categorical_variables)
+            # X = encoder.fit_transform(X)
 
             # Split the data into training and test
             X_train, X_test, y_train, y_test = model_selection.train_test_split(X, y, test_size=0.2, shuffle=False)
@@ -86,11 +90,12 @@ def main():
             trials = Trials()
 
             best = fmin(
-                    fn=lambda space: xgboost_fit(X_train=X_train, y_train=y_train, **space),            
+                    fn=lambda space: xgboost_fit(X_train=X_train, y_train=y_train, variable_name=variable_name, **space),            
                     space=hyper_params,           
                     algo=tpe.suggest,            
                     max_evals=5,            
-                    trials=trials
+                    trials=trials,
+                    rstate=np.random.default_rng(SEED)
             )
 
             print(best)
@@ -101,13 +106,17 @@ def main():
             pickle.dump(trials, open(f"models/hyperparameters/{variable_name}.pkl", "wb"))
 
             #Train the model with the best hyperparameters
-            model = xgboost.XGBRegressor(**best)
-            model.fit(X_train, y_train)
+            pipe = pipeline.Pipeline([
+                ('onehot', encoding.OneHotEncoder(variables=categorical_variables)),
+                ('model', xgboost.XGBRegressor(**best))
+            ])
+
+            pipe.fit(X_train, y_train)
 
             #Save the model
             if os.path.exists(f"models/{variable_name}") == False:
                 os.makedirs(f"models/{variable_name}")
-            pickle.dump(model, open(f"models/{variable_name}/xgboost.pkl", "wb"))
+            pickle.dump(pipe, open(f"models/{variable_name}/xgboost.pkl", "wb"))
 
 if __name__ == "__main__":
     main()
