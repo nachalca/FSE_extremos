@@ -19,11 +19,14 @@ lapply(variables, function(x){
   fname <- paste0("../../reports/downscaling_evaluation/",
                   x, 
                   ".html") 
-  
-  rmarkdown::render(input="code/downscaling_reports_generator/downscaling.Rmd", 
+  if(x %in% c('tas', 'sfcWind')){
+   rmarkdown::render(input="code/downscaling_reports_generator/downscaling.Rmd", 
                     output_file = fname,
                     output_format = "html_document",
                     params = list(variable=x),
-                    clean = TRUE) # removes log files
+                    clean = TRUE) # removes log files   
+  }
+  
+
 })
 ```

@@ -7,7 +7,7 @@ source('code/utils.R')
 
 metrics <- function(time, truth, estimate, model){
   df <- data.frame(
-    "diff_of_means" = c(diff_of_means(truth, estimate)),
+    "diff_of_means" = c(diff_of_means_per(truth, estimate)),
     "ratio_of_sd" = c(ratio_of_sd(truth, estimate)),
    # "ks_test" = c(ks(truth, estimate)),
     "amplitude_ratio_of_means" = c(amplitude_ratio_of_means(time, truth, estimate)),
@@ -24,7 +24,7 @@ metrics_daily <- function(time, truth, estimate, model){
   #  "ratio_of_sd" = c(ratio_of_sd(truth, estimate)),
     "monthly_amplitude_ratio_of_means" = c(monthly_amplitude_ratio_of_means(time, truth, estimate)),
     "sign_correlation" = c(sign_correlation(truth, estimate)),
-    "qqplot_mape" = c(qqplot_mape(truth, estimate))
+    "qqplot_mae" = c(qqplot_mae(truth, estimate))
   )
   rownames(df) <- c(model)
   df
@@ -36,7 +36,7 @@ metrics_monthly <- function(time, truth, estimate, model){
     "ratio_of_sd" = c(ratio_of_sd(truth, estimate)),
     "yearly_amplitude_ratio_of_means" = c(yearly_amplitude_ratio_of_means(time, truth, estimate)),
     "sign_correlation" = c(sign_correlation(truth, estimate)),
-    "qqplot_mape" = c(qqplot_mape(truth, estimate))
+    "qqplot_mae" = c(qqplot_mae(truth, estimate))
   )
   rownames(df) <- c(model)
   df
@@ -272,7 +272,7 @@ maximum_error <- function(time, truth, estimate){
   result[[1]]
 }
 
-qqplot_mape <- function(truth, estimate){
+qqplot_mae <- function(truth, estimate){
   ref_col <- "reanalysis"
   sample_data <- estimate
   ref_data <- truth
@@ -286,5 +286,5 @@ qqplot_mape <- function(truth, estimate){
   quantiles_sample <- sample_data_sorted[seq(1, length(sample_data_sorted), length.out = n)]
   quantiles_ref <- ref_data_sorted[seq(1, length(ref_data_sorted), length.out = n)]
   
-  sum(abs((quantiles_ref - quantiles_sample)/quantiles_ref))/length(quantiles_ref)
+  mae(truth = quantiles_ref, estimate = quantiles_sample)
 }
