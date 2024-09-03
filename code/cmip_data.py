@@ -333,8 +333,14 @@ def summarize_data(model):
                 else:
                     assert months_between == len(dataset),\
                         f"Time for {variable_name} has the wrong size: {len(months_between)}, when it should be {months_between}"
-                
-                dataset[variable_name] = data_nc[variable_name].mean(dim=["lat","lon"]) 
+
+                if(variable_name == "tasmax"):
+                    dataset[variable_name] = data_nc[variable_name].max(dim=["lat","lon"])
+                elif(variable_name == "tasmin"):
+                    dataset[variable_name] = data_nc[variable_name].min(dim=["lat","lon"])
+                else:
+                    dataset[variable_name] = data_nc[variable_name].mean(dim=["lat","lon"]) 
+
                 dataset.to_csv(f"data/cmip/projections/{model}/{experiment}/{variable_name}.csv", index=False)   
 
 #A function to expand the variables to a hourly scale using the csv file obtained in summarize_data

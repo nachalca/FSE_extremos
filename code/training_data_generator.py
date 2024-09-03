@@ -150,10 +150,10 @@ def generate_dataframe(model, experiment = "", truncate = -1):
         else:
             data_variable = add_hour_month_sunlight(data_variable)
         
-        if(VARIABLES_TO_BE_DOWNSCALED.get(variable).get("daily")):
-            data_variable = add_past_future(data_variable, 24) #Add previous and next 24 hours
-        else:
-            data_variable = add_past_future(data_variable, 1) #Add previous and next day
+        # if(VARIABLES_TO_BE_DOWNSCALED.get(variable).get("daily")):
+        #     data_variable = add_past_future(data_variable, 24) #Add previous and next 24 hours
+        # else:
+        #     data_variable = add_past_future(data_variable, 1) #Add previous and next day
 
         if(model == "reanalysis"):
             if not os.path.exists("data/training"):
@@ -172,11 +172,11 @@ def main():
     #Generate the training dataset for the reanalysis
     generate_dataframe("reanalysis", truncate=10)
 
-    for model in MODELS:
-        for experiment in EXPERIMENTS:
-            #If the dataset of the model and experiment exists, we generate the dataset to be downscaled
-            if os.path.exists(f"data/cmip/projections/{model}/{experiment}/{experiment}.csv"):
-                generate_dataframe(model, experiment, 10)
+    # for model in MODELS:
+    #     for experiment in EXPERIMENTS:
+    #         #If the dataset of the model and experiment exists, we generate the dataset to be downscaled
+    #         if os.path.exists(f"data/cmip/projections/{model}/{experiment}/{experiment}.csv"):
+    #             generate_dataframe(model, experiment, 10)
 
 if __name__ == "__main__":
     main()

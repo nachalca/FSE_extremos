@@ -61,3 +61,5 @@ EXPERIMENTS: [
   "ssp3_7_0", 
   "ssp5_8_5"
 ]
+
+SEED: 1234
