@@ -170,13 +170,13 @@ def main():
     load_configuration()
 
     #Generate the training dataset for the reanalysis
-    generate_dataframe("reanalysis", truncate=10)
+   # generate_dataframe("reanalysis", truncate=10)
 
-    # for model in MODELS:
-    #     for experiment in EXPERIMENTS:
-    #         #If the dataset of the model and experiment exists, we generate the dataset to be downscaled
-    #         if os.path.exists(f"data/cmip/projections/{model}/{experiment}/{experiment}.csv"):
-    #             generate_dataframe(model, experiment, 10)
+    for model in MODELS:
+        for experiment in EXPERIMENTS:
+            #If the dataset of the model and experiment exists, we generate the dataset to be downscaled
+            if os.path.exists(f"data/cmip/projections/{model}/{experiment}/{experiment}.csv"):
+                generate_dataframe(model, experiment, 10)
 
 if __name__ == "__main__":
     main()

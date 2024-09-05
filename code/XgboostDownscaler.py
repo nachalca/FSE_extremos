@@ -10,6 +10,8 @@ import numpy as np
 import pickle
 import os
 import dask.dataframe as dd
+from dask_ml.preprocessing import Categorizer, OneHotEncoder as DaskOneHotEncoder
+from dask.distributed import Client, LocalCluster
 
 class XgboostDownscaler():
 
@@ -46,15 +48,55 @@ class XgboostDownscaler():
         categorical_variables = ["month", "hour"] if "month" in data.columns and "hour" in data.columns else ["month"]
         data[categorical_variables] = data[categorical_variables].astype("object")                
         data = encoding.OneHotEncoder(variables=categorical_variables).fit_transform(data)
-        
+        print("month" in data.columns)
+
         return data
 
+    @staticmethod
+    def transform_with_dask(window_size, data):
 
+        # Convert pandas DataFrame to Dask DataFrame if not already a Dask DataFrame
+        if not isinstance(data, dd.DataFrame):
+            data = dd.from_pandas(data, npartitions=4)  # Adjust npartitions based on your systemW
+        
+        # Filter columns to process
+        cols_to_process = [col for col in data.columns if col not in ["time", "hour", "month"]]
+        
+        new_columns = []
+        
+        for col in cols_to_process:
+            for i in range(1, window_size + 1):
+                new_columns.append(data[col].shift(i).rename(f"{col}_past_{i}"))
+                new_columns.append(data[col].shift(-i).rename(f"{col}_future_{i}"))
+        
+        # Add all new columns to the DataFrame at once
+        data = dd.concat([data] + new_columns, axis=1)
+        
+        # Create a mask to remove rows with NaNs resulting from shifts
+        mask = data.index >= window_size
+        mask &= data.index < (data.index[-1] - window_size + 1)
+        data = data.loc[mask]
+        
+        # Do the One-Hot Encoding (OhE)
+        categorical_variables = ["month", "hour"] if "month" in data.columns and "hour" in data.columns else ["month"]
+        data[categorical_variables] = data[categorical_variables].astype("object")
+        
+        # Use dask-ml's OneHotEncoder
+        enc = DaskOneHotEncoder(cols=categorical_variables)
+        data_encoded = enc.fit_transform(data)
+
+        return data_encoded
+        
     def predict(self, data, model):
-        data = dd.read_csv(data)
-        window_size =  24 if ["hour" in data.columns] else 1        
+        data = pd.read_csv(data)
+        data.drop(columns=["target", "time"], inplace=True, errors="ignore")
+        window_size =  24 if "hour" in data.columns else 1  
+        print(f"Transforming dataset for prediction")      
         data = self.transform(window_size, data)
-        predictions = pickle.load(open(model, "rb")).predict(data)
+        print(f"Predicting with model {model}")
+        model = pickle.load(open(model, "rb"))
+        data = data[model.feature_names_in_]
+        predictions = model.predict(data)
         return predictions
 
     def optimize(self, X_train, y_train, **space):
@@ -89,6 +131,9 @@ class XgboostDownscaler():
 
                 #Set the amount of future and past observation to be taked account  
                 window_size =  24 if self.VARIABLES[variable_name]["daily"] else 1
+                
+                # Transform the data
+                print("Transforming the data ...")
                 X_train = self.transform(window_size, X)
                 y_train = data.iloc[window_size:-window_size] # delete first #window_size rows and the last #window_size rows, to have the same size as X_train.
 
@@ -107,6 +152,7 @@ class XgboostDownscaler():
                 }     
                 
                 # Optimize the hyperparameters
+                print("Doing the hyperparameters optimization ...")
                 trials = Trials()
                 best = fmin(
                         fn=lambda space: self.optimize(X_train=X_train, y_train=y_train, **space),            
@@ -125,6 +171,7 @@ class XgboostDownscaler():
                 pickle.dump(trials, open(f"models/hyperparameters/{variable_name}.pkl", "wb"))
 
                 #Train the model with the best hyperparameters
+                print("Training the model with the best hyperparameters ...")
                 xgb = xgboost.XGBRegressor(**best)
                 xgb.fit(X_train, y_train)
 
