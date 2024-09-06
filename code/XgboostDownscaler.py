@@ -16,13 +16,7 @@ from dask.distributed import Client, LocalCluster
 class XgboostDownscaler():
 
     def __init__(self):
-
-        with open("code/conf.yml", 'r') as file:
-            conf = yaml.safe_load(file)
-        
-        self.VARIABLES = conf["VARIABLES"]
-        self.MODELS = conf["MODELS"]
-        self.SEED = conf["SEED"]
+        pass
 
     #Add past observations and next observations as predictors, also do the onehot encoding
     @staticmethod
@@ -48,7 +42,6 @@ class XgboostDownscaler():
         categorical_variables = ["month", "hour"] if "month" in data.columns and "hour" in data.columns else ["month"]
         data[categorical_variables] = data[categorical_variables].astype("object")                
         data = encoding.OneHotEncoder(variables=categorical_variables).fit_transform(data)
-        print("month" in data.columns)
 
         return data
 
@@ -107,6 +100,13 @@ class XgboostDownscaler():
         return {'loss': -score, 'status': STATUS_OK, 'model': model}
 
     def fit(self):
+        #Load the configuration file
+        with open("code/conf.yml", 'r') as file:
+            conf = yaml.safe_load(file)
+        
+        VARIABLES = conf["VARIABLES"]
+        SEED = conf["SEED"]        
+
         # List all the training datataset
         files = os.listdir("data/training")
         for f in files:
@@ -130,12 +130,12 @@ class XgboostDownscaler():
                 pd.concat([X_test, y_test], axis=1).to_csv(f"data/testing/{variable_name}.csv")   
 
                 #Set the amount of future and past observation to be taked account  
-                window_size =  24 if self.VARIABLES[variable_name]["daily"] else 1
+                window_size =  24 if VARIABLES[variable_name]["daily"] else 1
                 
                 # Transform the data
                 print("Transforming the data ...")
                 X_train = self.transform(window_size, X)
-                y_train = data.iloc[window_size:-window_size] # delete first #window_size rows and the last #window_size rows, to have the same size as X_train.
+                y_train = y.iloc[window_size:-window_size] # delete first #window_size rows and the last #window_size rows, to have the same size as X_train.
 
                 # Define the search space
                 hyper_params = {
@@ -160,7 +160,7 @@ class XgboostDownscaler():
                         algo=tpe.suggest,            
                         max_evals=5,            
                         trials=trials,
-                        rstate=np.random.default_rng(self.SEED)
+                        rstate=np.random.default_rng(SEED)
                 )
 
                 print(best)

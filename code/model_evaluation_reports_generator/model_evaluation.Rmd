@@ -41,17 +41,13 @@ res <- data.frame(time = variable$time, reanalysis = variable$target)
 conf <- yaml.load_file("code/conf.yml")
 ```
 
-```{r load_model}
+```{r predictions}
 # Use reticulate to import Python modules
-pickle <- import("pickle")
-builtins <- import_builtins()  # This imports Python's built-in functions, including 'open'
-
-x <- paste0('models/', params$variable, "/xgboost.pkl")
-
-# Load the model from the pickle file
-with(builtins$open(x, "rb") %as% f, {
-  model <- pickle$load(f)
-})
+xgb <- import_from_path("XgboostDownscaler", path = paste0(here(), "/code"))
+xgboost_downscaler <- xgb$XgboostDownscaler()
+model <- paste0(here(), "/models/", params$variable, "/xgboost.pkl")
+data <- paste0(here(), "/data/testing/", params$variable, ".csv")
+xgboost_downscaler$predict(model = model, data = data)
 ```
 
 ```{r xgboost}
