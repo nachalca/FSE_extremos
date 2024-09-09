@@ -82,6 +82,7 @@ class XgboostDownscaler():
         
     def predict(self, data, model):
         data = pd.read_csv(data)
+        res = data.copy() # To keep the time
         data.drop(columns=["target", "time"], inplace=True, errors="ignore")
         window_size =  24 if "hour" in data.columns else 1  
         print(f"Transforming dataset for prediction")      
@@ -90,7 +91,9 @@ class XgboostDownscaler():
         model = pickle.load(open(model, "rb"))
         data = data[model.feature_names_in_]
         predictions = model.predict(data)
-        return predictions
+        res = res.iloc[window_size:-window_size] # Match the sizes
+        res["xgboost"] = predictions
+        return res[["time", "xgboost"]]
 
     def optimize(self, X_train, y_train, **space):
         model = xgboost.XGBRegressor(**space) # Define the model
@@ -99,6 +102,9 @@ class XgboostDownscaler():
         score = model_selection.cross_val_score(model, X_train, y_train, cv=5, scoring="neg_mean_squared_error").mean()
         return {'loss': -score, 'status': STATUS_OK, 'model': model}
 
+    """
+        TRAIN ALL XGBOOST MODELS FOR DIFFERENT VARIABLES. THIS FUNCTION WILL SAVE THE MODELS IN THE MODELS FOLDER.
+    """
     def fit(self):
         #Load the configuration file
         with open("code/conf.yml", 'r') as file:

@@ -39,19 +39,6 @@ x <- paste0('data/to_be_downscaled/', params$variable)
 to_be_downscaled <- list.files(x)
 ```
 
-```{r load_model}
-# Use reticulate to import Python modules
-pickle <- import("pickle")
-builtins <- import_builtins()  # This imports Python's built-in functions, including 'open'
-
-x <- paste0('models/', params$variable, "/xgboost.pkl")
-
-# Load the model from the pickle file
-with(builtins$open(x, "rb") %as% f, {
-  model <- pickle$load(f)
-})
-```
-
 ```{r load_reanalyis}
 reanalysis <- read.csv('data/reanalysis/reanalysis.csv')
 reanalysis <- reanalysis |> 
@@ -66,7 +53,13 @@ if (!conf[["VARIABLES"]][[params$variable]][["daily"]]){
 }
 ```
 
-```{r predictions}
+```{r predictions, results=F}
+xgb <- import_from_path("XgboostDownscaler", path = paste0(here(), "/code"))
+xgboost_downscaler <- xgb$XgboostDownscaler()
+
+cnn <- import_from_path("CNNDownscaler", path = paste0(here(), "/code"))
+cnn_downscaler <- cnn$CNNDownscaler()
+
 variable <- data.frame()
 res <- list()
 for(f in to_be_downscaled){
@@ -82,13 +75,19 @@ for(f in to_be_downscaled){
                      unlist(strsplit(file_name, "_"))[4]
                      )
     
-  XGBoost_data <- variable |> select(-c(time))
-  
-  
-  # Make predictions
-  predictions <- model$predict(XGBoost_data)
-  res[[paste0("original_", lab, '_', scenario)]] <- variable[[params$variable]]
-  res[[paste0("xgboost_", lab, '_', scenario)]]  <- predictions
+  xgboost_predictions <- xgboost_downscaler$predict(
+                            model = paste0(here(), "/models/", params$variable, "/xgboost.pkl"), 
+                            data = paste0(here(), "/", x)
+                          )
+  cnn_predictions <- cnn_downscaler$predict(
+                            model = paste0(here(), "/models/", params$variable, "/cnn.pkl"), 
+                            data = paste0(here(), "/", x)
+                          )
+    
+  variable <- variable |> filter(time %in% xgboost_predictions$time)
+  res[[paste0("original_", lab, '_', scenario)]] <- variable[[params$variable]] 
+  res[[paste0("xgboost_", lab, '_', scenario)]]  <- xgboost_predictions[["xgboost"]]
+  res[[paste0("cnn_", lab, '_', scenario)]]  <- cnn_predictions[["cnn"]][1:length(variable[[params$variable]] )]
 
   #rm(variable)
 }

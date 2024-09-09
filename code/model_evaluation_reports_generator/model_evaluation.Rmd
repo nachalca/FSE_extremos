@@ -18,7 +18,7 @@ h2,h3  {
 }
 ```
 
-```{r imports}
+```{r imports, results=F}
 library(ggplot2)
 library(tidyverse)
 library(knitr)
@@ -45,17 +45,27 @@ conf <- yaml.load_file("code/conf.yml")
 # Use reticulate to import Python modules
 xgb <- import_from_path("XgboostDownscaler", path = paste0(here(), "/code"))
 xgboost_downscaler <- xgb$XgboostDownscaler()
-model <- paste0(here(), "/models/", params$variable, "/xgboost.pkl")
-data <- paste0(here(), "/data/testing/", params$variable, ".csv")
-xgboost_downscaler$predict(model = model, data = data)
+
+xgboost_predictions <- xgboost_downscaler$predict(model = paste0(here(), "/models/", params$variable, "/xgboost.pkl"), 
+                           data = paste0(here(), "/data/testing/", params$variable, ".csv"))
+
 ```
 
-```{r xgboost}
-X_test <- variable |> select(-c(target, time))
-input_data <- as.matrix(X_test)
+```{r predictions}
+# Use reticulate to import Python modules
+cnn <- import_from_path("CNNDownscaler", path = paste0(here(), "/code"))
+cnn_downscaler <- cnn$CNNDownscaler()
 
-predictions <- model$predict(X_test)
-res$xgboost <- predictions
+cnn_predictions <- cnn_downscaler$predict(model = paste0(here(), "/models/", params$variable, "/cnn.pkl"), 
+                           data = paste0(here(), "/data/testing/", params$variable, ".csv"))
+```
+
+
+
+```{r res_dataframe, results=F}
+res <- res |> 
+  inner_join(xgboost_predictions) |>
+  inner_join(cnn_predictions)
 ```
 
 ```{r metrics_2}
@@ -241,8 +251,20 @@ ggplot(results, mapping = aes(x = lag, y = extremogram)) +
 
 ### XGBoost
 
+```{r xgboost_load_model}
+# Use reticulate to import Python modules
+pickle <- import("pickle")
+builtins <- import_builtins()  # This imports Python's built-in functions, including 'open'
+
+x <- paste0('models/', params$variable, "/xgboost.pkl")
+
+# Load the model from the pickle file
+with(builtins$open(x, "rb") %as% f, {
+  xgboost <- pickle$load(f)
+})
+```
+
 ```{r xgboost_explanation}
-xgboost <- model['model']
 importance <- data.frame(features = unlist(xgboost$feature_names_in_), importance = unlist(xgboost$feature_importances_)) |>
                 arrange(desc(importance)) |> head(10)
 # Create a ggplot2-based variable importance plot
