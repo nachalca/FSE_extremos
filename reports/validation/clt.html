@@ -359,6 +359,26 @@ h2,h3 {
 margin-top: 3em;
 }
 </style>
+<pre><code>## Want to understand how all the pieces fit together? Read R for Data Science: https://r4ds.hadley.nz/</code></pre>
+<pre><code>## ── Attaching core tidyverse packages ────────────────────────────────────────────────────────────────────── tidyverse 2.0.0 ──
+## ✔ dplyr     1.1.4     ✔ readr     2.1.4
+## ✔ forcats   1.0.0     ✔ stringr   1.5.0
+## ✔ lubridate 1.9.3     ✔ tibble    3.2.1
+## ✔ purrr     1.0.2     ✔ tidyr     1.3.0
+## ── Conflicts ──────────────────────────────────────────────────────────────────────────────────────── tidyverse_conflicts() ──
+## ✖ dplyr::filter() masks stats::filter()
+## ✖ dplyr::lag()    masks stats::lag()
+## ℹ Use the conflicted package (&lt;http://conflicted.r-lib.org/&gt;) to force all conflicts to become errors
+## 
+## Attaching package: &#39;gridExtra&#39;
+## 
+## 
+## The following object is masked from &#39;package:dplyr&#39;:
+## 
+##     combine
+## 
+## 
+## Loading required package: viridisLite</code></pre>
 <div id="metrics" class="section level3">
 <h3>Metrics</h3>
 <table>
@@ -366,9 +386,9 @@ margin-top: 3em;
 <col width="18%" />
 <col width="13%" />
 <col width="11%" />
-<col width="29%" />
-<col width="15%" />
-<col width="11%" />
+<col width="30%" />
+<col width="16%" />
+<col width="10%" />
 </colgroup>
 <thead>
 <tr class="header">
@@ -377,7 +397,7 @@ margin-top: 3em;
 <th align="right">ratio_of_sd</th>
 <th align="right">yearly_amplitude_ratio_of_means</th>
 <th align="right">sign_correlation</th>
-<th align="right">qqplot_mape</th>
+<th align="right">qqplot_mae</th>
 </tr>
 </thead>
 <tbody>
@@ -387,7 +407,7 @@ margin-top: 3em;
 <td align="right">1.210</td>
 <td align="right">1.232</td>
 <td align="right">0.439</td>
-<td align="right">0.075</td>
+<td align="right">3.092</td>
 </tr>
 <tr class="even">
 <td align="left">mri_esm2_0_ssp4_3_4</td>
@@ -395,7 +415,7 @@ margin-top: 3em;
 <td align="right">1.252</td>
 <td align="right">1.371</td>
 <td align="right">0.486</td>
-<td align="right">0.111</td>
+<td align="right">4.673</td>
 </tr>
 <tr class="odd">
 <td align="left">cesm2_ssp2_4_5</td>
@@ -403,7 +423,7 @@ margin-top: 3em;
 <td align="right">1.101</td>
 <td align="right">1.132</td>
 <td align="right">0.551</td>
-<td align="right">0.110</td>
+<td align="right">5.263</td>
 </tr>
 <tr class="even">
 <td align="left">cesm2_ssp3_7_0</td>
@@ -411,7 +431,7 @@ margin-top: 3em;
 <td align="right">1.115</td>
 <td align="right">1.110</td>
 <td align="right">0.449</td>
-<td align="right">0.134</td>
+<td align="right">6.571</td>
 </tr>
 <tr class="odd">
 <td align="left">mri_esm2_0_ssp2_4_5</td>
@@ -419,7 +439,7 @@ margin-top: 3em;
 <td align="right">1.150</td>
 <td align="right">1.181</td>
 <td align="right">0.514</td>
-<td align="right">0.153</td>
+<td align="right">6.753</td>
 </tr>
 <tr class="even">
 <td align="left">cesm2_ssp5_8_5</td>
@@ -427,7 +447,7 @@ margin-top: 3em;
 <td align="right">1.064</td>
 <td align="right">1.116</td>
 <td align="right">0.458</td>
-<td align="right">0.151</td>
+<td align="right">7.127</td>
 </tr>
 <tr class="odd">
 <td align="left">ec_earth3_ssp4_3_4</td>
@@ -435,7 +455,7 @@ margin-top: 3em;
 <td align="right">1.025</td>
 <td align="right">0.993</td>
 <td align="right">0.523</td>
-<td align="right">0.204</td>
+<td align="right">9.674</td>
 </tr>
 </tbody>
 </table>

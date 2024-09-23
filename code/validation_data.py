@@ -44,7 +44,12 @@ def upscale_daily(data, variable):
     #Extract the month and year from the time column
     data["time"] = pd.to_datetime(data["time"])
     data["time"] = data["time"].dt.date
-    data = data.groupby("time").mean()
+    if variable == "tasmax":
+        data = data.groupby("time").max()
+    elif variable == "tasmin":
+        data = data.groupby("time").min()
+    else:
+        data = data.groupby("time").mean()
     #Transform the time column to datetime
     data["time"] = pd.to_datetime(data.index)
     data.reset_index(drop=True, inplace=True)

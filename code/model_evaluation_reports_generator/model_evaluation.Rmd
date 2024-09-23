@@ -41,6 +41,8 @@ res <- data.frame(time = variable$time, reanalysis = variable$target)
 conf <- yaml.load_file("code/conf.yml")
 ```
 
+The observations for the validation were taken from `r min(res$time)` to `r max(res$time)`.
+
 ```{r predictions}
 # Use reticulate to import Python modules
 xgb <- import_from_path("XgboostDownscaler", path = paste0(here(), "/code"))
@@ -51,7 +53,7 @@ xgboost_predictions <- xgboost_downscaler$predict(model = paste0(here(), "/model
 
 ```
 
-```{r predictions}
+```{r cnn_predictions}
 # Use reticulate to import Python modules
 cnn <- import_from_path("CNNDownscaler", path = paste0(here(), "/code"))
 cnn_downscaler <- cnn$CNNDownscaler()
@@ -64,8 +66,8 @@ cnn_predictions <- cnn_downscaler$predict(model = paste0(here(), "/models/", par
 
 ```{r res_dataframe, results=F}
 res <- res |> 
-  inner_join(xgboost_predictions) |>
-  inner_join(cnn_predictions)
+  inner_join(xgboost_predictions, by = join_by(time)) |>
+  inner_join(cnn_predictions, by = join_by(time))
 ```
 
 ```{r metrics_2}
@@ -115,7 +117,7 @@ do.call(grid.arrange, c(plots, ncol = 1))
 
 `r  if (conf[["VARIABLES"]][[params$variable]][["daily"]]) {"### How Often Peaks Hit Hourly\n"} else {"### Distribution of daily values by month\n"}`
 
-```{r maximum}
+```{r maximum, fig.height=9}
 if (conf[["VARIABLES"]][[params$variable]][["daily"]]) {
   models <- res |> select(-c("time", "reanalysis")) |> colnames()
   

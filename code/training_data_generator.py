@@ -87,26 +87,6 @@ def add_hour_month_sunlight(data):
 
     return data
 
-#Last step, add past observations ad next observations as predictors
-def add_past_future(data, window_size):
-    # Filter columns to process
-    cols_to_process = [col for col in data.columns if col not in ["time", "target", "hour", "month"]]
-    
-    new_columns = []
-
-    for col in cols_to_process:
-        for i in range(1, window_size + 1):
-            new_columns.append(data[col].shift(i).rename(f"{col}_past_{i}"))
-            new_columns.append(data[col].shift(-i).rename(f"{col}_future_{i}"))
-    
-    # Add all new columns to the DataFrame at once
-    data = pd.concat([data] + new_columns, axis=1)
-        
-    # Delete the first #window_size rows and the last #window_size rows
-    data = data.iloc[window_size:-window_size]
-    
-    return data
-
 #Truncate is used to truncate the data to the first N years, if it is -1 we don't truncate
 def generate_dataframe(model, experiment = "", truncate = -1):
     data = pd.DataFrame()
@@ -150,11 +130,6 @@ def generate_dataframe(model, experiment = "", truncate = -1):
         else:
             data_variable = add_hour_month_sunlight(data_variable)
         
-        # if(VARIABLES_TO_BE_DOWNSCALED.get(variable).get("daily")):
-        #     data_variable = add_past_future(data_variable, 24) #Add previous and next 24 hours
-        # else:
-        #     data_variable = add_past_future(data_variable, 1) #Add previous and next day
-
         if(model == "reanalysis"):
             if not os.path.exists("data/training"):
                 os.makedirs("data/training")
@@ -169,14 +144,13 @@ def main():
 
     load_configuration()
 
-    #Generate the training dataset for the reanalysis
-   # generate_dataframe("reanalysis", truncate=10)
-
-    for model in MODELS:
-        for experiment in EXPERIMENTS:
-            #If the dataset of the model and experiment exists, we generate the dataset to be downscaled
-            if os.path.exists(f"data/cmip/projections/{model}/{experiment}/{experiment}.csv"):
-                generate_dataframe(model, experiment, 10)
+    generate_dataframe("reanalysis")
+    
+    # for model in MODELS:
+    #     for experiment in EXPERIMENTS:
+    #         #If the dataset of the model and experiment exists, we generate the dataset to be downscaled
+    #         if os.path.exists(f"data/cmip/projections/{model}/{experiment}/{experiment}.csv"):
+    #             generate_dataframe(model, experiment)
 
 if __name__ == "__main__":
     main()

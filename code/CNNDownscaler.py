@@ -45,19 +45,23 @@ class CNNDownscaler():
             lookback  The window size to look back in the past records. Shape: a scalar.
 
             Output
-            output_X  A 3D numpy array of shape: ((n_observations-lookback-1) x lookback x n_features)
-            output_y  A 1D array of shape: (n_observations-lookback-1), aligned with X.
+            output_X  A 3D numpy array of shape: ((n_observations-2*lookback -1) x (lookback*2) x n_features)
+            output_y  A 1D array of shape: (n_observations-2*lookback - 1), aligned with X. 
             '''
+            #TODO: Check the shape of the output
             output_X = []
             output_y = []
-            for i in range(len(X) - lookback - 1):
+            for i in range(lookback, len(X) - lookback - 1):
                 t = []
-                for j in range(1, lookback + 1):
+                for j in range(lookback, 0, -1):
                     # Gather the past records upto the lookback period
-                    t.append(X[[(i + j + 1)], :])
+                    t.append(X[[(i - j)], :])
+                for j in range(0, lookback): 
+                    # Gather the future records upto the lookback period
+                    t.append(X[[(i + j + 1)], :]) #
                 output_X.append(t)
                 if y is not None:
-                    output_y.append(y[i + lookback + 1])
+                    output_y.append(y[i])
             if y is None:
                 return np.squeeze(np.array(output_X)), None
             else:
@@ -102,7 +106,7 @@ class CNNDownscaler():
 
         input_X =  data_x.loc[:, ].values  # Convert to numpy array
         input_y = data_y.loc[:, ].values if data_y is not None else None
-
+        
         lookback = window_size
 
         X_train, y_train = temporalize(X=input_X, 
@@ -122,7 +126,7 @@ class CNNDownscaler():
         data = pd.read_csv(data)
         res = data.copy() # To keep the time
         data.drop(columns=["target", "time"], inplace=True, errors="ignore")
-        window_size =  24 if "hour" in data.columns else 10  
+        window_size =  24 if "hour" in data.columns else 30  
         print(f"Transforming dataset for prediction")      
         data = self.transform(window_size, data_x = data)
         print(f"Predicting with model {model}")
@@ -173,7 +177,7 @@ class CNNDownscaler():
                 X_train, X_valid, y_train, y_valid = model_selection.train_test_split(X_train, y_train, test_size=0.2, shuffle=False)
 
                 #Set the amount of future and past observation to be taked account  
-                window_size =  24 if VARIABLES[variable_name]["daily"] else 10
+                window_size =  24 if VARIABLES[variable_name]["daily"] else 30
                 
                 # Transform the data
                 print("Transforming the data ...")

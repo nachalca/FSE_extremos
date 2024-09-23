@@ -1,6 +1,6 @@
-from XgboostDownscaler import XgboostDownscaler
+from CNNDownscaler import CNNDownscaler
 
 
-xgb = XgboostDownscaler()
-p = xgb.predict(data = "data/to_be_downscaled/clt/cesm2_ssp2_4_5.csv", model = "models/clt/xgboost.pkl")
+cnn = CNNDownscaler()
+p = cnn.predict(data = "data/to_be_downscaled/clt/cesm2_ssp2_4_5.csv", model = "models/clt/cnn.pkl")
 print(p)

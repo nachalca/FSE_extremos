@@ -23,8 +23,9 @@ codigo/*.zip
 
 data/reanalysis/**/*.nc
 data/cmip/projections/**/*.nc
-data/training/*
-data/testing/* 
-data/to_be_downscaled/*
+data/training/*.csv
+data/testing/*.csv
+data/to_be_downscaled/**/*.csv
 Downscaling/experimentation_bruno/credentials.csv
 code/naive_model.html
+code/__pycache__/**
