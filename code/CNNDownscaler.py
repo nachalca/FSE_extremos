@@ -132,7 +132,7 @@ class CNNDownscaler():
         print(f"Predicting with model {model}")
         model = pickle.load(open(model, "rb"))
         predictions = model.predict(data)
-        res = res.iloc[window_size+1:] # Match the sizes
+        res = res.iloc[window_size+1:len(res) - window_size] # Match the sizes
         res["cnn"] = predictions
         return res[["time", "cnn"]]
 

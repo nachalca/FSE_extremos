@@ -1,7 +1,7 @@
 ---
 title: "`r paste0('Model evaluation for ', params$variable)`"
 params:
-  variable: "sfcWind" #Use pr as default
+  variable: "rsds" #Use pr as default
 output: html_document
 ---
 
@@ -43,7 +43,7 @@ conf <- yaml.load_file("code/conf.yml")
 
 The observations for the validation were taken from `r min(res$time)` to `r max(res$time)`.
 
-```{r predictions}
+```{r predictions, results=F, warning=F, message=F}
 # Use reticulate to import Python modules
 xgb <- import_from_path("XgboostDownscaler", path = paste0(here(), "/code"))
 xgboost_downscaler <- xgb$XgboostDownscaler()
@@ -53,7 +53,7 @@ xgboost_predictions <- xgboost_downscaler$predict(model = paste0(here(), "/model
 
 ```
 
-```{r cnn_predictions}
+```{r cnn_predictions, results=F, warning=F, message=F}
 # Use reticulate to import Python modules
 cnn <- import_from_path("CNNDownscaler", path = paste0(here(), "/code"))
 cnn_downscaler <- cnn$CNNDownscaler()
