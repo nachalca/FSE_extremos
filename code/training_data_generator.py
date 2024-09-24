@@ -146,11 +146,11 @@ def main():
 
     generate_dataframe("reanalysis")
     
-    # for model in MODELS:
-    #     for experiment in EXPERIMENTS:
-    #         #If the dataset of the model and experiment exists, we generate the dataset to be downscaled
-    #         if os.path.exists(f"data/cmip/projections/{model}/{experiment}/{experiment}.csv"):
-    #             generate_dataframe(model, experiment)
+    for model in MODELS:
+        for experiment in EXPERIMENTS:
+            #If the dataset of the model and experiment exists, we generate the dataset to be downscaled
+            if os.path.exists(f"data/cmip/projections/{model}/{experiment}/{experiment}.csv"):
+                generate_dataframe(model, experiment)
 
 if __name__ == "__main__":
     main()
