@@ -41,7 +41,6 @@ res <- data.frame(time = variable$time, reanalysis = variable$target)
 conf <- yaml.load_file("code/conf.yml")
 ```
 
-The observations for the validation were taken from `r min(res$time)` to `r max(res$time)`.
 
 ```{r predictions, results=F, warning=F, message=F}
 # Use reticulate to import Python modules
@@ -62,13 +61,25 @@ cnn_predictions <- cnn_downscaler$predict(model = paste0(here(), "/models/", par
                            data = paste0(here(), "/data/testing/", params$variable, ".csv"))
 ```
 
+```{r naive_predictions, results=F, warning=F, message=F}
+# Use reticulate to import Python modules
+nv <- import_from_path("NaiveDownscaler", path = paste0(here(), "/code"))
+nv_downscaler <- nv$NaiveDownscaler()
+
+nv_predictions <- nv_downscaler$predict(model = paste0(here(), "/models/", params$variable, "/naive.pkl"), 
+                           data = paste0(here(), "/data/testing/", params$variable, ".csv"))
+```
+
 
 
 ```{r res_dataframe, results=F}
 res <- res |> 
   inner_join(xgboost_predictions, by = join_by(time)) |>
-  inner_join(cnn_predictions, by = join_by(time))
+  inner_join(cnn_predictions, by = join_by(time)) |>
+  inner_join(nv_predictions, by = join_by(time))
 ```
+
+The observations for the validation were taken from `r min(res$time)` to `r max(res$time)`.
 
 ```{r metrics_2}
 models <- res |> select(-c("time", "reanalysis")) |> colnames()

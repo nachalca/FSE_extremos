@@ -60,6 +60,9 @@ xgboost_downscaler <- xgb$XgboostDownscaler()
 cnn <- import_from_path("CNNDownscaler", path = paste0(here(), "/code"))
 cnn_downscaler <- cnn$CNNDownscaler()
 
+nv <- import_from_path("NaiveDownscaler", path = paste0(here(), "/code"))
+nv_downscaler <- nv$NaiveDownscaler()
+
 variable <- data.frame()
 res <- list()
 for(f in to_be_downscaled){
@@ -83,12 +86,17 @@ for(f in to_be_downscaled){
                             model = paste0(here(), "/models/", params$variable, "/cnn.pkl"), 
                             data = paste0(here(), "/", x)
                           )
-    
+  
+  nv_predictions <- nv_downscaler$predict(
+                           model = paste0(here(), "/models/", params$variable, "/naive.pkl"), 
+                           data = paste0(here(), "/", x)
+                    )  
+  
   variable <- variable |> filter(time %in% xgboost_predictions$time)
   res[[paste0("original_", lab, '_', scenario)]] <- variable[[params$variable]] 
   res[[paste0("xgboost_", lab, '_', scenario)]]  <- xgboost_predictions[["xgboost"]]
-  res[[paste0("cnn_", lab, '_', scenario)]]  <- cnn_predictions[["cnn"]][1:length(variable[[params$variable]] )]
-
+  res[[paste0("cnn_", lab, '_', scenario)]]  <- cnn_predictions[["cnn"]][1:length(variable[[params$variable]] )] #TODO: CHECK DIMENSIONS
+  res[[paste0("nv_", lab, '_', scenario)]] <- nv_predictions[["naive"]]
   #rm(variable)
 }
 
