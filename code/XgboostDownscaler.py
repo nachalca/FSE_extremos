@@ -3,7 +3,6 @@ import pandas as pd
 from sklearn import base, pipeline, model_selection
 from hyperopt import STATUS_OK, Trials, fmin, hp, tpe, space_eval 
 from hyperopt.early_stop import no_progress_loss
-import os
 import xgboost
 import yaml 
 import numpy as np
