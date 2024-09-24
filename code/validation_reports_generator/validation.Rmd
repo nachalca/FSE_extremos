@@ -1,0 +1,150 @@
+---
+title: "`r params$variable`"
+params:
+  variable: "sfcWind" #Use pr as default
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(here)
+knitr::opts_knit$set(root.dir = here())
+knitr::opts_chunk$set(echo = F, warning = F)
+```
+
+```{css echo=FALSE}
+/* Define a margin before h2 element */
+h2,h3  {
+  margin-top: 3em;
+}
+```
+
+```{r imports, echo=FALSE}
+library(ggplot2)
+library(tidyverse)
+library(knitr)
+library(gridExtra)
+library("extremogram")
+source('code/metrics.R')
+```
+
+```{r data, echo=FALSE}
+x <- paste0('data/validation/', params$variable, ".csv")
+variable <- read.csv(x)
+variable_long <- variable |> pivot_longer(!time, names_to = "model", values_to = "value")
+```
+
+### Metrics
+
+
+```{r metrics, echo=FALSE, warning=FALSE}
+is_daily <- any(variable$time == '2015-01-02')
+variable_temp <- variable |> select(-c("time", "reanalysis"))
+
+r <- lapply(colnames(variable_temp), function(x) {
+  if(is_daily)
+    metrics_daily(time = variable$time, truth = variable$reanalysis, estimate = variable[[x]], model = x)
+  else
+    metrics_monthly(time = variable$time, truth = variable$reanalysis, estimate = variable[[x]], model = x)
+} )
+
+results <- do.call(rbind, r)
+
+results <- results |>
+  arrange(by = abs(diff_of_means)) |>
+  mutate(diff_of_means = sprintf("%.2f%%", diff_of_means)) |>
+  mutate(across(where(is.numeric), round, digits = 3)) 
+
+kable(results)
+```
+
+### Density Plot
+
+```{r density, echo=FALSE}
+ggplot(variable_long) +
+  geom_density(aes(x=value,color=model)) +
+  xlab(params$variable)
+```
+
+### QQ-Plot
+
+```{r qqplot, fig.height=8, fig.width=6}
+# Function to create a Q-Q plot comparing quantiles of a sample column against a reference column
+qq_plot_against <- function(data, sample_col) {
+  ref_col <- "reanalysis"
+  sample_data <- data[[sample_col]]
+  ref_data <- data[[ref_col]]
+  
+  # Sort the data
+  sample_data_sorted <- sort(sample_data)
+  ref_data_sorted <- sort(ref_data)
+  
+  # Calculate quantiles
+  n <- min(length(sample_data_sorted), length(ref_data_sorted))
+  quantiles_sample <- sample_data_sorted[seq(1, length(sample_data_sorted), length.out = n)]
+  quantiles_ref <- ref_data_sorted[seq(1, length(ref_data_sorted), length.out = n)]
+  
+  # Create a data frame for plotting
+  quantile_df <- data.frame(Quantiles_Ref = quantiles_ref, Quantiles_Sample = quantiles_sample)
+  
+  # Generate the Q-Q plot
+  ggplot(quantile_df, aes(x = Quantiles_Ref, y = Quantiles_Sample)) +
+    geom_point() +
+    geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
+    ggtitle(paste(sample_col)) +
+    labs(x = NULL, y = NULL) +
+    theme_minimal()
+}
+
+# Columns to compare against the reference column
+models <- variable |> select(-c("time", "reanalysis")) |> colnames()
+# Generate Q-Q plots
+plots <- lapply(models, function(col) qq_plot_against(variable, col))
+
+# Arrange the plots using gridExtra
+do.call(grid.arrange, c(plots, ncol = 2))  # Arrange in a grid
+```
+
+### Autocorrelogram
+
+
+```{r acf}
+variable_temp <- variable |> select(-c("time"))
+r <- lapply(colnames(variable_temp), function(x) {
+  acf(variable_temp[[x]], lag.max = 47, plot = F)$acf
+})
+
+results <- do.call(cbind, r)
+
+colnames(results) <- colnames(variable_temp)
+
+results <- as_data_frame(results)
+
+results <- results |> pivot_longer(cols = everything(), names_to = "model", values_to = "acf")
+results$lag <- sort(rep(1:48, length(colnames(variable_temp))))
+
+ggplot(results, mapping = aes(x = lag, y = acf)) +
+    geom_segment(mapping = aes(xend = lag, yend = 0)) +
+    facet_wrap(~ model, nrow = 2)
+```
+
+### Extremogram
+
+```{r}
+variable_temp <- variable |> select(-c("time"))
+r <- lapply(colnames(variable_temp), function(x) {
+  extremogram1(variable_temp[[x]], quant = .97, maxlag = 48, type = 1, ploting = 0)
+})
+
+results <- do.call(cbind, r)
+
+colnames(results) <- colnames(variable_temp)
+
+results <- as_data_frame(results)
+
+results <- results |> pivot_longer(cols = everything(), names_to = "model", values_to = "extremogram")
+results$lag <- sort(rep(1:48, length(colnames(variable_temp))))
+
+ggplot(results, mapping = aes(x = lag, y = extremogram)) +
+    geom_segment(mapping = aes(xend = lag, yend = 0)) +
+    facet_wrap(~ model, nrow = 2)
+```
