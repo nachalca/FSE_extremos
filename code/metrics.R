@@ -2,6 +2,8 @@ library(ggplot2)
 library('here')
 library('viridis')
 library('metrica')
+library('ggforce')
+library(colorspace)
 setwd(here())
 source('code/utils.R')
 
@@ -126,6 +128,24 @@ amplitude_rmse <- function(time, truth, estimate){
     ungroup() 
   
   rmse(r$truth_amplitude, r$estimate_amplitude)
+}
+
+#Daily amplitude by model.
+amplitude_plot <- function(data){
+  df <- data |>
+    pivot_longer(cols = -c(time),
+                 names_to = "model",
+                 values_to = "value") |>
+    mutate(date = as.factor(getDate(time)))
+  
+  r <- df |> 
+    group_by(date,model) |>
+    mutate(amplitude = max(value) - min(value), daily_mean = mean(value)) |>
+    ungroup() 
+  
+  ggplot(r, aes(model, amplitude, colour=daily_mean), alpha = 1/10000) +
+    scale_color_continuous_sequential("Batlow") +
+    geom_sina()
 }
 
 amplitude_mape <- function(time, truth, estimate){
@@ -258,6 +278,18 @@ monthly_boxplot <- function(time, truth, estimate){
     scale_color_viridis() +
     theme(legend.position = "none") +
     facet_wrap(~month)
+}
+
+monthly_boxplot_2 <- function(data){
+    p <- data |> 
+      pivot_longer(cols = -c(time), names_to = "model", values_to = "value") |>
+      mutate(month = as.factor(getMonth(time)))
+    
+    ggplot(p, aes(x = model, y = value, fill = model)) +
+      geom_boxplot() + 
+      scale_color_viridis() +
+      theme(legend.position = "none") +
+      facet_wrap(~month)
 }
 
 maximum_error <- function(time, truth, estimate){

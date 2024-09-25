@@ -1,7 +1,7 @@
 ---
 title: "`r paste0('Model evaluation for ', params$variable)`"
 params:
-  variable: "rsds" #Use pr as default
+  variable: "tas" #Use pr as default
 output: html_document
 ---
 
@@ -138,13 +138,15 @@ if (conf[["VARIABLES"]][[params$variable]][["daily"]]) {
   
   do.call(grid.arrange, c(plots, ncol = 1))
 } else {
-  models <- res |> select(-c("time", "reanalysis")) |> colnames()
-  
-  plots <- lapply(models, function(col) {
-    monthly_boxplot(res$time, res$reanalysis, res[[col]]) + scale_fill_discrete(labels = c(col, "reanalysis"))
-  })
-  
-  do.call(grid.arrange, c(plots, ncol = 1))
+  monthly_boxplot_2(res)
+}
+```
+
+`r  if (conf[["VARIABLES"]][[params$variable]][["daily"]]) {"### Daily amplitudet\n"}`
+
+```{r, fig.height=9, fig.width=6}
+if (conf[["VARIABLES"]][[params$variable]][["daily"]]){
+  amplitude_plot(res)
 }
 ```
 
