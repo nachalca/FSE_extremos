@@ -1,5 +1,7 @@
 ---
 title: "`r paste0('Model evaluation for ', params$variable)`"
+header-includes:
+   - \usepackage{bbm}
 params:
   variable: "tas" #Use pr as default
 output: html_document
@@ -13,7 +15,7 @@ knitr::opts_chunk$set(echo = F, warning = F)
 
 ```{css}
 /* Define a margin before h2 element */
-h2,h3  {
+h2 {
   margin-top: 3em;
 }
 ```
@@ -96,7 +98,29 @@ results <- results |>
 kable(results)
 ```
 
-### Time series of the first days
+#### Amplitude MAE 
+
+$$
+ \frac{\sum_{d=1}^D |A_d - \hat{A}_d|}{D}
+$$
+*Where*
+  * $D$ Number of days.
+  * $A_d$: is the amplitude of day d, defined as the difference between the highest and lowest temperatures of that day.
+  * $\hat{A}_d$: Predicted amplitude of day d.
+  
+### Maximum correlation
+
+$$
+\frac{\sum_{d=1}^D \mathbbm{1}_{mh_d = \hat{mh}_d}}{D}
+$$
+
+... complete 
+
+### Sign correlation
+
+.... complete
+
+## Time series of the first days
 
 ```{r show_plot, echo=FALSE}
 res_to_plot <- res[0:72,] 
@@ -126,9 +150,9 @@ plots <- lapply(models, function(col) series_plot(res_to_plot, col))
 do.call(grid.arrange, c(plots, ncol = 1))
 ```
 
-`r  if (conf[["VARIABLES"]][[params$variable]][["daily"]]) {"### How Often Peaks Hit Hourly\n"} else {"### Distribution of daily values by month\n"}`
+`r  if (conf[["VARIABLES"]][[params$variable]][["daily"]]) {"## How Often Peaks Hit Hourly\n"} else {"## Distribution of daily values by month\n"}`
 
-```{r maximum, fig.height=9}
+```{r maximum, fig.height=9, fig.width=9}
 if (conf[["VARIABLES"]][[params$variable]][["daily"]]) {
   models <- res |> select(-c("time", "reanalysis")) |> colnames()
   
@@ -144,7 +168,7 @@ if (conf[["VARIABLES"]][[params$variable]][["daily"]]) {
 
 `r  if (conf[["VARIABLES"]][[params$variable]][["daily"]]) {"### Daily amplitudet\n"}`
 
-```{r, fig.height=9, fig.width=6}
+```{r, fig.height=9, fig.width=8}
 if (conf[["VARIABLES"]][[params$variable]][["daily"]]){
   amplitude_plot(res)
 }
@@ -174,7 +198,7 @@ if (conf[["VARIABLES"]][[params$variable]][["daily"]]){
 }
 ```
 
-### QQ Plot
+## QQ Plot
 
 ```{r qqplot, fig.height=8, fig.width=6}
 # Function to create a Q-Q plot comparing quantiles of a sample column against a reference column
@@ -213,7 +237,7 @@ plots <- lapply(models, function(col) qq_plot_against(res, col))
 do.call(grid.arrange, c(plots, ncol = 1))  # Arrange in a grid
 ```
 
-### Autocorrelogram
+## Autocorrelogram
 
 ```{r acf}
 models <- res |> select(-c("time")) |> colnames()
@@ -237,7 +261,7 @@ ggplot(results, mapping = aes(x = lag, y = acf)) +
     facet_wrap(~ model, nrow = 2) 
 ```
 
-### Extremogram
+## Extremogram
 
 ```{r extremogram}
 models <- res |> select(-c("time")) |> colnames()

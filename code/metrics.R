@@ -54,7 +54,7 @@ metrics_2 <- function(time, truth, estimate, model){
     "ratio_of_sd" =  c(ratio_of_sd(truth, estimate)),
     "KGE" = KGE(obs = truth, pred = estimate),
   #  "ks_test" = c(ks(truth, estimate)),
-    "amplitude_rmse" = c(amplitude_rmse(time, truth, estimate)),
+    "amplitude_mae" = c(amplitude_mae(time, truth, estimate)),
     "maximum_correlation" = c(maximum_correlation(time, truth, estimate)),
     "sign_correlation" = c(sign_correlation(truth, estimate))
   )
@@ -120,14 +120,14 @@ sign_correlation <- function(truth, estimate) {
 }
 
 
-amplitude_rmse <- function(time, truth, estimate){
+amplitude_mae <- function(time, truth, estimate){
   df <- data.frame("time" = time, "truth" = truth, "estimate" = estimate)
   r <- df |> mutate(date = getDate(time)) |> 
     group_by(date) |>
     summarize(truth_amplitude = max(truth) - min(truth), estimate_amplitude = max(estimate) - min(estimate)) |>
     ungroup() 
   
-  rmse(r$truth_amplitude, r$estimate_amplitude)
+  mae(r$truth_amplitude, r$estimate_amplitude)
 }
 
 #Daily amplitude by model.
@@ -155,8 +155,8 @@ amplitude_mape <- function(time, truth, estimate){
     summarize(truth_amplitude = max(truth) - min(truth), estimate_amplitude = max(estimate) - min(estimate)) |>
     ungroup() 
   mape(r$truth_amplitude, r$estimate_amplitude)
- 
 }
+
 
 amplitude_difference_of_means <- function(time, truth, estimate){
   df <- data.frame("time" = time, "truth" = truth, "estimate" = estimate)
@@ -166,6 +166,10 @@ amplitude_difference_of_means <- function(time, truth, estimate){
     ungroup() |>
     summarize(difference_of_means = mean(truth_amplitude) - mean(estimate_amplitude))
   r[[1]]
+}
+
+amount_of_rainy_hours <- function(time, truth, estimate){
+  
 }
 
 amplitude_mean <- function(time, var){
@@ -208,10 +212,10 @@ yearly_amplitude_ratio_of_means <- function(time, truth, estimate){
   r[[1]]
 }
 
-
 ## For internal use 
+#Returns the hour where the max value happen
 maximum_hour <- function(time, truth, estimate){
-  #Returns the hour where the max value happen
+
   df <- data.frame("time" = time, "truth" = truth, "estimate" = estimate)
   
   max_truth_per_day <- df |> mutate(date = getDate(time)) |>
@@ -256,6 +260,18 @@ maximum_difference <- function(time, truth, estimate){
   result[[1]]
 }
 
+maximum_error <- function(time, truth, estimate){
+  n <- n_distinct(getDate(time))
+  temp <- maximum_hour(time, truth, estimate)
+  t <- temp |> group_by(truth_hour) |> summarize(n_t_hour = n())
+  e <- temp |> group_by(est_hour) |> summarize(n_e_hour = n())
+  result <- t |> 
+    inner_join(e, by = join_by(truth_hour == est_hour)) |> 
+    mutate(diff = abs(n_t_hour - n_e_hour)) |> 
+    summarise(maximum_error = sum(diff)/(2*n))
+  result[[1]]
+}
+
 maximum_histograms <- function(time, truth, estimate){
   r <- maximum_hour(time, truth, estimate) |> pivot_longer(cols = c(truth_hour, est_hour),
                                                            names_to = "model",
@@ -290,18 +306,6 @@ monthly_boxplot_2 <- function(data){
       scale_color_viridis() +
       theme(legend.position = "none") +
       facet_wrap(~month)
-}
-
-maximum_error <- function(time, truth, estimate){
-  n <- n_distinct(getDate(time))
-  temp <- maximum_hour(time, truth, estimate)
-  t <- temp |> group_by(truth_hour) |> summarize(n_t_hour = n())
-  e <- temp |> group_by(est_hour) |> summarize(n_e_hour = n())
-  result <- t |> 
-              inner_join(e, by = join_by(truth_hour == est_hour)) |> 
-              mutate(diff = abs(n_t_hour - n_e_hour)) |> 
-              summarise(maximum_error = sum(diff)/(2*n))
-  result[[1]]
 }
 
 qqplot_mae <- function(truth, estimate){
