@@ -97,28 +97,51 @@ results <- results |>
 
 kable(results)
 ```
-
-#### Amplitude MAE 
+```{asis, echo=conf[["VARIABLES"]][[params$variable]][["daily"]]}
+### Amplitude MAE 
 
 $$
  \frac{\sum_{d=1}^D |A_d - \hat{A}_d|}{D}
 $$
-*Where*
+
+**Where**
+
   * $D$ Number of days.
   * $A_d$: is the amplitude of day d, defined as the difference between the highest and lowest temperatures of that day.
-  * $\hat{A}_d$: Predicted amplitude of day d.
+  * $\hat{A}_d$: Estimated amplitude of day d.
   
 ### Maximum correlation
 
 $$
-\frac{\sum_{d=1}^D \mathbbm{1}_{mh_d = \hat{mh}_d}}{D}
+\frac{\sum_{d=1}^D \mathbb{1}_{{mh}_d = \hat{mh}_d}}{D}
 $$
 
-... complete 
+**Where**
+
+  * $D$, Number of days.
+  * $mh_d$ is the actual hour of the day when the peak occurred on day $d$.
+  * $\hat{mh}_d$ is the estimated hour of the day when the peak occurred on day $d$.
+
+The function $\mathbb{1}_{mh_d = \hat{mh}_d}$ is an indicator function that equals 1 when the actual peak hour $mh_d$ matches the estimated peak hour $\hat{mh}_d$, and 0 otherwise.
+
+The possible values of this indicator range between 0 (the estimated peak hour never matches the observed one) and 1 (the estimated hour always matches the observed one). Higher values are better.
 
 ### Sign correlation
 
-.... complete
+$$
+\frac{\sum^{N}_{n=1}1_{sg(X_{n+1} - X_{n}) = sg(\hat{X}_{n+1} - \hat{X}_{n}))}}{N-1}
+$$
+
+**Where**
+
+  * $N$ number of observations
+  * $sg$ is the sign function
+  * $X_n,X_n+1$ are the actual values of observation $n$ and $n+1$.
+  * $\hat{X}_n, \hat{X}_{n+1}$ are the estimated values for observation $n$ and $n+1$.
+  
+The function $\mathbb{1}{sg(X{n+1} - X_{n}) = sg(\hat{X}{n+1} - \hat{X}{n})}$ is an indicator function that equals 1 when the direction of change in the actual series matches the direction of change in the estimated series (i.e., if the actual series increases, the estimated series also increases, or if the actual series decreases, the estimated series also decreases), and equals 0 otherwise.
+
+The possible values of this indicator range between 0 (meaning that whenever the actual series increases, the estimated series decreases, or vice versa) and 1 (meaning that the estimated series always follows the same direction as the actual series). Higher values are preferable.
 
 ## Time series of the first days
 
