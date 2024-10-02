@@ -1,1 +1,1 @@
-This folder contains the dataset used to train the models, more specifically, this datasets came from the train/test split (see training_data_generator.py). We don't have enough space in github, therefore we can't add the files to the repo.
+We don't have enough space in github, therefore we can't add the datasets to the repo :sob:.

@@ -189,7 +189,7 @@ if (conf[["VARIABLES"]][[params$variable]][["daily"]]) {
 }
 ```
 
-`r  if (conf[["VARIABLES"]][[params$variable]][["daily"]]) {"### Daily amplitudet\n"}`
+`r  if (conf[["VARIABLES"]][[params$variable]][["daily"]]) {"### Daily amplitude\n"}`
 
 ```{r, fig.height=9, fig.width=8}
 if (conf[["VARIABLES"]][[params$variable]][["daily"]]){
@@ -197,29 +197,29 @@ if (conf[["VARIABLES"]][[params$variable]][["daily"]]){
 }
 ```
 
-`r  if (conf[["VARIABLES"]][[params$variable]][["daily"]]) {"### New plot\n"}`
+<!-- `r  if (conf[["VARIABLES"]][[params$variable]][["daily"]]) {"### New plot\n"}` -->
 
-```{r, fig.height=9, fig.width=6}
-if (conf[["VARIABLES"]][[params$variable]][["daily"]]){
-  res_to_plot <- res |> 
-      mutate(date = getDate(time)) |> 
-      group_by(date) |>
-      mutate(daily_avg = mean(reanalysis)) |>
-      ungroup() |>
-      mutate(hour = getHour(time))
+<!-- ```{r, fig.height=9, fig.width=6} -->
+<!-- if (conf[["VARIABLES"]][[params$variable]][["daily"]]){ -->
+<!--   res_to_plot <- res |>  -->
+<!--       mutate(date = getDate(time)) |>  -->
+<!--       group_by(date) |> -->
+<!--       mutate(daily_avg = mean(reanalysis)) |> -->
+<!--       ungroup() |> -->
+<!--       mutate(hour = getHour(time)) -->
 
-  p1 <- ggplot(res_to_plot, aes(x=daily_avg, y=reanalysis)) +
-    geom_line() +
-    labs(title = "Reanalysis") +
-    facet_wrap(~hour)
-  
-  p2 <- ggplot(res_to_plot, aes(x=daily_avg, y=xgboost)) +
-    geom_line() +
-    labs(title = "Xgboost") +
-    facet_wrap(~hour)
-  grid.arrange(p1, p2, newpage = T)
-}
-```
+<!--   p1 <- ggplot(res_to_plot, aes(x=daily_avg, y=reanalysis)) + -->
+<!--     geom_line() + -->
+<!--     labs(title = "Reanalysis") + -->
+<!--     facet_wrap(~hour) -->
+
+<!--   p2 <- ggplot(res_to_plot, aes(x=daily_avg, y=xgboost)) + -->
+<!--     geom_line() + -->
+<!--     labs(title = "Xgboost") + -->
+<!--     facet_wrap(~hour) -->
+<!--   grid.arrange(p1, p2, newpage = T) -->
+<!-- } -->
+<!-- ``` -->
 
 ## QQ Plot
 
