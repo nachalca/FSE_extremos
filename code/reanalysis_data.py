@@ -199,16 +199,6 @@ def merge_all_data():
 
     data.to_csv("data/reanalysis/reanalysis.csv", index=False)
 
-def sun_position(time):
-    
-    latitude = (AREA[0] + AREA[2]) / 2
-    longitude = (AREA[1] + AREA[3]) / 2
-
-    solar_position = pvlib.solarposition.get_solarposition(time, latitude, longitude)
-    elevation = solar_position['elevation'].values[0]
-    azimuth = solar_position['azimuth'].values[0]
-    
-    return elevation, azimuth
 
 def final_dataset():
 
@@ -232,14 +222,14 @@ def final_dataset():
 
 def main():
 #    Download the data for each variable
-    # for variable in VARIABLES:
-    #     try:
-    #         # download_data(variable)
-    #         join_files(variable)
-    #         summarize_data(variable)
+    for variable in VARIABLES:
+        try:
+            download_data(variable)
+            join_files(variable)
+            summarize_data(variable)
 
-    #     except Exception as e:
-    #         print(f"\033[91mError with variable {variable}: {e}\033[0m")
+        except Exception as e:
+            print(f"\033[91mError with variable {variable}: {e}\033[0m")
     
     merge_all_data()
     final_dataset()

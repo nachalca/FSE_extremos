@@ -17,7 +17,7 @@
 |`training_data_generator.py`|Generates the data needed to train the models. We can found the outputs in the `training` and `testing` folder.|
 |`validation_data.py`|Generates the datasets needed to build the `validation_reports`.|
 |`utils.R`|Common use functions.|
-|`XgboostDownscaler.py`|Analogous to the `NaiveDownscaler` and the `CNNDownscaler`.|
+|`XgboostDownscaler.py`|Analogous to the `NaiveDownscaler` and the `CNNDownscaler`. `XgboostDownscaler` is right now the only model on which we do hyperparameters optimization and we do it with the `hyperopt` library (Bayesian Optimization).|
 
 ** Note 1: all the models take the same input but they do some transformation depending on what their expect as an input, for example the neural nets require several transformations. All of the transformations along with the hyperparameters optimization are done in the corresponding script.
 
