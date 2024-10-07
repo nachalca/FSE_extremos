@@ -42,7 +42,7 @@ variable_temp <- variable |> select(-c("time", "reanalysis"))
 
 r <- lapply(colnames(variable_temp), function(x) {
   if(is_daily)
-    metrics_daily(time = variable$time, truth = variable$reanalysis, estimate = variable[[x]], model = x)
+    metrics_unpaired_daily(time = variable$time, truth = variable$reanalysis, estimate = variable[[x]], model = x)
   else
     metrics_monthly(time = variable$time, truth = variable$reanalysis, estimate = variable[[x]], model = x)
 } )

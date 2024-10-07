@@ -1,17 +1,25 @@
 library(ggplot2)
-library('here')
-library('viridis')
-library('metrica')
-library('ggforce')
+library(here)
+library(viridis)
+library(metrica)
+library(ggforce)
 library(colorspace)
+library(extremogram)
+
 setwd(here())
 source('code/utils.R')
 
-metrics <- function(time, truth, estimate, model){
+#' Computes metrics for unpaired models on a hourly scale. Used to assess shared statistical properties 
+#' 
+#' @param time A vector representing the time points of the data. 
+#' @param truth A vector containing the true (or reference) values. Typically, this would be a reanalysis dataset. 
+#' @param estimate A vector representing the simulated values, typically derived from CMIP or downscaled CMIP data. #' 
+#'
+#' @returns A dataframe containing the calculated metrics.
+metrics_unpaired_hourly <- function(time, truth, estimate, model){
   df <- data.frame(
     "diff_of_means" = c(diff_of_means_per(truth, estimate)),
     "ratio_of_sd" = c(ratio_of_sd(truth, estimate)),
-   # "ks_test" = c(ks(truth, estimate)),
     "amplitude_ratio_of_means" = c(amplitude_ratio_of_means(time, truth, estimate)),
     "maximum_error" = c(maximum_error(time, truth, estimate)),
     "sign_error" = c(sign_error(time, truth, estimate))
@@ -20,7 +28,14 @@ metrics <- function(time, truth, estimate, model){
   df
 }
 
-metrics_daily <- function(time, truth, estimate, model){
+#' Computes metrics for unpaired models on a daily scale. Used to asses shared statistical properties 
+#' 
+#' @param time A vector representing the time points of the data. 
+#' @param truth A vector containing the true (or reference) values. Typically, this would be a reanalysis dataset. 
+#' @param estimate A vector representing the simulated values, typically derived from CMIP or downscaled CMIP data. #' 
+#'
+#' @returns A dataframe containing the calculated metrics.
+metrics_unpaired_daily <- function(time, truth, estimate, model){
   df <- data.frame(
     "diff_of_means" = c(diff_of_means_per(truth, estimate)),
   #  "ratio_of_sd" = c(ratio_of_sd(truth, estimate)),
@@ -32,7 +47,14 @@ metrics_daily <- function(time, truth, estimate, model){
   df
 }
 
-metrics_monthly <- function(time, truth, estimate, model){
+#' Computes metrics for unpaired models on a monthly scale. Used to assess shared statistical properties 
+#' 
+#' @param time A vector representing the time points of the data. 
+#' @param truth A vector containing the true (or reference) values. Typically, this would be a reanalysis dataset. 
+#' @param estimate A vector representing the simulated values, typically derived from CMIP or downscaled CMIP data. #' 
+#'
+#' @returns A dataframe containing the calculated metrics.
+metrics_unpaired_monthly <- function(time, truth, estimate, model){
   df <- data.frame(
     "diff_of_means" = c(diff_of_means_per(truth, estimate)),
     "ratio_of_sd" = c(ratio_of_sd(truth, estimate)),
@@ -45,18 +67,47 @@ metrics_monthly <- function(time, truth, estimate, model){
 }
 
 
-#use when the truth and the estimate come from the same model
-metrics_2 <- function(time, truth, estimate, model){
+#' Computes metrics for paired models on a hourly scale. Used to asses shared statistical properties 
+#' 
+#' @param time A vector representing the time points of the data. 
+#' @param truth A vector containing the true (or reference) values. Typically, this would be a reanalysis dataset. 
+#' @param estimate A vector representing the simulated values, typically derived from CMIP or downscaled CMIP data. #' 
+#'
+#' @returns A dataframe containing the calculated metrics.
+metrics_paired_hourly <- function(time, truth, estimate, model){
   df <- data.frame(
-  #  "rmse" = c(rmse(truth, estimate)),
     "mae" = c(mae(truth, estimate)),
     "cor" = c(correlation(truth, estimate)),
     "ratio_of_sd" =  c(ratio_of_sd(truth, estimate)),
     "KGE" = KGE(obs = truth, pred = estimate),
-  #  "ks_test" = c(ks(truth, estimate)),
     "amplitude_mae" = c(amplitude_mae(time, truth, estimate)),
     "maximum_correlation" = c(maximum_correlation(time, truth, estimate)),
-    "sign_correlation" = c(sign_correlation(truth, estimate))
+    "sign_correlation" = c(sign_correlation(truth, estimate)),
+    "acf_mae" = c(acf_mae(truth,estimate)),
+    "extremogram_mae" = c(extremogram_mae(truth,estimate))
+  )
+  rownames(df) <- c(model)
+  df
+}
+
+#' Computes metrics for paired models on a daily scalethat are used to assesss downscaling performance.
+#' 
+#' @param time A vector representing the time points of the data. 
+#' @param truth A vector containing the true (or reference) values. Typically, this would be a reanalysis dataset. 
+#' @param estimate A vector representing the simulated values, typically derived from CMIP or downscaled CMIP data. #' 
+#'
+#' @returns A dataframe containing the calculated metrics.
+metrics_paired_daily <- function(time, truth, estimate, model){
+  df <- data.frame(
+    "mae" = c(mae(truth, estimate)),
+    "cor" = c(correlation(truth, estimate)),
+    "ratio_of_sd" =  c(ratio_of_sd(truth, estimate)),
+    "KGE" = KGE(obs = truth, pred = estimate),
+#    "amplitude_mae" = c(amplitude_mae(time, truth, estimate)),
+#    "maximum_correlation" = c(maximum_correlation(time, truth, estimate)),
+    "sign_correlation" = c(sign_correlation(truth, estimate)),
+    "acf_mae" = c(acf_mae(truth,estimate)),
+    "extremogram_mae" = c(extremogram_mae(truth,estimate))
   )
   rownames(df) <- c(model)
   df
@@ -323,4 +374,16 @@ qqplot_mae <- function(truth, estimate){
   quantiles_ref <- ref_data_sorted[seq(1, length(ref_data_sorted), length.out = n)]
   
   mae(truth = quantiles_ref, estimate = quantiles_sample)
+}
+
+acf_mae <- function(truth, estimate){
+  t <- acf(truth, lag.max = 47, plot = F)$acf
+  e <- acf(estimate, lag.max = 47, plot = F)$acf
+  mae(t,e)
+}
+
+extremogram_mae <- function(truth, estimate){
+  t <- extremogram1(truth, quant = .97, maxlag = 48, type = 1, ploting = 0)
+  e <- extremogram1(estimate, quant = .97, maxlag = 48, type = 1, ploting = 0)
+  mae(t,e)
 }
