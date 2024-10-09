@@ -90,6 +90,30 @@ metrics_paired_hourly <- function(time, truth, estimate, model){
   df
 }
 
+#' Computes metrics for paired models on a hourly scale. Adds new metrics for rain. Used to asses shared statistical properties 
+#' 
+#' @param time A vector representing the time points of the data. 
+#' @param truth A vector containing the true (or reference) values. Typically, this would be a reanalysis dataset. 
+#' @param estimate A vector representing the simulated values, typically derived from CMIP or downscaled CMIP data. #' 
+#'
+#' @returns A dataframe containing the calculated metrics.
+metrics_paired_hourly_rain <- function(time, truth, estimate, model){
+  df <- data.frame(
+    "mae" = c(mae(truth, estimate)),
+    "cor" = c(correlation(truth, estimate)),
+    "ratio_of_sd" =  c(ratio_of_sd(truth, estimate)),
+    "KGE" = KGE(obs = truth, pred = estimate),
+    "amplitude_mae" = c(amplitude_mae(time, truth, estimate)),
+    "maximum_correlation" = c(maximum_correlation(time, truth, estimate)),
+    "sign_correlation" = c(sign_correlation(truth, estimate)),
+    "acf_mae" = c(acf_mae(truth,estimate)),
+    "extremogram_mae" = c(extremogram_mae(truth,estimate)),
+    "amount_rainy_hours_mae" = amount_rainy_hours_mae(time, truth, estimate)
+  )
+  rownames(df) <- c(model)
+  df
+}
+
 #' Computes metrics for paired models on a daily scalethat are used to assesss downscaling performance.
 #' 
 #' @param time A vector representing the time points of the data. 
@@ -219,9 +243,6 @@ amplitude_difference_of_means <- function(time, truth, estimate){
   r[[1]]
 }
 
-amount_of_rainy_hours <- function(time, truth, estimate){
-  
-}
 
 amplitude_mean <- function(time, var){
   df <- data.frame("time" = time, "var" = var)
@@ -386,4 +407,72 @@ extremogram_mae <- function(truth, estimate){
   t <- extremogram1(truth, quant = .97, maxlag = 48, type = 1, ploting = 0)
   e <- extremogram1(estimate, quant = .97, maxlag = 48, type = 1, ploting = 0)
   mae(t,e)
+}
+
+#Calculates the MAE of the amount of rainy hour in a day. We considered rainy if it rains more than 0.1 mm/hour.
+amount_rainy_hours_mae <- function(time, truth, estimate, threshold = 0.1){
+  data <- data.frame(
+    time = time,
+    truth = truth,
+    estimate = estimate
+  ) |> 
+    mutate(date = getDate(time),
+           truth_it_rain = if_else(truth >= threshold, 1, 0),
+           estimate_it_rain = if_else(estimate >= threshold, 1, 0))
+  
+  data_2 <- data |> 
+    group_by(date) |>
+    summarize(t = sum(truth_it_rain),
+              e = sum(estimate_it_rain)) |>
+    ungroup()
+  mae(data_2$t,data_2$e)
+}
+
+#Extremes accuracy
+extreme_accuracy <- function(time, truth, estimate, quant = 0.97){
+  truth_threshold <- quantile(truth, quant)
+  estimate_threshold <- quantile(estimate, quant)
+  
+  data <- data.frame(
+    time = time,
+    truth = truth,
+    estimate = estimate
+  ) |> 
+    mutate(truth_is_extreme= if_else(truth >= truth_threshold, 1, 0),
+           estimate_is_extreme = if_else(estimate >= estimate_threshold, 1,0))
+  
+  precision(data, truth_is_extreme, estimate_is_extreme)
+  recall(data, truth_is_extreme, estimate_is_extreme)
+}
+
+#Extreme value plot
+mean_on_days_with_extremes <- function(time, value, quant){
+  threshold <- quantile(value, probs = quant, names = F)
+  df <- data.frame(
+    time = time,
+    value = value,
+    is_extreme = if_else(value >= threshold, 1, 0),
+    date = getDate(time)
+  ) |>
+    group_by(date) |>
+    mutate(undownscaled_value = mean(value)) |> 
+    filter(is_extreme == 1)
+  df$undownscaled_value
+}
+
+mean_on_days_with_extremes_plot <- function(data, quant = .97){
+  models <- data |> select(-c("time")) |> colnames()
+  
+  p <- lapply(models, function(x) {
+    data.frame(
+      model = x,
+      undownscaled_value = mean_on_days_with_extremes(time = data$time, value = data[[x]], quant)
+    )
+  })
+  
+  df <- do.call(rbind, p)
+  
+  ggplot(df, aes(x=undownscaled_value, color = model)) +
+    geom_density() +
+    labs(x = "Undownscaled Value")
 }

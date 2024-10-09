@@ -3,7 +3,7 @@ title: "`r paste0('Model evaluation for ', params$variable)`"
 header-includes:
    - \usepackage{bbm}
 params:
-  variable: "tas" #Use pr as default
+  variable: "pr" #Use pr as default
 output: html_document
 ---
 
@@ -89,9 +89,15 @@ Remember that we have on a daily scale the variables `sfcWind`, `tas`, `pr`, `ta
 models <- res |> select(-c("time", "reanalysis")) |> colnames()
 
 if(conf[["VARIABLES"]][[params$variable]][["daily"]]){
-  r <- lapply(models, function(x) {
-    metrics_paired_hourly(time = res$time, truth = res$reanalysis, estimate = res[[x]], model = x)
-  })
+  if(params$variable == "pr"){
+    r <- lapply(models, function(x) {
+      metrics_paired_hourly_rain(time = res$time, truth = res$reanalysis, estimate = res[[x]], model = x)
+    })    
+  } else {
+    r <- lapply(models, function(x) {
+      metrics_paired_hourly(time = res$time, truth = res$reanalysis, estimate = res[[x]], model = x)
+    })    
+  }
 } else {
   r <- lapply(models, function(x) {
     metrics_paired_daily(time = res$time, truth = res$reanalysis, estimate = res[[x]], model = x)
@@ -267,6 +273,12 @@ plots <- lapply(models, function(col) qq_plot_against(res, col))
 
 # Arrange the plots using gridExtra
 do.call(grid.arrange, c(plots, ncol = 1))  # Arrange in a grid
+```
+
+## 
+
+```{r extremes}
+mean_on_days_with_extremes_plot(res)
 ```
 
 ## Autocorrelogram

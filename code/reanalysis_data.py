@@ -25,7 +25,7 @@ VARIABLES = {
         "reanalysis_name": "tp", 
         "cmip6_name":"pr",
         "hourly": True,
-        "need_to_transform": True, #We need to divide by 3.6 
+        "need_to_transform": True, # Multiple by 1000, m to mm
     },
     "10m_u_component_of_wind": {
         "reanalysis_name": "u10", 
