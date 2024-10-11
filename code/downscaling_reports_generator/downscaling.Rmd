@@ -70,6 +70,8 @@ for(f in to_be_downscaled){
   x <- paste0('data/to_be_downscaled/', params$variable,'/', f)
   variable <- read.csv(x)
   
+  variable <- variable |> filter(time < '2023-01-01')
+  
   file_name <- unlist(strsplit(f, "\\."))[1]
   
   lab <- unlist(strsplit(file_name, "_"))[1]
@@ -93,10 +95,10 @@ for(f in to_be_downscaled){
                     )  
   
   variable <- variable |> filter(time %in% xgboost_predictions$time)
-  res[[paste0("original_", lab, '_', scenario)]] <- variable[[params$variable]] 
-  res[[paste0("xgboost_", lab, '_', scenario)]]  <- xgboost_predictions[["xgboost"]]
-  res[[paste0("cnn_", lab, '_', scenario)]]  <- cnn_predictions[["cnn"]][1:length(variable[[params$variable]] )] #TODO: CHECK DIMENSIONS
-  res[[paste0("nv_", lab, '_', scenario)]] <- nv_predictions[["naive"]]
+  res[[paste0("original-", lab, '_', scenario)]] <- variable[[params$variable]] 
+  res[[paste0("xgboost-", lab, '_', scenario)]]  <- xgboost_predictions[["xgboost"]]
+  res[[paste0("cnn-", lab, '_', scenario)]]  <- cnn_predictions[["cnn"]][1:length(variable[[params$variable]] )] #TODO: CHECK DIMENSIONS
+  res[[paste0("nv-", lab, '_', scenario)]] <- nv_predictions[["naive"]]
   #rm(variable)
 }
 

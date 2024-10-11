@@ -162,20 +162,9 @@ class CNNDownscaler():
                 data = data.set_index("time")
 
                 # Split the data into features and target
-                X = data.drop(columns=["target"])
-                y = data["target"]
+                X_train = data.drop(columns=["target"])
+                y_train = data["target"]
                                 
-                # Split the data into training and test (without shuffling)
-                X_train, X_test, y_train, y_test = model_selection.train_test_split(X, y, test_size=0.2, shuffle=False)
-
-                #Save the test in a csv (we will do the report later with R)
-                if os.path.exists("data/testing") == False:
-                    os.makedirs("data/testing")
-                pd.concat([X_test, y_test], axis=1).to_csv(f"data/testing/{variable_name}.csv") 
-
-                #Split the data in train and validation
-                X_train, X_valid, y_train, y_valid = model_selection.train_test_split(X_train, y_train, test_size=0.2, shuffle=False)
-
                 #Set the amount of future and past observation to be taked account  
                 window_size =  24 if VARIABLES[variable_name]["daily"] else 30
                 
