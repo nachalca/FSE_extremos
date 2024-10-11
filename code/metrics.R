@@ -448,20 +448,31 @@ extreme_accuracy <- function(time, truth, estimate, quant = 0.97){
 #Extreme value plot
 mean_on_days_with_extremes <- function(time, value, quant){
   threshold <- quantile(value, probs = quant, names = F)
+  
   df <- data.frame(
     time = time,
     value = value,
     is_extreme = if_else(value >= threshold, 1, 0),
     date = getDate(time)
-  ) |>
-    group_by(date) |>
-    mutate(undownscaled_value = mean(value)) |> 
+  ) 
+  
+  days_with_extremes <- df |>
     filter(is_extreme == 1)
-  df$undownscaled_value
+  
+  mean_of_these_days <- df |>
+    filter(date %in% days_with_extremes$date) |>
+    group_by(date) |>
+    summarize(undownscaled_value = mean(value)) |>
+    ungroup()
+  
+  
+  mean_of_these_days$undownscaled_value
 }
 
 mean_on_days_with_extremes_plot <- function(data, quant = .97){
-  models <- data |> select(-c("time")) |> colnames()
+  models <- data |> 
+    select(-c("time")) |> 
+    colnames()
   
   p <- lapply(models, function(x) {
     data.frame(
@@ -473,6 +484,6 @@ mean_on_days_with_extremes_plot <- function(data, quant = .97){
   df <- do.call(rbind, p)
   
   ggplot(df, aes(x=undownscaled_value, color = model)) +
-    geom_density() +
+    geom_density(bw = "nrd") +
     labs(x = "Undownscaled Value")
 }

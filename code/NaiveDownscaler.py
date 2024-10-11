@@ -81,24 +81,24 @@ class NaiveDownscaler():
                 data = data.set_index("time")
 
                 # Split the data into features and target
-                X = data.drop(columns=["target"])
-                y = data["target"]
+                X_train = data.drop(columns=["target"])
+                y_train = data["target"]
                                 
-                # Split the data into training and test (without shuffling)
-                X_train, X_test, y_train, y_test = model_selection.train_test_split(X, y, test_size=0.2, shuffle=False)
+                # # Split the data into training and test (without shuffling)
+                # X_train, X_test, y_train, y_test = model_selection.train_test_split(X, y, test_size=0.2, shuffle=False)
 
-                #Save the test in a csv (we will do the report later with R)
-                if os.path.exists("data/testing") == False:
-                    os.makedirs("data/testing")
-                pd.concat([X_test, y_test], axis=1).to_csv(f"data/testing/{variable_name}.csv")   
+                # #Save the test in a csv (we will do the report later with R)
+                # if os.path.exists("data/testing") == False:
+                #     os.makedirs("data/testing")
+                # pd.concat([X_test, y_test], axis=1).to_csv(f"data/testing/{variable_name}.csv")   
 
                 #Set the amount of future and past observation to be taked account  
                 window_size =  24 if VARIABLES[variable_name]["daily"] else 1
                 
                 # Transform the data
                 print("Transforming the data ...")
-                X_train = self.transform(window_size, X)
-                y_train = y.iloc[window_size:-window_size] # delete first #window_size rows and the last #window_size rows, to have the same size as X_train.
+                X_train = self.transform(window_size, X_train)
+                y_train = y_train.iloc[window_size:-window_size] # delete first #window_size rows and the last #window_size rows, to have the same size as X_train.
 
                 #Train the model with the best hyperparameters
                 print("Training the model with the best hyperparameters ...")

@@ -133,7 +133,18 @@ def generate_dataframe(model, experiment = "", truncate = -1):
         if(model == "reanalysis"):
             if not os.path.exists("data/training"):
                 os.makedirs("data/training")
-            data_variable.to_csv(f"data/training/{variable}.csv", index=False)
+
+            if not os.path.exists("data/testing"):
+                os.makedirs("data/testing")
+
+            #Save the data up to 2014 so later it can be used to train the model
+            data_train = data_variable[data_variable["time"] < "2015-01-01"]
+            data_train.to_csv(f"data/training/{variable}.csv", index=False)
+
+            #Save the data from 2015 to 2023, so later it can be used to test the model
+            data_test = data_variable[data_variable["time"] >= "2015-01-01"]
+            data_test.to_csv(f"data/testing/{variable}.csv", index=False)
+
         else:
             if not os.path.exists(f"data/to_be_downscaled//{variable}"):
                 os.makedirs(f"data/to_be_downscaled/{variable}")            
