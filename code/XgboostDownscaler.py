@@ -8,9 +8,6 @@ import yaml
 import numpy as np
 import pickle
 import os
-import dask.dataframe as dd
-from dask_ml.preprocessing import Categorizer, OneHotEncoder as DaskOneHotEncoder
-from dask.distributed import Client, LocalCluster
 
 class XgboostDownscaler():
 
@@ -20,6 +17,9 @@ class XgboostDownscaler():
     #Add past observations and next observations as predictors, also do the onehot encoding
     @staticmethod
     def transform(window_size, data):
+        
+        #Set the time as index and not as a feature
+        data = data.set_index("time")
         
         # Filter columns to process
         cols_to_process = [col for col in data.columns if col not in ["time", "hour", "month"]]
@@ -43,56 +43,29 @@ class XgboostDownscaler():
         data = encoding.OneHotEncoder(variables=categorical_variables).fit_transform(data)
 
         return data
-
-    @staticmethod
-    def transform_with_dask(window_size, data):
-
-        # Convert pandas DataFrame to Dask DataFrame if not already a Dask DataFrame
-        if not isinstance(data, dd.DataFrame):
-            data = dd.from_pandas(data, npartitions=4)  # Adjust npartitions based on your systemW
-        
-        # Filter columns to process
-        cols_to_process = [col for col in data.columns if col not in ["time", "hour", "month"]]
-        
-        new_columns = []
-        
-        for col in cols_to_process:
-            for i in range(1, window_size + 1):
-                new_columns.append(data[col].shift(i).rename(f"{col}_past_{i}"))
-                new_columns.append(data[col].shift(-i).rename(f"{col}_future_{i}"))
-        
-        # Add all new columns to the DataFrame at once
-        data = dd.concat([data] + new_columns, axis=1)
-        
-        # Create a mask to remove rows with NaNs resulting from shifts
-        mask = data.index >= window_size
-        mask &= data.index < (data.index[-1] - window_size + 1)
-        data = data.loc[mask]
-        
-        # Do the One-Hot Encoding (OhE)
-        categorical_variables = ["month", "hour"] if "month" in data.columns and "hour" in data.columns else ["month"]
-        data[categorical_variables] = data[categorical_variables].astype("object")
-        
-        # Use dask-ml's OneHotEncoder
-        enc = DaskOneHotEncoder(cols=categorical_variables)
-        data_encoded = enc.fit_transform(data)
-
-        return data_encoded
-        
+    
     def predict(self, data, model):
         data = pd.read_csv(data)
-        res = data.copy() # To keep the time
-        data.drop(columns=["target", "time"], inplace=True, errors="ignore")
+
+        # Delete the target column if it exists (We don't have it in CMIP)
+        data.drop(columns=["target"], inplace=True, errors="ignore")
+
+        #Set the window size
         window_size =  24 if "hour" in data.columns else 1  
+        
         print(f"Transforming dataset for prediction")      
         data = self.transform(window_size, data)
+        
         print(f"Predicting with model {model}")
-        model = pickle.load(open(model, "rb"))
-        data = data[model.feature_names_in_]
-        predictions = model.predict(data)
-        res = res.iloc[window_size:-window_size] # Match the sizes
-        res["xgboost"] = predictions
-        return res[["time", "xgboost"]]
+        model = pickle.load(open(model, "rb")) # Load the model
+        data = data[model.feature_names_in_] # Get the features that the model was trained on and in the SAME ORDER.
+
+        predictions = model.predict(data) # Predict
+        data["xgboost"] = predictions
+        
+        data.reset_index(inplace=True)
+        
+        return data[["time", "xgboost"]]
 
     def optimize(self, X_train, y_train, **space):
         model = xgboost.XGBRegressor(**space) # Define the model
@@ -120,20 +93,11 @@ class XgboostDownscaler():
                 print(f"Training model for \033[92m{variable_name}\033[0m")
             
                 data = pd.read_csv(f"data/training/{f}")
-                data = data.set_index("time")
 
                 # Split the data into features and target
                 X_train = data.drop(columns=["target"])
                 y_train = data["target"]
                                 
-                # # Split the data into training and test (without shuffling)
-                # X_train, X_test, y_train, y_test = model_selection.train_test_split(X, y, test_size=0.2, shuffle=False)
-
-                # #Save the test in a csv (we will do the report later with R)
-                # if os.path.exists("data/testing") == False:
-                #     os.makedirs("data/testing")
-                # pd.concat([X_test, y_test], axis=1).to_csv(f"data/testing/{variable_name}.csv")   
-
                 #Set the amount of future and past observation to be taked account  
                 window_size =  24 if VARIABLES[variable_name]["daily"] else 1
                 

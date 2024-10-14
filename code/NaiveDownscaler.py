@@ -84,14 +84,6 @@ class NaiveDownscaler():
                 X_train = data.drop(columns=["target"])
                 y_train = data["target"]
                                 
-                # # Split the data into training and test (without shuffling)
-                # X_train, X_test, y_train, y_test = model_selection.train_test_split(X, y, test_size=0.2, shuffle=False)
-
-                # #Save the test in a csv (we will do the report later with R)
-                # if os.path.exists("data/testing") == False:
-                #     os.makedirs("data/testing")
-                # pd.concat([X_test, y_test], axis=1).to_csv(f"data/testing/{variable_name}.csv")   
-
                 #Set the amount of future and past observation to be taked account  
                 window_size =  24 if VARIABLES[variable_name]["daily"] else 1
                 
