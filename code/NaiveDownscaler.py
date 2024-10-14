@@ -17,6 +17,8 @@ class NaiveDownscaler():
     @staticmethod
     def transform(window_size, data):
         
+        data = data.set_index("time")
+        
         # Filter columns to process
         cols_to_process = [col for col in data.columns if col not in ["time", "hour", "month"]]
         
@@ -43,18 +45,23 @@ class NaiveDownscaler():
     #Analagous to XgboostDownscaler too.    
     def predict(self, data, model):
         data = pd.read_csv(data)
-        res = data.copy() # To keep the time
-        data.drop(columns=["target", "time"], inplace=True, errors="ignore")
+
+        data.drop(columns=["target"], inplace=True, errors="ignore")
         window_size =  24 if "hour" in data.columns else 1  
+        
         print(f"Transforming dataset for prediction")      
         data = self.transform(window_size, data)
+        
         print(f"Predicting with model {model}")
         model = pickle.load(open(model, "rb"))
-        data = data[model.feature_names_in_]
+        data = data[model.feature_names_in_] # Get the features that the model was trained on and in the SAME ORDER.
+   
         predictions = model.predict(data)
-        res = res.iloc[window_size:-window_size] # Match the sizes
-        res["naive"] = predictions
-        return res[["time", "naive"]]
+   
+        data["naive"] = predictions
+        data.reset_index(inplace=True)
+
+        return data[["time", "naive"]]
 
     def optimize(self, X_train, y_train, **space):
         pass
@@ -78,7 +85,6 @@ class NaiveDownscaler():
                 print(f"Training model for \033[92m{variable_name}\033[0m")
             
                 data = pd.read_csv(f"data/training/{f}")
-                data = data.set_index("time")
 
                 # Split the data into features and target
                 X_train = data.drop(columns=["target"])
