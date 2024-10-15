@@ -370,7 +370,6 @@ monthly_boxplot <- function(time, truth, estimate){
 
 monthly_boxplot_2 <- function(data){
     p <- data |> 
-      pivot_longer(cols = -c(time), names_to = "model", values_to = "value") |>
       mutate(month = as.factor(getMonth(time)))
     
     ggplot(p, aes(x = model, y = value, fill = model)) +

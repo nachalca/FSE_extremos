@@ -104,12 +104,12 @@ def generate_dataframe(model, experiment = "", truncate = -1):
         data_variable = data.copy()
         data_variable["target"] = data_variable[variable]
 
-        #To test the model I will use the first 8 years (We don't truncate the dailies datasets)
-        if(VARIABLES_TO_BE_DOWNSCALED.get(variable).get("daily") and truncate != -1):
-            #Get the first day of the dataset
-            first_day = data_variable["time"].iloc[0]
-            #Truncate the data to the first N years
-            data_variable = data_variable[data_variable["time"] < f"{first_day.year + truncate}-01-01"]
+        # #To test the model I will use the first 8 years (We don't truncate the dailies datasets)
+        # if(VARIABLES_TO_BE_DOWNSCALED.get(variable).get("daily") and truncate != -1):
+        #     #Get the first day of the dataset
+        #     first_day = data_variable["time"].iloc[0]
+        #     #Truncate the data to the first N years
+        #     data_variable = data_variable[data_variable["time"] < f"{first_day.year + truncate}-01-01"]
 
         data_variable = upscale(data_variable)
 
@@ -149,6 +149,14 @@ def generate_dataframe(model, experiment = "", truncate = -1):
             if not os.path.exists(f"data/to_be_downscaled//{variable}"):
                 os.makedirs(f"data/to_be_downscaled/{variable}")            
             data_variable.drop(columns=["target"], inplace=True) #We don't have the target for the cmip models
+
+            #To test the model I will use the first N years (We don't truncate the dailies datasets)
+            if(VARIABLES_TO_BE_DOWNSCALED.get(variable).get("daily") and truncate != -1):
+                #Get the first day of the dataset
+                first_day = data_variable["time"].iloc[0]
+                #Truncate the data to the first N years
+                data_variable = data_variable[data_variable["time"] < f"{first_day.year + truncate}-01-01"]            
+            
             data_variable.to_csv(f"data/to_be_downscaled/{variable}/{model}_{experiment}.csv", index=False)
 
 def main():
@@ -161,7 +169,7 @@ def main():
         for experiment in EXPERIMENTS:
             #If the dataset of the model and experiment exists, we generate the dataset to be downscaled
             if os.path.exists(f"data/cmip/projections/{model}/{experiment}/{experiment}.csv"):
-                generate_dataframe(model, experiment)
+                generate_dataframe(model, experiment, 10)
 
 if __name__ == "__main__":
     main()

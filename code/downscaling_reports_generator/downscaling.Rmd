@@ -70,8 +70,6 @@ for(f in to_be_downscaled){
   x <- paste0('data/to_be_downscaled/', params$variable,'/', f)
   variable <- read.csv(x)
   
-  variable <- variable |> filter(time < '2023-01-01')
-  
   file_name <- unlist(strsplit(f, "\\."))[1]
   
   lab <- unlist(strsplit(file_name, "_"))[1]
@@ -84,10 +82,11 @@ for(f in to_be_downscaled){
                             model = paste0(here(), "/models/", params$variable, "/xgboost.pkl"), 
                             data = paste0(here(), "/", x)
                           )
-  cnn_predictions <- cnn_downscaler$predict(
-                            model = paste0(here(), "/models/", params$variable, "/cnn.pkl"), 
-                            data = paste0(here(), "/", x)
-                          )
+  
+  # cnn_predictions <- cnn_downscaler$predict(
+  #                           model = paste0(here(), "/models/", params$variable, "/cnn.pkl"), 
+  #                           data = paste0(here(), "/", x)
+  #                         )
   
   nv_predictions <- nv_downscaler$predict(
                            model = paste0(here(), "/models/", params$variable, "/naive.pkl"), 
@@ -95,31 +94,48 @@ for(f in to_be_downscaled){
                     )  
   
   variable <- variable |> filter(time %in% xgboost_predictions$time)
-  res[[paste0("original-", lab, '_', scenario)]] <- variable[[params$variable]] 
-  res[[paste0("xgboost-", lab, '_', scenario)]]  <- xgboost_predictions[["xgboost"]]
-  res[[paste0("cnn-", lab, '_', scenario)]]  <- cnn_predictions[["cnn"]][1:length(variable[[params$variable]] )] #TODO: CHECK DIMENSIONS
-  res[[paste0("nv-", lab, '_', scenario)]] <- nv_predictions[["naive"]]
+  res[[paste0("undownscaled.", lab, '_', scenario)]] <- variable[[params$variable]] 
+  res[[paste0("xgboost.", lab, '_', scenario)]]  <- xgboost_predictions[["xgboost"]]
+  #res[[paste0("cnn.", lab, '_', scenario)]]  <- cnn_predictions[["cnn"]][1:length(variable[[params$variable]] )] #TODO: CHECK DIMENSIONS
+  res[[paste0("nv.", lab, '_', scenario)]] <- nv_predictions[["naive"]]
   #rm(variable)
 }
 
 ```
 
 ```{r result_data, results=F}
-res <- as.data.frame(res) |> 
+res_wide <- as.data.frame(res) |> 
   mutate(time =  variable$time)
 
-res_validation <- reanalysis |> inner_join(res)
-res_prediction <- res |> filter(!(time %in% res_validation$time))
+res_validation_wide <- reanalysis |> 
+  inner_join(res_wide)
+
+res_prediction_wide <- res_wide |> 
+  filter(!(time %in% res_validation_wide$time))
+
+
+res_long <- as.data.frame(res) |> 
+  mutate(time =  variable$time) |>
+  pivot_longer(-c("time"), names_to="model", values_to="value") |>
+  separate(col = model, sep = "\\.", into = c("model", "experiment"))
+  
+res_validation_long <- reanalysis |> 
+  inner_join(res_long)
+
+res_prediction_long <- res_long |> 
+  filter(!(time %in% res_validation_long$time))
+
+#rm(res_df, res)
 ```
 
 ```{r metrics}
-models <- res_validation |> select(-c("time", "reanalysis", starts_with('original_'))) |> colnames()
+models <- res_validation_wide |> select(-c("time", "reanalysis", starts_with('undownscaled'))) |> colnames()
 
 r <- lapply(models, function(x) {
     if (conf[["VARIABLES"]][[params$variable]][["daily"]]) {
-      metrics(time = res_validation$time, truth = res_validation$reanalysis, estimate = res_validation[[x]], model = x)
+      metrics_unpaired_hourly(time = res_validation_wide$time, truth = res_validation_wide$reanalysis, estimate = res_validation_wide[[x]], model = x)
     } else {
-      metrics_daily(time = res_validation$time, truth = res_validation$reanalysis, estimate = res_validation[[x]], model = x)
+      metrics_unpaired_daily(time = res_validation_wide$time, truth = res_validation_wide$reanalysis, estimate = res_validation_wide[[x]], model = x)
     }
 })
 
@@ -135,33 +151,46 @@ kable(results)
 
 ### Time series of the first days
 
-```{r show_plot, echo=FALSE, fig.height=9}
-res_to_plot <- res_validation[0:72,]
+```{r show_plot, echo=FALSE, fig.height=9, fig.width=9}
+days <- n_distinct(res_validation_long$model)*n_distinct(res_validation_long$experiment)*24*5
+res_to_plot <- res_validation_long[0:days,]
 
-series_plot <- function(data, col) {
-  time  <- data$time
-  reanalysis <- data$reanalysis
-  column <- data[[col]]
-  
-  original <- data[[paste0('original_', unlist(str_split(col,'_'))[2], '_', unlist(str_split(col,'_'))[3])]]
-  
-  p <- data.frame(time =  as.POSIXct(time), #To plot the time as the x-axis 
-                  reanalysis = reanalysis, 
-                  column = column,
-                  original = original)
 
-  ggplot(p, aes(x=time)) +
-    geom_line(aes(y=reanalysis)) +
-    geom_line(aes(y=column), color = "red") + 
-    geom_line(aes(y=original), color = "red", linetype="dotted") +
-    labs(y = params$variable, x = "", title = col)
+series_plot <- function(data, exp) {
+  p <- data |> 
+    filter(experiment == exp) |>
+    mutate(time = as.POSIXct(time))
+  
+  p2 <- p |>
+      group_by(time) |>
+      summarise(model = "reanalysis", value = mean(reanalysis))
+  
+  p <- p |> 
+    select(time,model,value) |>
+    rbind(p2) |>
+    arrange(time)
+  
+    ### Assign black color to reanalyis
+    gg_color_hue <- function(n) {
+      hues = seq(15, 375, length = n + 1)
+      hcl(h = hues, l = 65, c = 100)[1:n]
+    } 
+    
+    pal <- gg_color_hue(4)
+    pal[which(sort(unique(p$model)) == "reanalysis") ] <- "black"
+    ##############################  
+
+    ggplot(p, aes(x=time, y=value, color=model)) +
+      geom_line() +
+      scale_color_manual(values=pal) +
+      labs(y = params$variable, x = "", title = exp)
 }
 
 # Serie to compare to reanalysis
-models <- res_validation |> select(-c("time", "reanalysis", starts_with('original_'))) |> colnames()
+models <- unique(res_validation_long$experiment)
 
 # Generate Q-Q plots
-plots <- lapply(models, function(col) series_plot(res_to_plot, col))
+plots <- lapply(models, function(exp) series_plot(res_to_plot, exp))
 
 # Arrange the plots using gridExtra
 do.call(grid.arrange, c(plots, ncol = 3))
@@ -169,47 +198,39 @@ do.call(grid.arrange, c(plots, ncol = 3))
 
 `r  if (conf[["VARIABLES"]][[params$variable]][["daily"]]) {"### How Often Peaks Hit Hourly\n"} else {"### Distribution of daily values by month\n"}`
 
-```{r maximum, fig.height=9}
-models <- res_validation |> select(-c("time", "reanalysis", starts_with('original_'))) |> colnames()
+```{r maximum, fig.height=9, fig.width=9}
+models <- unique(res_validation_long$experiment)
 
-if (conf[["VARIABLES"]][[params$variable]][["daily"]]) {
+if (!conf[["VARIABLES"]][[params$variable]][["daily"]]) {
   
   plots <- lapply(models, function(col) {
-    maximum_histograms(res_validation$time, res_validation$reanalysis, res_validation[[col]]) + scale_fill_discrete(labels = c(col, "reanalysis"))
+    maximum_histograms(res_validation$time, 
+                       res_validation$reanalysis, 
+                       res_validation[[col]]) 
+                        + scale_fill_discrete(labels = c(col, "reanalysis"))
   })
   
   do.call(grid.arrange, c(plots, ncol = 3))
+
 } else {
-  plots <- lapply(models, function(col) {
-    monthly_boxplot(res_validation$time, res_validation$reanalysis, res_validation[[col]]) + scale_fill_discrete(labels = c(col, "reanalysis"))
-  })
+    plots <- lapply(models, function(exp) {
   
-  do.call(grid.arrange, c(plots, ncol = 3))
+      p <- res_validation_long |> 
+        filter(experiment == exp) 
+  
+      p2 <- p |>
+          group_by(time) |>
+          summarise(model = "reanalysis", value = mean(reanalysis))
+      
+      p <- p |> 
+        select(time,model,value) |>
+        rbind(p2) |>
+        arrange(time)
+            
+      monthly_boxplot_2(p)
+  })
+  do.call(grid.arrange, c(plots, ncol = 2))
 }
-```
-
-`r  if (conf[["VARIABLES"]][[params$variable]][["daily"]]) {"### New plot\n"}`
-
-```{r, fig.height=9, fig.width=6}
-# if (conf[["VARIABLES"]][[params$variable]][["daily"]]){
-#   res_to_plot <- res_validation |> 
-#       mutate(date = getDate(time)) |> 
-#       group_by(date) |>
-#       mutate(daily_avg = mean(reanalysis)) |>
-#       ungroup() |>
-#       mutate(hour = getHour(time))
-# 
-#   p1 <- ggplot(res_to_plot, aes(x=daily_avg, y=reanalysis)) +
-#     geom_line() +
-#     labs(title = "Reanalysis") +
-#     facet_wrap(~hour)
-#   
-#   p2 <- ggplot(res_to_plot, aes(x=daily_avg, y=xgboost)) +
-#     geom_line() +
-#     labs(title = "Xgboost") +
-#     facet_wrap(~hour)
-#   grid.arrange(p1, p2, newpage = T)
-# }
 ```
 
 ### QQ Plot
@@ -243,7 +264,7 @@ qq_plot_against <- function(data, sample_col) {
 }
 
 # Columns to compare against the reference column
-models <- res_validation |> select(-c("time", "reanalysis", starts_with('original_'))) |> colnames()
+models <- res_validation |> select(-c("time", "reanalysis", starts_with('undownscaled_'))) |> colnames()
 # Generate Q-Q plots
 plots <- lapply(models, function(col) qq_plot_against(res_validation, col))
 
@@ -254,9 +275,9 @@ do.call(grid.arrange, c(plots, ncol = 2))  # Arrange in a grid
 ### Autocorrelogram
 
 ```{r acf}
-models <- res_validation |> select(-c("time",  starts_with('original_'))) |> colnames()
+models <- res_validation_wide |> select(-c("time",  starts_with('undownscaled'))) |> colnames()
 r <- lapply(models, function(x) {
-  acf(res_validation[[x]], lag.max = 47, plot = F)$acf
+  acf(res_validation_wide[[x]], lag.max = 47, plot = F)$acf
 })
 
 results <- do.call(cbind, r)
@@ -278,10 +299,10 @@ ggplot(results, mapping = aes(x = lag, y = acf)) +
 ### Extremogram
 
 ```{r extremogram}
-models <- res_validation |> select(-c("time", starts_with('original_'))) |> colnames()
+models <- res_validation_wide |> select(-c("time", starts_with('undownscaled'))) |> colnames()
 
 r <- lapply(models, function(x) {
-  extremogram1(res_validation[[x]], quant = .97, maxlag = 48, type = 1, ploting = 0)
+  extremogram1(res_validation_wide[[x]], quant = .97, maxlag = 48, type = 1, ploting = 0)
 })
 
 results <- do.call(cbind, r)

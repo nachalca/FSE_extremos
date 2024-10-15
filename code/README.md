@@ -14,7 +14,7 @@
 |`NaiveDownscaler.py`|For each variable we train a linear model (we call it naive) which will allow us to downscale new data. To train the models we execute the script. If we want to downscale new observations we have to make an instance of the class `NaiveDownscaler` and call the `predict` function, passing it the path where the new dataset is located and the path of the corresponding `.pkl` file.|
 |`reanalysis_data.py`|Used to download the `reanalysis` data. The downloading is really slow, it may take more than one day! (a good idea can be parallelize on the variables).|
 |`metrics.R`|Implements useful new metrics and plots for evaluating the downscaling model.|
-|`training_data_generator.py`|Generates the data needed to train the models. We can found the outputs in the `training` and `testing` folder.|
+|`training_data_generator.py`|Generates the data needed to train/test the models. The outputs can be found in the `training` and `testing` folders. It's also the responsible of building the datasets that will be downscaled.|
 |`validation_data.py`|Generates the datasets needed to build the `validation_reports`.|
 |`utils.R`|Common use functions.|
 |`XgboostDownscaler.py`|Analogous to the `NaiveDownscaler` and the `CNNDownscaler`. `XgboostDownscaler` is right now the only model on which we do hyperparameters optimization and we do it with the `hyperopt` library (Bayesian Optimization).|

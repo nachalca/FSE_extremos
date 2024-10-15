@@ -200,7 +200,9 @@ if (conf[["VARIABLES"]][[params$variable]][["daily"]]) {
   
   do.call(grid.arrange, c(plots, ncol = 1))
 } else {
-  monthly_boxplot_2(res)
+  res_to_plot <- res |>
+      pivot_longer(cols = -c(time), names_to = "model", values_to = "value") |>
+  monthly_boxplot_2(res_to_plot)
 }
 ```
 
