@@ -13,7 +13,7 @@ knitr::opts_chunk$set(echo = F, warning = F, message = F)
 
 ```{css}
 /* Define a margin before h2 element */
-h2,h3  {
+h2 {
   margin-top: 3em;
 }
 ```
@@ -72,11 +72,9 @@ for(f in to_be_downscaled){
   
   file_name <- unlist(strsplit(f, "\\."))[1]
   
-  lab <- unlist(strsplit(file_name, "_"))[1]
-  scenario <- paste0(unlist(strsplit(file_name, "_"))[2], 
-                     unlist(strsplit(file_name, "_"))[3], 
-                     unlist(strsplit(file_name, "_"))[4]
-                     )
+  lab <- unlist(strsplit(file_name, "-"))[1]
+  scenario <- unlist(strsplit(file_name, "-"))[2]
+  scenario <-  gsub("_", "", scenario) #Make the name more readable.
     
   xgboost_predictions <- xgboost_downscaler$predict(
                             model = paste0(here(), "/models/", params$variable, "/xgboost.pkl"), 
@@ -94,10 +92,10 @@ for(f in to_be_downscaled){
                     )  
   
   variable <- variable |> filter(time %in% xgboost_predictions$time)
-  res[[paste0("undownscaled.", lab, '_', scenario)]] <- variable[[params$variable]] 
-  res[[paste0("xgboost.", lab, '_', scenario)]]  <- xgboost_predictions[["xgboost"]]
-  #res[[paste0("cnn.", lab, '_', scenario)]]  <- cnn_predictions[["cnn"]][1:length(variable[[params$variable]] )] #TODO: CHECK DIMENSIONS
-  res[[paste0("nv.", lab, '_', scenario)]] <- nv_predictions[["naive"]]
+  res[[paste0("undownscaled.", lab, '-', scenario)]] <- variable[[params$variable]] 
+  res[[paste0("xgboost.", lab, '-', scenario)]]  <- xgboost_predictions[["xgboost"]]
+  #res[[paste0("cnn.", lab, '-', scenario)]]  <- cnn_predictions[["cnn"]][1:length(variable[[params$variable]] )] #TODO: CHECK DIMENSIONS
+  res[[paste0("nv.", lab, '-', scenario)]] <- nv_predictions[["naive"]]
   #rm(variable)
 }
 
@@ -117,7 +115,7 @@ res_prediction_wide <- res_wide |>
 res_long <- as.data.frame(res) |> 
   mutate(time =  variable$time) |>
   pivot_longer(-c("time"), names_to="model", values_to="value") |>
-  separate(col = model, sep = "\\.", into = c("model", "experiment"))
+  separate(col = model, sep = "\\.", into = c("model", "experiment"), extra = "merge")
   
 res_validation_long <- reanalysis |> 
   inner_join(res_long)
@@ -149,9 +147,9 @@ results <- results |>
 kable(results)
 ```
 
-### Time series of the first days
+## Time series of the first days
 
-```{r show_plot, echo=FALSE, fig.height=9, fig.width=9}
+```{r show_plot, echo=FALSE, fig.height=9}
 days <- n_distinct(res_validation_long$model)*n_distinct(res_validation_long$experiment)*24*5
 res_to_plot <- res_validation_long[0:days,]
 
@@ -193,86 +191,94 @@ models <- unique(res_validation_long$experiment)
 plots <- lapply(models, function(exp) series_plot(res_to_plot, exp))
 
 # Arrange the plots using gridExtra
-do.call(grid.arrange, c(plots, ncol = 3))
+do.call(grid.arrange, c(plots, ncol = 2))
 ```
 
-`r  if (conf[["VARIABLES"]][[params$variable]][["daily"]]) {"### How Often Peaks Hit Hourly\n"} else {"### Distribution of daily values by month\n"}`
+`r  if (conf[["VARIABLES"]][[params$variable]][["daily"]]) {"## How Often Peaks Hit Hourly\n"} else {"## Distribution of daily values by month\n"}`
 
-```{r maximum, fig.height=9, fig.width=9}
+```{r maximum, fig.height=9}
 models <- unique(res_validation_long$experiment)
 
 if (!conf[["VARIABLES"]][[params$variable]][["daily"]]) {
   
-  plots <- lapply(models, function(col) {
-    maximum_histograms(res_validation$time, 
-                       res_validation$reanalysis, 
-                       res_validation[[col]]) 
-                        + scale_fill_discrete(labels = c(col, "reanalysis"))
+  plots <- lapply(models, function(exp) {
+    maximum_histograms_downscaling(res_validation_long, exp)
   })
   
-  do.call(grid.arrange, c(plots, ncol = 3))
+  do.call(grid.arrange, c(plots, ncol = 1))
 
 } else {
-    plots <- lapply(models, function(exp) {
-  
-      p <- res_validation_long |> 
-        filter(experiment == exp) 
-  
-      p2 <- p |>
-          group_by(time) |>
-          summarise(model = "reanalysis", value = mean(reanalysis))
-      
-      p <- p |> 
-        select(time,model,value) |>
-        rbind(p2) |>
-        arrange(time)
-            
-      monthly_boxplot_2(p)
+  plots <- lapply(models, function(exp) {
+
+    p <- res_validation_long |> 
+      filter(experiment == exp) 
+
+    p2 <- p |>
+        group_by(time) |>
+        summarise(model = "reanalysis", value = mean(reanalysis))
+    
+    p <- p |> 
+      select(time,model,value) |>
+      rbind(p2) |>
+      arrange(time)
+          
+    monthly_boxplot_2(p)
   })
-  do.call(grid.arrange, c(plots, ncol = 2))
+  do.call(grid.arrange, c(plots, ncol = 1))
 }
 ```
 
-### QQ Plot
+## QQ Plot
 
-```{r qqplot, fig.height=8, fig.width=6}
+```{r qqplot, fig.height=9, fig.width=9}
 # Function to create a Q-Q plot comparing quantiles of a sample column against a reference column
-qq_plot_against <- function(data, sample_col) {
-  ref_col <- "reanalysis"
-  sample_data <- data[[sample_col]]
-  ref_data <- data[[ref_col]]
+
+qq_plot_against <- function(data, exp) {
   
-  # Sort the data
-  sample_data_sorted <- sort(sample_data)
-  ref_data_sorted <- sort(ref_data)
+ data <- data |> 
+    filter(experiment == exp) |>
+    pivot_wider(names_from = model, values_from = value) |>
+    distinct() |>
+    select(-c(time, experiment))
   
-  # Calculate quantiles
-  n <- min(length(sample_data_sorted), length(ref_data_sorted))
-  quantiles_sample <- sample_data_sorted[seq(1, length(sample_data_sorted), length.out = n)]
-  quantiles_ref <- ref_data_sorted[seq(1, length(ref_data_sorted), length.out = n)]
+  models <- data |> colnames()
   
-  # Create a data frame for plotting
-  quantile_df <- data.frame(Quantiles_Ref = quantiles_ref, Quantiles_Sample = quantiles_sample)
+  res <- lapply(models, function(x) {
+    ref_data <- data[[x]]
+    ref_data_sorted <- sort(ref_data) # Sort the data
+    n <- min(length(ref_data_sorted))
+    quantiles_ref <- ref_data_sorted[seq(1, length(ref_data_sorted), length.out = n)] # Calculate quantiles
+    df <- data.frame(
+      value = quantiles_ref
+    )
+    colnames(df) <- c(x)
+    df
+  })
+  
+  
+  quantile_df <- do.call(cbind, res) |>
+    pivot_longer(cols = -reanalysis, names_to = "model", values_to = "value")
   
   # Generate the Q-Q plot
-  ggplot(quantile_df, aes(x = Quantiles_Ref, y = Quantiles_Sample)) +
-    geom_point() +
+  ggplot(quantile_df, aes(x = reanalysis, y = value, color=model)) +
+    geom_point(alpha = .05) +
     geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
-    ggtitle(paste(sample_col)) +
+    ggtitle(paste(exp)) +
     labs(x = NULL, y = NULL) +
+    guides(colour = guide_legend(override.aes = list(alpha = 1))) +
     theme_minimal()
 }
 
 # Columns to compare against the reference column
-models <- res_validation |> select(-c("time", "reanalysis", starts_with('undownscaled_'))) |> colnames()
+models <- unique(res_validation_long$experiment)
 # Generate Q-Q plots
-plots <- lapply(models, function(col) qq_plot_against(res_validation, col))
+plots <- lapply(models, function(col) qq_plot_against(res_validation_long, col))
 
 # Arrange the plots using gridExtra
 do.call(grid.arrange, c(plots, ncol = 2))  # Arrange in a grid
 ```
 
-### Autocorrelogram
+## Autocorrelogram
 
 ```{r acf}
 models <- res_validation_wide |> select(-c("time",  starts_with('undownscaled'))) |> colnames()
@@ -296,7 +302,7 @@ ggplot(results, mapping = aes(x = lag, y = acf)) +
     facet_wrap(~ model, ncol = 3) 
 ```
 
-### Extremogram
+## Extremogram
 
 ```{r extremogram}
 models <- res_validation_wide |> select(-c("time", starts_with('undownscaled'))) |> colnames()

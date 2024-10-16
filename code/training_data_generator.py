@@ -157,7 +157,7 @@ def generate_dataframe(model, experiment = "", truncate = -1):
                 #Truncate the data to the first N years
                 data_variable = data_variable[data_variable["time"] < f"{first_day.year + truncate}-01-01"]            
             
-            data_variable.to_csv(f"data/to_be_downscaled/{variable}/{model}_{experiment}.csv", index=False)
+            data_variable.to_csv(f"data/to_be_downscaled/{variable}/{model}-{experiment}.csv", index=False)
 
 def main():
 

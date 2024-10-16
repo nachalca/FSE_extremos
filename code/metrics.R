@@ -22,7 +22,8 @@ metrics_unpaired_hourly <- function(time, truth, estimate, model){
     "ratio_of_sd" = c(ratio_of_sd(truth, estimate)),
     "amplitude_ratio_of_means" = c(amplitude_ratio_of_means(time, truth, estimate)),
     "maximum_error" = c(maximum_error(time, truth, estimate)),
-    "sign_error" = c(sign_error(time, truth, estimate))
+    "sign_error" = c(sign_error(time, truth, estimate)),
+    "qqplot_mae" = c(qqplot_mae(truth, estimate))    
   )
   rownames(df) <- c(model)
   df
@@ -352,6 +353,38 @@ maximum_histograms <- function(time, truth, estimate){
                                                           ) |> mutate(hour = as.factor(hour))
   ggplot(r, aes(x = hour, fill = model)) + 
     geom_bar(position = "dodge2") 
+}
+
+#For downscaling report, for legacy purpose we will not use the other functions related to maximum (if it works, don't touch it)
+maximum_histograms_downscaling <- function(data, exp){
+ data <- data |> 
+    filter(experiment == exp) |>
+    pivot_wider(names_from = model, values_from = value) |>
+    distinct() |>
+    mutate(day = getDate(time),
+           hour = getHour(time)) |>
+   select(-c(time, undownscaled, experiment))
+ 
+ columns <- colnames(data)
+ columns <- columns[columns != "hour" & columns !=  "day"]
+ 
+ data_to_plot <- data |>
+   group_by(day) |>
+   summarise(
+     across(columns,
+            ~ hour[which.max(.x)],        # Applies function to get the hour of peak value
+            .names = "{col}")   # Renames the new columns
+   ) |>
+   ungroup() |>
+   pivot_longer(-c(day),
+                names_to = "model",
+                values_to = "hour") |>
+   mutate(hour = as.factor(hour))
+
+ ggplot(data_to_plot, aes(x = hour, fill = model)) + 
+   geom_bar(position = "dodge2")  +
+   labs(x = "hour")
+   
 }
 
 monthly_boxplot <- function(time, truth, estimate){
