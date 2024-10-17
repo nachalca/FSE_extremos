@@ -23,7 +23,9 @@ metrics_unpaired_hourly <- function(time, truth, estimate, model){
     "amplitude_ratio_of_means" = c(amplitude_ratio_of_means(time, truth, estimate)),
     "maximum_error" = c(maximum_error(time, truth, estimate)),
     "sign_error" = c(sign_error(time, truth, estimate)),
-    "qqplot_mae" = c(qqplot_mae(truth, estimate))    
+    "qqplot_mae" = c(qqplot_mae(truth, estimate)),
+    "acf_mae" = c(acf_mae(truth,estimate)),
+    "extremogram_mae" = c(extremogram_mae(truth,estimate))    
   )
   rownames(df) <- c(model)
   df
@@ -39,10 +41,12 @@ metrics_unpaired_hourly <- function(time, truth, estimate, model){
 metrics_unpaired_daily <- function(time, truth, estimate, model){
   df <- data.frame(
     "diff_of_means" = c(diff_of_means_per(truth, estimate)),
-  #  "ratio_of_sd" = c(ratio_of_sd(truth, estimate)),
+    "ratio_of_sd" = c(ratio_of_sd(truth, estimate)),
     "monthly_amplitude_ratio_of_means" = c(monthly_amplitude_ratio_of_means(time, truth, estimate)),
     "sign_correlation" = c(sign_correlation(truth, estimate)),
-    "qqplot_mae" = c(qqplot_mae(truth, estimate))
+    "qqplot_mae" = c(qqplot_mae(truth, estimate)),
+    "acf_mae" = c(acf_mae(truth,estimate)),
+    "extremogram_mae" = c(extremogram_mae(truth,estimate))  
   )
   rownames(df) <- c(model)
   df
@@ -478,7 +482,7 @@ extreme_accuracy <- function(time, truth, estimate, quant = 0.97){
 }
 
 #Extreme value plot
-mean_on_days_with_extremes <- function(time, value, quant){
+mean_on_days_with_extremes <- function(time, value, quant, standarize){
   threshold <- quantile(value, probs = quant, names = F)
   
   df <- data.frame(
@@ -487,6 +491,10 @@ mean_on_days_with_extremes <- function(time, value, quant){
     is_extreme = if_else(value >= threshold, 1, 0),
     date = getDate(time)
   ) 
+  
+  if(standarize) {
+    df$value <- scale(df$value)
+  }
   
   days_with_extremes <- df |>
     filter(is_extreme == 1)
@@ -501,7 +509,7 @@ mean_on_days_with_extremes <- function(time, value, quant){
   mean_of_these_days$undownscaled_value
 }
 
-mean_on_days_with_extremes_plot <- function(data, quant = .97){
+mean_on_days_with_extremes_plot <- function(data, quant = .97, standarize = F){
   models <- data |> 
     select(-c("time")) |> 
     colnames()
@@ -509,7 +517,7 @@ mean_on_days_with_extremes_plot <- function(data, quant = .97){
   p <- lapply(models, function(x) {
     data.frame(
       model = x,
-      undownscaled_value = mean_on_days_with_extremes(time = data$time, value = data[[x]], quant)
+      undownscaled_value = mean_on_days_with_extremes(time = data$time, value = data[[x]], quant, standarize)
     )
   })
   

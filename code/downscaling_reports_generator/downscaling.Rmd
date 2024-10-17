@@ -26,6 +26,8 @@ library(gridExtra)
 Sys.setenv(RETICULATE_PYTHON = "/home/tancre/bin/miniconda3/bin/python")
 library(reticulate)
 library(yaml)
+library(forcats)
+library(patchwork)
 library("extremogram")
 source('code/metrics.R')
 source('code/utils.R')
@@ -81,10 +83,10 @@ for(f in to_be_downscaled){
                             data = paste0(here(), "/", x)
                           )
   
-  # cnn_predictions <- cnn_downscaler$predict(
-  #                           model = paste0(here(), "/models/", params$variable, "/cnn.pkl"), 
-  #                           data = paste0(here(), "/", x)
-  #                         )
+  cnn_predictions <- cnn_downscaler$predict(
+                            model = paste0(here(), "/models/", params$variable, "/cnn.pkl"),
+                            data = paste0(here(), "/", x)
+                          )
   
   nv_predictions <- nv_downscaler$predict(
                            model = paste0(here(), "/models/", params$variable, "/naive.pkl"), 
@@ -94,7 +96,7 @@ for(f in to_be_downscaled){
   variable <- variable |> filter(time %in% xgboost_predictions$time)
   res[[paste0("undownscaled.", lab, '-', scenario)]] <- variable[[params$variable]] 
   res[[paste0("xgboost.", lab, '-', scenario)]]  <- xgboost_predictions[["xgboost"]]
-  #res[[paste0("cnn.", lab, '-', scenario)]]  <- cnn_predictions[["cnn"]][1:length(variable[[params$variable]] )] #TODO: CHECK DIMENSIONS
+  res[[paste0("cnn.", lab, '-', scenario)]]  <- cnn_predictions[["cnn"]][1:length(variable[[params$variable]] )] #TODO: CHECK DIMENSIONS
   res[[paste0("nv.", lab, '-', scenario)]] <- nv_predictions[["naive"]]
   #rm(variable)
 }
@@ -191,21 +193,22 @@ models <- unique(res_validation_long$experiment)
 plots <- lapply(models, function(exp) series_plot(res_to_plot, exp))
 
 # Arrange the plots using gridExtra
-do.call(grid.arrange, c(plots, ncol = 2))
+wrap_plots(plots, ncol = 2, guides = 'collect', pos)  & theme(legend.position = 'bottom')
 ```
 
 `r  if (conf[["VARIABLES"]][[params$variable]][["daily"]]) {"## How Often Peaks Hit Hourly\n"} else {"## Distribution of daily values by month\n"}`
 
-```{r maximum, fig.height=9}
+```{r maximum, fig.height=11}
 models <- unique(res_validation_long$experiment)
 
-if (!conf[["VARIABLES"]][[params$variable]][["daily"]]) {
+if (conf[["VARIABLES"]][[params$variable]][["daily"]]) {
   
   plots <- lapply(models, function(exp) {
-    maximum_histograms_downscaling(res_validation_long, exp)
+    maximum_histograms_downscaling(res_validation_long, exp) +
+      ggtitle(paste(exp))
   })
   
-  do.call(grid.arrange, c(plots, ncol = 1))
+  wrap_plots(plots, ncol = 2, guides = 'collect', pos)  & theme(legend.position = 'bottom')
 
 } else {
   plots <- lapply(models, function(exp) {
@@ -224,7 +227,8 @@ if (!conf[["VARIABLES"]][[params$variable]][["daily"]]) {
           
     monthly_boxplot_2(p)
   })
-  do.call(grid.arrange, c(plots, ncol = 1))
+  
+  wrap_plots(plots, ncol = 2, guides = 'collect', pos)  & theme(legend.position = 'bottom')
 }
 ```
 
@@ -269,13 +273,34 @@ qq_plot_against <- function(data, exp) {
     theme_minimal()
 }
 
-# Columns to compare against the reference column
 models <- unique(res_validation_long$experiment)
 # Generate Q-Q plots
 plots <- lapply(models, function(col) qq_plot_against(res_validation_long, col))
 
 # Arrange the plots using gridExtra
-do.call(grid.arrange, c(plots, ncol = 2))  # Arrange in a grid
+wrap_plots(plots, guides = 'collect', pos)  & theme(legend.position = 'bottom')
+```
+
+## Distribution of the undownscaled value on days with estimated extremes values.
+
+```{r extremes, fig.height=9}
+models <- unique(res_validation_long$experiment)
+
+extremes <- function(data, exp) {
+ res_to_plot <- data |> 
+    filter(experiment == exp) |>
+    pivot_wider(names_from = model, values_from = value) |>
+    select(-c(experiment,undownscaled)) |>
+    distinct() 
+ 
+  mean_on_days_with_extremes_plot(res_to_plot, standarize = TRUE) +
+    ggtitle(paste(exp))
+}
+
+models <- unique(res_validation_long$experiment)
+plots <- lapply(models, function(exp) extremes(res_validation_long, exp))
+
+wrap_plots(plots, ncol = 2, guides = 'collect', pos)  & theme(legend.position = 'bottom')
 ```
 
 ## Autocorrelogram
@@ -292,10 +317,14 @@ colnames(results) <- models
 
 results <- as_data_frame(results)
 
-results <- results |> pivot_longer(cols = everything(), names_to = "model", values_to = "acf")
+results <- results |> 
+  pivot_longer(cols = everything(), names_to = "model", values_to = "acf")
+
 results$lag <- sort(rep(1:48, length(models)))
 
 results <- results |> filter(lag > 1) #I don't want to plot the first lag
+
+results$model <- fct_relevel(results$model, 'reanalysis') #Put reanalysis first
 
 ggplot(results, mapping = aes(x = lag, y = acf)) +
     geom_segment(mapping = aes(xend = lag, yend = 0)) +
@@ -319,6 +348,8 @@ results <- as_data_frame(results)
 
 results <- results |> pivot_longer(cols = everything(), names_to = "model", values_to = "extremogram")
 results$lag <- sort(rep(1:48, length(models)))
+
+results$model <- fct_relevel(results$model, 'reanalysis') #Put reanalysis first
 
 results <- results |> filter(lag > 1) #I don't want to plot the first lag
 
