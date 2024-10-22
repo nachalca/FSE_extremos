@@ -125,7 +125,7 @@ res_validation_long <- reanalysis |>
 res_prediction_long <- res_long |> 
   filter(!(time %in% res_validation_long$time))
 
-#rm(res_df, res)
+rm(res_df, res, res_wide, res_long)
 ```
 
 ```{r metrics}
@@ -151,7 +151,7 @@ kable(results)
 
 ## Time series of the first days
 
-```{r show_plot, echo=FALSE, fig.height=9}
+```{r show_plot, echo=FALSE, fig.width=15, fig.height=20, out.width="100%"}
 days <- n_distinct(res_validation_long$model)*n_distinct(res_validation_long$experiment)*24*5
 res_to_plot <- res_validation_long[0:days,]
 
@@ -176,7 +176,7 @@ series_plot <- function(data, exp) {
       hcl(h = hues, l = 65, c = 100)[1:n]
     } 
     
-    pal <- gg_color_hue(4)
+    pal <- gg_color_hue(length(unique(p$model)))
     pal[which(sort(unique(p$model)) == "reanalysis") ] <- "black"
     ##############################  
 
@@ -198,7 +198,7 @@ wrap_plots(plots, ncol = 2, guides = 'collect', pos)  & theme(legend.position = 
 
 `r  if (conf[["VARIABLES"]][[params$variable]][["daily"]]) {"## How Often Peaks Hit Hourly\n"} else {"## Distribution of daily values by month\n"}`
 
-```{r maximum, fig.height=11}
+```{r maximum, fig.width=15, fig.height=20, out.width="100%"}
 models <- unique(res_validation_long$experiment)
 
 if (conf[["VARIABLES"]][[params$variable]][["daily"]]) {
@@ -234,7 +234,7 @@ if (conf[["VARIABLES"]][[params$variable]][["daily"]]) {
 
 ## QQ Plot
 
-```{r qqplot, fig.height=9, fig.width=9}
+```{r qqplot,fig.width=15, fig.height=20, out.width="100%"}
 # Function to create a Q-Q plot comparing quantiles of a sample column against a reference column
 
 qq_plot_against <- function(data, exp) {
@@ -283,7 +283,11 @@ wrap_plots(plots, guides = 'collect', pos)  & theme(legend.position = 'bottom')
 
 ## Distribution of the undownscaled value on days with estimated extremes values.
 
-```{r extremes, fig.height=9}
+*On the x-axis we have the daily mean (standardized). It says `Undownscaled value`, but is the daily mean after the downscaling. A good idea is to plot the original undownscaled value.*
+
+The purpose of this plot is to illustrate the distribution of P(undownscaled value | we predicted an extreme). This is useful because it reveals how much information we can recover concerning extreme events. If the distribution is skewed to the right, it suggests that we're predicting extreme values only when extreme values have already occurred. Conversely, if the lower tail of the distribution resembles the reanalysis data, it indicates that we can capture short-duration extremes (e.g., brief periods of heavy rainfall, such as an intense downpour lasting an hour before stopping).
+
+```{r extremes, fig.width=15, fig.height=20, out.width="100%"}
 models <- unique(res_validation_long$experiment)
 
 extremes <- function(data, exp) {
@@ -305,7 +309,7 @@ wrap_plots(plots, ncol = 2, guides = 'collect', pos)  & theme(legend.position = 
 
 ## Autocorrelogram
 
-```{r acf}
+```{r acf, fig.width=15, fig.height=20, out.width="100%"}
 models <- res_validation_wide |> select(-c("time",  starts_with('undownscaled'))) |> colnames()
 r <- lapply(models, function(x) {
   acf(res_validation_wide[[x]], lag.max = 47, plot = F)$acf
@@ -333,7 +337,7 @@ ggplot(results, mapping = aes(x = lag, y = acf)) +
 
 ## Extremogram
 
-```{r extremogram}
+```{r extremogram, fig.width=15, fig.height=20, out.width="100%"}
 models <- res_validation_wide |> select(-c("time", starts_with('undownscaled'))) |> colnames()
 
 r <- lapply(models, function(x) {
