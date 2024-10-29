@@ -11,7 +11,7 @@ print(getwd())
 
 variables <- list.files("models/")
 
-variables <- variables[(variables %in% c("sfcWind", "tas"))]
+variables <- variables[!(variables %in% c("hyperparameters", "README.md"))]
 
 lapply(variables, function(x){
 

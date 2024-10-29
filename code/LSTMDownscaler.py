@@ -4,6 +4,7 @@ import pickle
 from feature_engine import encoding
 import yaml 
 import os
+
 import tensorflow as tf
 from tensorflow.keras import optimizers
 from tensorflow.keras.models import Model
@@ -11,14 +12,11 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Input
 from tensorflow.keras.layers import Dense
 from tensorflow.keras.layers import Dropout
-from tensorflow.keras.layers import Conv1D
-from tensorflow.keras.layers import Conv2D
-from tensorflow.keras.layers import MaxPool1D
-from tensorflow.keras.layers import AveragePooling1D
-from tensorflow.keras.layers import MaxPool2D
-from tensorflow.keras.layers import ReLU
+from tensorflow.keras.layers import LSTM
+from tensorflow.keras.layers import RepeatVector
+from tensorflow.keras.layers import TimeDistributed
 from tensorflow.keras.layers import Flatten
-from tensorflow.python.keras import backend as K
+from tensorflow.keras.layers import Bidirectional
 
 from sklearn import model_selection, preprocessing
 
@@ -27,7 +25,7 @@ from collections import Counter
 
 from numpy.random import seed
 
-class CNNDownscaler():
+class LSTMDownscaler():
 
     def __init__(self):
         pass
@@ -133,8 +131,8 @@ class CNNDownscaler():
         model = pickle.load(open(model, "rb"))
         predictions = model.predict(data)
         res = res.iloc[window_size+1:len(res) - window_size] # Match the sizes
-        res["cnn"] = predictions
-        return res[["time", "cnn"]]
+        res["lstm"] = predictions
+        return res[["time", "lstm"]]
 
     def optimize():
         pass
@@ -178,43 +176,48 @@ class CNNDownscaler():
                 N_FEATURES = X_train.shape[2]  # the number of features        
 
                 # Define the model        
-                cnn = Sequential()
-                cnn.add(Input(shape=(TIMESTEPS, 
-                                    N_FEATURES), 
+                lstm = Sequential()
+                lstm.add(Input(shape=(TIMESTEPS, N_FEATURES), 
                                 name='input'))
-                cnn.add(Conv1D(filters=16, 
-                                kernel_size=4,
-                                activation='relu', 
-                                padding='valid'))
-                cnn.add(MaxPool1D(pool_size=4, 
-                                    padding='valid'))
-                cnn.add(Flatten())
-                cnn.add(Dense(units=16, 
-                                activation='relu'))
-                cnn.add(Dense(units=1, 
+                lstm.add(
+                    LSTM(units=16,
+                        activation='tanh',
+                        return_sequences=True,
+                        recurrent_dropout=0.5,
+                        name='lstm_layer_1'))
+                lstm.add(Dropout(0.5))
+                lstm.add(
+                    LSTM(units=8,
+                        activation='tanh',
+                        return_sequences=True,
+                        recurrent_dropout=0.5,
+                        name='lstm_layer_2'))
+                lstm.add(Flatten())
+                lstm.add(Dropout(0.5))
+                lstm.add(Dense(units=1,
                                 activation='linear', 
                                 name='output'))
-
-                cnn.compile(optimizer='adam',
+                lstm.compile(optimizer='adam',
                             loss='mse',
                             metrics=[
                                 tf.keras.metrics.RootMeanSquaredError()
                             ])
-                history = cnn.fit(x=X_train,
-                                    y=y_train,
-                                    batch_size=128,
-                                    epochs=150,
-                                    validation_data=(X_valid, y_valid),
-                                    verbose=1).history
+                lstm_history = lstm.fit(x= np.asarray(X_train).astype('float32'),
+                                y=y_train,
+                                batch_size=128,
+                                epochs=100,
+                                validation_data=(np.asarray(X_valid).astype('float32'), 
+                                                y_valid),
+                                verbose=1)
 
                 #Save the model
                 if os.path.exists(f"models/{variable_name}") == False:
                     os.makedirs(f"models/{variable_name}")
-                pickle.dump(cnn, open(f"models/{variable_name}/cnn.pkl", "wb"))
+                pickle.dump(lstm, open(f"models/{variable_name}/lstm.pkl", "wb"))
 
 def main():
-    cnn_downscaler = CNNDownscaler()
-    cnn_downscaler.fit()
+    lstm_downscaler = LSTMDownscaler()
+    lstm_downscaler.fit()
 
 if __name__ == "__main__":
     main()
