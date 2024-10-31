@@ -138,7 +138,7 @@ class LSTMDownscaler():
         pass
 
     """
-        TRAIN ALL XGBOOST MODELS FOR DIFFERENT VARIABLES. THIS FUNCTION WILL SAVE THE MODELS IN THE MODELS FOLDER.
+        TRAIN ALL LSTM MODELS FOR DIFFERENT VARIABLES. THIS FUNCTION WILL SAVE THE MODELS IN THE MODELS FOLDER.
     """
     def fit(self):
         #Load the configuration file
@@ -164,7 +164,7 @@ class LSTMDownscaler():
                 y_train = data["target"]
                                 
                 #Set the amount of future and past observations to be taken into account  
-                window_size =  24 if VARIABLES[variable_name]["daily"] else 30
+                window_size =  24 if VARIABLES[variable_name]["daily"] else 7
                 
                 # Transform the data
                 print("Transforming the data ...")
