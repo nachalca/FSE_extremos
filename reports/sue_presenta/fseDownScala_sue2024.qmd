@@ -1,0 +1,58 @@
+---
+title: "Downscaling estadístico de proyecciones climáticas"
+format: beamer
+editor: visual
+---
+
+# Introducción
+
+## Introducción
+
+- Proyecto ANII, FSE desafíos
+
+- Equipo: jairo, nacho, bruno
+
+- Objetivos
+
+# Datos
+## Fuentes de datos
+- cmip6: escenarios y labs
+
+- era5: datos reanálisis
+
+## Escenarios CMIP6
+
+gráfico mostrando efecto de escenarios para un lab
+
+
+## Construcción de datos finales
+
+esquema base de datos
+
+# Métodos
+
+## Downscaling temportal
+
+- Problema: downsacling temporal, vmip vs era
+- describir problema en general
+
+## Técnicas utilizadas
+
+- mencionar: nv, cnn, xgboost, otra? 
+
+## Métodos evaluación
+
+- queremos evaluar cambios en aspectos de la distribución 
+
+- métricas usadas 
+
+
+# Resultados
+## Ressultados
+- elegir que mostrar
+
+seleccionar: una o dos variables, un lab con varios escenarios
+
+
+- link a dashboard?  
+
