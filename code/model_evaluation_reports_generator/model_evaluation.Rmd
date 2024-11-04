@@ -72,13 +72,21 @@ nv_predictions <- nv_downscaler$predict(model = paste0(here(), "/models/", param
                            data = paste0(here(), "/data/testing/", params$variable, ".csv"))
 ```
 
+```{r lstm_predictions, results=F, warning=F, message=F}
+# Use reticulate to import Python modules
+lstm <- import_from_path("LSTMDownscaler", path = paste0(here(), "/code"))
+lstm_downscaler <- lstm$LSTMDownscaler()
 
+lstm_predictions <- lstm_downscaler$predict(model = paste0(here(), "/models/", params$variable, "/lstm.pkl"), 
+                           data = paste0(here(), "/data/testing/", params$variable, ".csv"))
+```
 
 ```{r res_dataframe, results=F}
 res <- res |> 
   inner_join(xgboost_predictions, by = join_by(time)) |>
   inner_join(cnn_predictions, by = join_by(time)) |>
-  inner_join(nv_predictions, by = join_by(time))
+  inner_join(nv_predictions, by = join_by(time)) |>
+  inner_join(lstm_predictions, by = join_by(time))
 ```
 
 The observations for the validation were taken from `r min(res$time)` to `r max(res$time)`.
@@ -157,6 +165,7 @@ $$
 The function $\mathbb{1}{sg(X{n+1} - X_{n}) = sg(\hat{X}{n+1} - \hat{X}{n})}$ is an indicator function that equals 1 when the direction of change in the actual series matches the direction of change in the estimated series (i.e., if the actual series increases, the estimated series also increases, or if the actual series decreases, the estimated series also decreases), and equals 0 otherwise.
 
 The possible values of this indicator range between 0 (meaning that whenever the actual series increases, the estimated series decreases, or vice versa) and 1 (meaning that the estimated series always follows the same direction as the actual series). Higher values are preferable.
+```
 
 ## Time series of the first days
 
@@ -202,7 +211,7 @@ if (conf[["VARIABLES"]][[params$variable]][["daily"]]) {
 } else {
   res_to_plot <- res |>
       pivot_longer(cols = -c(time), names_to = "model", values_to = "value") |>
-  monthly_boxplot_2(res_to_plot)
+      monthly_boxplot_2()
 }
 ```
 
@@ -277,7 +286,11 @@ plots <- lapply(models, function(col) qq_plot_against(res, col))
 do.call(grid.arrange, c(plots, ncol = 1))  # Arrange in a grid
 ```
 
-## 
+## Distribution of the undownscaled value on days with estimated extremes values.
+
+*On the x-axis we have the daily mean (standardized). It says `Undownscaled value`, but is the daily mean after the downscaling. A good idea is to plot the original undownscaled value.*
+
+The purpose of this plot is to illustrate the distribution of P(undownscaled value | we predicted an extreme). This is useful because it reveals how much information we can recover concerning extreme events. If the distribution is skewed to the right, it suggests that we're predicting extreme values only when extreme values have already occurred. Conversely, if the lower tail of the distribution resembles the reanalysis data, it indicates that we can capture short-duration extremes (e.g., brief periods of heavy rainfall, such as an intense downpour lasting an hour before stopping).
 
 ```{r extremes}
 mean_on_days_with_extremes_plot(res)
