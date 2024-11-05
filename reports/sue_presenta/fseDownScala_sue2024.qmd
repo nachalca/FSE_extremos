@@ -1,58 +1,103 @@
 ---
 title: "Downscaling estadístico de proyecciones climáticas"
-format: beamer
-editor: visual
+date: "Noviembre 2024"
+# date-format: long
+author: Ignacio Alvarez-Castro
+format: 
+ beamer:
+  colortheme: seahorse
+  # theme: Szeged
+  toc: false
+lang: es
+execute:
+  echo: false
+  warning: false
 ---
 
 # Introducción
 
 ## Introducción
 
-- Proyecto ANII, FSE desafíos
+-   Proyecto ANII - 173061: Fondo sectorial de energía 2022. 
 
-- Equipo: jairo, nacho, bruno
+-   Equipo de trabajo: Bruno Tancredi, Jairo Cugliari, Ignacio Alvarez-Castro
 
-- Objetivos
+- Titulo: *Cuantificación de incertidumbre e identificación de eventos extremos en escenarios de producción renovable generados.*
+
+## Introducción
+
+- Generación de energía proveniente de fuentes renovables es cada vez más importante. 
+- Las fuentes renovables se basan en la transformación de *recursos primarios* 
+
+- Recursos primarios: lluvia, viento, radiación solar, temperatura. 
+
+
+## Objetivo
+
+k
 
 # Datos
-## Fuentes de datos
-- cmip6: escenarios y labs
 
-- era5: datos reanálisis
+## Fuentes de datos
+
+### Modelos climáticos CMIP6 {.alert}
+
+- Programa mundial para investigación en clima
+
+- Escenarios combinan:      
+      - Concentración gases: de 1.9 a 8.5
+      - Trayectoria socioeconómica: 1 a 5 
+    
+- Simulaciones de principales variables a largo plazo
+
+\vspace{.7cm}
+
+Datos **observados**: Reanálisis atmosférico ERA5. 
 
 ## Escenarios CMIP6
 
 gráfico mostrando efecto de escenarios para un lab
 
+## Construcción Base de datos
 
-## Construcción de datos finales
-
-esquema base de datos
+![](../20-05/images/diagram.png){fig-align='center' height=99%}
 
 # Métodos
 
 ## Downscaling temportal
 
-- Problema: downsacling temporal, vmip vs era
-- describir problema en general
+Con los datos observados (ERA5): definimos $y_{ih}$ la variable de interés para el día $i$ en la hora $h$. 
+
+Consideramos el siguiente modelo lineal: 
+$$ y_{ih} = \beta_0 + \beta_{1h} + \beta_2 y_{i.} + \beta_{3h}y_{i.} + \epsilon_i $$
+
+Luego se puede obtener estimaciones como: 
+\pause
+
+$$ \hat{y_{ih}^k} = \hat\beta_0 + \hat\beta_{1h} + \hat\beta_2 y_i^k + \hat\beta_{3h}y_i^k$$
+
+- $y_i^k$: es la variable de interés en el día $i$ proyectada por CMIP6 bajo escenario $k$. 
+
+- $\hat{y_{ih}^k}$: variable de interes en escala horaria. 
+
 
 ## Técnicas utilizadas
 
-- mencionar: nv, cnn, xgboost, otra? 
+-   mencionar: nv, cnn, xgboost, otra?
 
 ## Métodos evaluación
 
-- queremos evaluar cambios en aspectos de la distribución 
+-   queremos evaluar cambios en aspectos de la distribución
 
-- métricas usadas 
-
-
+-   métricas usadas
 # Resultados
+
 ## Ressultados
-- elegir que mostrar
+
+-   elegir que mostrar
 
 seleccionar: una o dos variables, un lab con varios escenarios
 
+-   link a dashboard?
 
-- link a dashboard?  
 
