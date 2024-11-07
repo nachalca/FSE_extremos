@@ -14,11 +14,9 @@ execute:
   warning: false
 ---
 
-# Introducción
-
 ## Introducción
 
--   Proyecto ANII - 173061: Fondo sectorial de energía 2022. 
+-   Proyecto ANII-173061: Fondo sectorial de energía 2022. 
 
 -   Equipo de trabajo: Bruno Tancredi, Jairo Cugliari, Ignacio Alvarez-Castro
 
@@ -78,26 +76,54 @@ $$ \hat{y_{ih}^k} = \hat\beta_0 + \hat\beta_{1h} + \hat\beta_2 y_i^k + \hat\beta
 
 - $y_i^k$: es la variable de interés en el día $i$ proyectada por CMIP6 bajo escenario $k$. 
 
-- $\hat{y_{ih}^k}$: variable de interes en escala horaria. 
+- $\hat{y_{ih}^k}$: variable de interés en escala horaria. 
 
 
-## Técnicas utilizadas
+## Modelos estimados
 
--   mencionar: nv, cnn, xgboost, otra?
+En general, 
+
+$$
+\begin{array}{cl}
+y_{ih} = & f(y_{i.}, x_{i}) + \epsilon_i  \\ 
+& \\ 
+\hat{y_{ih}^k} = & \hat f(y_{i}^k, x_{i})
+\end{array}
+$$
+
+- Obtener $\hat f(\cdot)$: naive (lineal), Redes (cnn, lstm), Árboles(xgboost)
+- Variables explicativas: otras series de CMIP6, indicadoras de hora, horas de luz, etc
 
 ## Métodos evaluación
 
--   queremos evaluar cambios en aspectos de la distribución
+Evaluar características de la distribución de las series estimadas. 
 
--   métricas usadas
-# Resultados
+Crear conjunto entrenamiento y test en base a datos Re-Análisis. 
+
+
+Métricas
+
+- Errores absolutos, ratio varaibilidad, KGE
+
+- Percentiles (qq-plot)
+
+- Hora de ocurrencia del máximo
+
+- Incremento/caída
+
+- Dependencia: correlación, ACF, Extremograma
 
 ## Ressultados
 
--   elegir que mostrar
+-   Resultados de Temperatura ([enlace](https://rpubs.com/nachalca/tas))
 
-seleccionar: una o dos variables, un lab con varios escenarios
+-  Resultados Viento  ([enlace](https://rpubs.com/nachalca/viento))
 
--   link a dashboard?
+- Resultados Lluvia ([enlace](https://rpubs.com/nachalca/lluvia))
+
+
+
+
+
 
 
