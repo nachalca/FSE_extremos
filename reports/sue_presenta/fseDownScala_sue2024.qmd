@@ -16,51 +16,61 @@ execute:
 
 # Introducción
 
+## Proyecto
+*Cuantificación de incertidumbre e identificación de eventos extremos en escenarios de producción renovable generados.*
+\vspace{1cm}
+
+\begin{itemize}
+\item Proyecto ANII - 173061: Fondo sectorial de energía 2022. 
+\item Equipo de trabajo: Bruno Tancredi, Jairo Cugliari, Ignacio Alvarez-Castro
+\end{itemize}
+
+
 ## Introducción
 
--   Proyecto ANII - 173061: Fondo sectorial de energía 2022. 
-
--   Equipo de trabajo: Bruno Tancredi, Jairo Cugliari, Ignacio Alvarez-Castro
-
-- Titulo: *Cuantificación de incertidumbre e identificación de eventos extremos en escenarios de producción renovable generados.*
-
-## Introducción
-
-- Generación de energía proveniente de fuentes renovables es cada vez más importante. 
-- Las fuentes renovables se basan en la transformación de *recursos primarios* 
-
-- Recursos primarios: lluvia, viento, radiación solar, temperatura. 
-
+\begin{itemize}
+\setlength\itemsep{.5cm}
+\item Generación de energía proveniente de fuentes renovables es cada vez más importante.
+\item Las fuentes renovables se basan en la transformación de *recursos primarios* 
+\item Recursos primarios: lluvia, viento, radiación solar, temperatura. 
+\item Modelar generación de energía nesecita series de recursos primarios horaria
+\end{itemize}
 
 ## Objetivo
 
-k
+- Evaluación de modelos y escenarios climáticos relevantes
+
+- Obtener series de recursos primarios a escala reducida
+
+-  Evaluación de probabilidades de eventos extremos en recursos primarios.
+
 
 # Datos
 
-## Fuentes de datos
-
-### Modelos climáticos CMIP6 {.alert}
+## Modelos climáticos CMIP6 
 
 - Programa mundial para investigación en clima
 
 - Escenarios combinan:      
       - Concentración gases: de 1.9 a 8.5
+      
       - Trayectoria socioeconómica: 1 a 5 
     
 - Simulaciones de principales variables a largo plazo
-
-\vspace{.7cm}
-
-Datos **observados**: Reanálisis atmosférico ERA5. 
 
 ## Escenarios CMIP6
 
 gráfico mostrando efecto de escenarios para un lab
 
-## Construcción Base de datos
+## ERA5
 
-![](../20-05/images/diagram.png){fig-align='center' height=99%}
+\begin{itemize}
+\setlength\itemsep{.5cm}
+\item **Reanálisis atmosférico**: combina datos observados en estaciones meteorológicas, con modelo físico de circulación general de la atmósfera. 
+\item Represantan la mejor estimación de las variables climáticas que se puede tener
+\item Tiene mediciones horarias
+\item **Datos Observados**: Reanálisis atmosférico ERA5. 
+\end{itemize}
 
 # Métodos
 
@@ -83,13 +93,27 @@ $$ \hat{y_{ih}^k} = \hat\beta_0 + \hat\beta_{1h} + \hat\beta_2 y_i^k + \hat\beta
 
 ## Técnicas utilizadas
 
--   mencionar: nv, cnn, xgboost, otra?
+$$
+\begin{array}{cl}
+y_{ih} = & f(y_{i.}, x_{i}) +  \epsilon_i \\ 
+& \\ 
+\hat y_{ih} = & \hat f(y_{i.}^k, x_{i})
+\end{array}
+$$
+
+- Estimar $f()$: lineal (nv), CNN, Xgboost, LSTM
+
+- Variables adicionales: recursos primarios, indicadoras de hora, momento del año, etc 
+
+- CUANTAS VARIABLES EN TOTAL ?????
+
 
 ## Métodos evaluación
 
 -   queremos evaluar cambios en aspectos de la distribución
 
 -   métricas usadas
+
 # Resultados
 
 ## Ressultados
