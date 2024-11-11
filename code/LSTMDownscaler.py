@@ -225,8 +225,7 @@ class LSTMDownscaler():
 
 def main():
     lstm_downscaler = LSTMDownscaler()
-    # lstm_downscaler.fit()
-    lstm_downscaler.predict("data/to_be_downscaled/tas/ec_earth3-ssp4_3_4.csv", "models/tas/lstm.pkl")
+    lstm_downscaler.fit()
     
 
 if __name__ == "__main__":
