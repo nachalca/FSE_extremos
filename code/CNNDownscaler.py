@@ -4,6 +4,9 @@ import pickle
 from feature_engine import encoding
 import yaml 
 import os
+from sklearn import model_selection, preprocessing
+import shutil
+
 import tensorflow as tf
 from tensorflow.keras import optimizers
 from tensorflow.keras.models import Model
@@ -19,15 +22,16 @@ from tensorflow.keras.layers import MaxPool2D
 from tensorflow.keras.layers import ReLU
 from tensorflow.keras.layers import Flatten
 from tensorflow.python.keras import backend as K
+from tensorflow.keras.callbacks import EarlyStopping
 
-from sklearn import model_selection, preprocessing
+from kerastuner.tuners import Hyperband
+from kerastuner import Objective
 
 
-from collections import Counter
-
-from numpy.random import seed
-
+TIMESTEPS = None
+N_FEATURES = None
 class CNNDownscaler():
+    
 
     def __init__(self):
         pass
@@ -36,7 +40,7 @@ class CNNDownscaler():
     @staticmethod
     def transform(window_size, data_x, data_y=None):
 
-        #TOOKED FROM THE BOOK
+        #It is used to shape the data for the model
         def temporalize(X, y, lookback):
             '''
             Inputs
@@ -72,7 +76,7 @@ class CNNDownscaler():
             Flatten a 3D array.
 
             Input
-            X            A 3D array for lstm, where the array is sample x timesteps x features.
+            X            A 3D array, where the array is sample x timesteps x features.
 
             Output
             flattened_X  A 2D array, sample x features.
@@ -88,7 +92,7 @@ class CNNDownscaler():
             Scale 3D array.
 
             Inputs
-            X            A 3D array for lstm, where the array is sample x timesteps x features.
+            X            A 3D array, where the array is sample x timesteps x features.
             scaler       A scaler object, e.g., sklearn.preprocessing.StandardScaler, sklearn.preprocessing.normalize
 
             Output
@@ -136,13 +140,68 @@ class CNNDownscaler():
         res["cnn"] = predictions
         return res[["time", "cnn"]]
 
-    def optimize():
-        pass
+    @staticmethod
+    def optimize(hp):
+        try:
+            model = Sequential()
 
+            model.add(Input(shape=(TIMESTEPS, 
+                                N_FEATURES), 
+                            name='input'))    
+            # Tuning the number of Conv1D layers
+            for i in range(hp.Int('num_conv_layers', 1, 3)):
+                model.add(Conv1D(
+                    filters=hp.Int(f'filters_{i}', min_value=16, max_value=64, step=32),
+                    kernel_size=hp.Choice(f'kernel_size_{i}', values=[3, 4, 5, 7, 8]),
+                    activation='relu',
+                    padding='same'
+                ))
+                model.add(MaxPool1D(
+                    pool_size=hp.Choice(f'pool_size_{i}', values=[2, 3, 4])
+                ))
+
+            model.add(Flatten())
+            
+            # Tuning the number of neurons in Dense layers
+            model.add(Dense(
+                units=hp.Int('dense_units', min_value=32, max_value=128, step=32),
+                activation='relu'
+            ))
+            
+            # model.add(Dropout(
+            #     rate=hp.Float('dropout_rate', min_value=0, max_value=0.5, step=0.1)
+            # ))
+
+            model.add(Dense(units=1, 
+                            activation='linear', 
+                            name='output'))
+            
+            # Output layer
+            model.add(Dense(1, activation='sigmoid'))  # For binary classification
+
+            # Compile the model
+            model.compile(
+                optimizer=optimizers.Adam(
+                    hp.Choice('learning_rate', values=[1e-2, 1e-3, 1e-4])
+                ),
+                loss='mse',
+                metrics=['mean_absolute_error']
+            )
+            
+            return model
+        except Exception as _e:
+            # raise error as failed to build
+            from keras_tuner.src import errors
+            raise errors.FailedTrialError(
+                f"Failed to build model with error: {_e}"
+            )
+
+        
     """
-        TRAIN ALL XGBOOST MODELS FOR DIFFERENT VARIABLES. THIS FUNCTION WILL SAVE THE MODELS IN THE MODELS FOLDER.
+        TRAIN ALL CNN MODELS FOR DIFFERENT VARIABLES. THIS FUNCTION WILL SAVE THE MODELS IN THE MODELS FOLDER.
+        Testing: If it is true, then we train with a small dataset. It is used for testing different models.
     """
-    def fit(self):
+    def fit(self, testing = False):
         #Load the configuration file
         with open("code/conf.yml", 'r') as file:
             conf = yaml.safe_load(file)
@@ -161,6 +220,9 @@ class CNNDownscaler():
                 data = pd.read_csv(f"data/training/{f}")
                 data = data.set_index("time")
 
+                if testing:
+                    data = data.head(365*24*2) #Train with 2 years of data
+
                 # Split the data into features and target
                 X_train = data.drop(columns=["target"])
                 y_train = data["target"]
@@ -174,50 +236,77 @@ class CNNDownscaler():
                 # Transform the data
                 print("Transforming the data ...")
                 X_train, y_train = self.transform(window_size, X_train, y_train)
-
                 X_valid, y_valid = self.transform(window_size, X_valid, y_valid)
 
+                global TIMESTEPS
                 TIMESTEPS = X_train.shape[1]  # equal to the lookback
+                global N_FEATURES
                 N_FEATURES = X_train.shape[2]  # the number of features        
+                
+                tuner = Hyperband(
+                    self.optimize,
+                    objective="val_mean_absolute_error",
+                    max_epochs=10, 
+                    overwrite=True,
+                    directory = "models/temporary"
+                )
 
-                # Define the model        
-                cnn = Sequential()
-                cnn.add(Input(shape=(TIMESTEPS, 
-                                    N_FEATURES), 
-                                name='input'))
-                cnn.add(Conv1D(filters=16, 
-                                kernel_size=4,
-                                activation='relu', 
-                                padding='valid'))
-                cnn.add(MaxPool1D(pool_size=4, 
-                                    padding='valid'))
-                cnn.add(Flatten())
-                cnn.add(Dense(units=16, 
-                                activation='relu'))
-                cnn.add(Dense(units=1, 
-                                activation='linear', 
-                                name='output'))
+                callbacks = [EarlyStopping(patience=5)] #TODO: Check what is this.          
 
-                cnn.compile(optimizer='adam',
-                            loss='mse',
-                            metrics=[
-                                tf.keras.metrics.RootMeanSquaredError()
-                            ])
-                history = cnn.fit(x=X_train,
-                                    y=y_train,
-                                    batch_size=128,
-                                    epochs=150,
-                                    validation_data=(X_valid, y_valid),
-                                    verbose=1).history
+                tuner.search(X_train, 
+                             y_train, 
+                             epochs=50, 
+                             validation_data=(X_valid, y_valid), 
+                             callbacks=[callbacks]
+                             )
+
+                best_hps = tuner.get_best_hyperparameters(num_trials=1)[0]
+                cnn = tuner.hypermodel.build(best_hps)
+                cnn.fit(X_train, y_train, epochs=50, validation_data=(X_valid, y_valid))
+
+                #remove the directory
+                shutil.rmtree("models/temporary", ignore_errors=True)
 
                 #Save the model
                 if os.path.exists(f"models/{variable_name}") == False:
                     os.makedirs(f"models/{variable_name}")
                 pickle.dump(cnn, open(f"models/{variable_name}/cnn.pkl", "wb"))
 
+                # # Define the model        
+                # cnn = Sequential()
+                # cnn.add(Input(shape=(TIMESTEPS, 
+                #                     N_FEATURES), 
+                #                 name='input'))
+                # cnn.add(Conv1D(filters=16, 
+                #                 kernel_size=4,
+                #                 activation='relu', 
+                #                 padding='valid'))
+                # cnn.add(MaxPool1D(pool_size=4, 
+                #                     padding='valid'))
+                # cnn.add(Flatten())
+                # cnn.add(Dense(units=16, 
+                #                 activation='relu'))
+                # cnn.add(Dense(units=1, 
+                #                 activation='linear', 
+                #                 name='output'))
+                # cnn.compile(optimizer='adam',
+                #             loss='mse',
+                #             metrics=[
+                #                 tf.keras.metrics.RootMeanSquaredError()
+                #             ])
+                # history = cnn.fit(x=X_train,
+                #                     y=y_train,
+                #                     batch_size=128,
+                #                     epochs=150,
+                #                     validation_data=(X_valid, y_valid),
+                #                     verbose=1,
+                #                     callbacks=callbacks).history
+
+
+
 def main():
     cnn_downscaler = CNNDownscaler()
-    cnn_downscaler.fit()
+    cnn_downscaler.fit(testing=False)
 
 if __name__ == "__main__":
     main()
