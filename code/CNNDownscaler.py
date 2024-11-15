@@ -24,9 +24,9 @@ from tensorflow.keras.layers import Flatten
 from tensorflow.python.keras import backend as K
 from tensorflow.keras.callbacks import EarlyStopping
 
-from kerastuner.tuners import Hyperband
-from kerastuner import Objective
-
+from keras_tuner.tuners import Hyperband
+from keras_tuner import Objective
+from keras_tuner import errors
 
 TIMESTEPS = None
 N_FEATURES = None
@@ -130,7 +130,7 @@ class CNNDownscaler():
         data = pd.read_csv(data)
         res = data.copy() # To keep the time
         data.drop(columns=["target", "time"], inplace=True, errors="ignore")
-        window_size =  24 if "hour" in data.columns else 7  
+        window_size =  24 if "hour" in data.columns else 28
         print(f"Transforming dataset for prediction")      
         data = self.transform(window_size, data_x = data)
         print(f"Predicting with model {model}")
@@ -152,7 +152,7 @@ class CNNDownscaler():
             for i in range(hp.Int('num_conv_layers', 1, 3)):
                 model.add(Conv1D(
                     filters=hp.Int(f'filters_{i}', min_value=16, max_value=64, step=32),
-                    kernel_size=hp.Choice(f'kernel_size_{i}', values=[3, 4, 5, 7, 8]),
+                    kernel_size=hp.Choice(f'kernel_size_{i}', values=[3,4,5,7]),
                     activation='relu',
                     padding='same'
                 ))
@@ -168,9 +168,10 @@ class CNNDownscaler():
                 activation='relu'
             ))
             
-            # model.add(Dropout(
-            #     rate=hp.Float('dropout_rate', min_value=0, max_value=0.5, step=0.1)
-            # ))
+            if hp.Boolean("dropout"):
+                model.add(Dropout(
+                    rate=hp.Float('dropout_rate', min_value=0.1, max_value=0.5, step=0.1)
+                ))
 
             model.add(Dense(units=1, 
                             activation='linear', 
@@ -191,8 +192,7 @@ class CNNDownscaler():
             return model
         except Exception as _e:
             # raise error as failed to build
-            from keras_tuner.src import errors
-            raise errors.FailedTrialError(
+            raise keraserrors.FailedTrialError(
                 f"Failed to build model with error: {_e}"
             )
 
@@ -231,7 +231,7 @@ class CNNDownscaler():
                 X_train, X_valid, y_train, y_valid = model_selection.train_test_split(X_train, y_train, test_size=0.2, shuffle=False)                
                                 
                 #Set the amount of future and past observations to be taken into account  
-                window_size =  24 if VARIABLES[variable_name]["daily"] else 7
+                window_size =  24 if VARIABLES[variable_name]["daily"] else 28
                 
                 # Transform the data
                 print("Transforming the data ...")
@@ -246,9 +246,9 @@ class CNNDownscaler():
                 tuner = Hyperband(
                     self.optimize,
                     objective="val_mean_absolute_error",
-                    max_epochs=10, 
+                    max_epochs=50,
                     overwrite=True,
-                    directory = "models/temporary"
+                    directory = "models/temporary", 
                 )
 
                 callbacks = [EarlyStopping(patience=5)] #TODO: Check what is this.          
@@ -262,7 +262,7 @@ class CNNDownscaler():
 
                 best_hps = tuner.get_best_hyperparameters(num_trials=1)[0]
                 cnn = tuner.hypermodel.build(best_hps)
-                cnn.fit(X_train, y_train, epochs=50, validation_data=(X_valid, y_valid))
+                cnn.fit(X_train, y_train, epochs=100, validation_data=(X_valid, y_valid))
 
                 #remove the directory
                 shutil.rmtree("models/temporary", ignore_errors=True)
