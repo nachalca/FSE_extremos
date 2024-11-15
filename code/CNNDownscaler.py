@@ -176,9 +176,6 @@ class CNNDownscaler():
             model.add(Dense(units=1, 
                             activation='linear', 
                             name='output'))
-            
-            # Output layer
-            model.add(Dense(1, activation='sigmoid'))  # For binary classification
 
             # Compile the model
             model.compile(
@@ -213,7 +210,7 @@ class CNNDownscaler():
 
         #For each dataset, train a model
         for f in files:
-            if f.endswith('.csv'):
+            if f.endswith('.csv') and f.startswith('rsds'):
                 variable_name = f.split(".")[0] #Get the variable name from the filename
                 print(f"Training model for \033[92m{variable_name}\033[0m")
             
