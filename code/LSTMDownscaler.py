@@ -4,8 +4,8 @@ import pickle
 from feature_engine import encoding
 import yaml 
 import os
+import shutil
 
-import tensorflow as tf
 from tensorflow.keras import optimizers
 from tensorflow.keras.models import Model
 from tensorflow.keras.models import Sequential
@@ -19,13 +19,15 @@ from tensorflow.keras.layers import Flatten
 from tensorflow.keras.layers import Bidirectional
 
 from sklearn import model_selection, preprocessing
-
-
-from collections import Counter
-
 from numpy.random import seed
 
+from keras_tuner.tuners import Hyperband
+from keras_tuner import Objective
+from keras_tuner import errors
+
 class LSTMDownscaler():
+
+    TIMESTEPS, N_FEATURES = 0, 0
 
     def __init__(self):
         pass
@@ -139,8 +141,46 @@ class LSTMDownscaler():
         res["lstm"] = predictions
         return res[["time", "lstm"]]
 
-    def optimize():
-        pass
+    def optimize(self, hp):
+        try:
+            # Define the model        
+            lstm = Sequential()
+            
+            lstm.add(Input(shape=(self.TIMESTEPS, self.N_FEATURES), 
+                            name='input'))
+
+            for i in range(hp.Int('num_layers', 1, 2)):
+                lstm.add(
+                    LSTM(units=hp.Int(f'filters_{i}', min_value=8, max_value=48, step=8),
+                        activation='tanh',
+                        return_sequences=True,
+                        recurrent_dropout=hp.Float('recurrent_dropout_rate', min_value=0.1, max_value=0.5, step=0.1),
+                        name='lstm_layer_1'))
+                
+            lstm.add(Flatten())
+
+            if hp.Boolean("dropout"):
+                lstm.add(Dropout(
+                    rate=hp.Float('dropout_rate', min_value=0.1, max_value=0.5, step=0.1)
+                ))
+
+            lstm.add(Dense(units=1,
+                            activation='linear', 
+                            name='output'))
+            lstm.compile(
+                            optimizer='adam',
+                            loss='mse',
+                            metrics=['mean_absolute_error']
+                        )
+            return lstm
+        
+        except Exception as _e:
+            # raise error as failed to build
+            raise errors.FailedTrialError(
+                f"Failed to build model with error: {_e}"
+            )
+
+        
 
     """
         TRAIN ALL LSTM MODELS FOR DIFFERENT VARIABLES. THIS FUNCTION WILL SAVE THE MODELS IN THE MODELS FOLDER.
@@ -157,7 +197,7 @@ class LSTMDownscaler():
 
         #For each dataset, train a model
         for f in files:
-            if f.endswith('.csv'):
+            if f.endswith('.csv') and f.startswith("rsds"):
                 variable_name = f.split(".")[0] #Get the variable name from the filename
                 print(f"Training model for \033[92m{variable_name}\033[0m")
             
@@ -180,43 +220,24 @@ class LSTMDownscaler():
 
                 X_valid, y_valid = self.transform(window_size, X_valid, y_valid)
 
-                TIMESTEPS = X_train.shape[1]  # equal to the lookback
-                N_FEATURES = X_train.shape[2]  # the number of features        
+                self.TIMESTEPS = X_train.shape[1]  # equal to the lookback
+                self.N_FEATURES = X_train.shape[2]  # the number of features        
 
-                # Define the model        
-                lstm = Sequential()
-                lstm.add(Input(shape=(TIMESTEPS, N_FEATURES), 
-                                name='input'))
-                lstm.add(
-                    LSTM(units=16,
-                        activation='tanh',
-                        return_sequences=True,
-                        recurrent_dropout=0.5,
-                        name='lstm_layer_1'))
-                lstm.add(Dropout(0.5))
-                lstm.add(
-                    LSTM(units=8,
-                        activation='tanh',
-                        return_sequences=True,
-                        recurrent_dropout=0.5,
-                        name='lstm_layer_2'))
-                lstm.add(Flatten())
-                lstm.add(Dropout(0.5))
-                lstm.add(Dense(units=1,
-                                activation='linear', 
-                                name='output'))
-                lstm.compile(optimizer='adam',
-                            loss='mse',
-                            metrics=[
-                                tf.keras.metrics.RootMeanSquaredError()
-                            ])
-                lstm_history = lstm.fit(x= np.asarray(X_train).astype('float32'),
-                                y=y_train,
-                                batch_size=128,
-                                epochs=100,
-                                validation_data=(np.asarray(X_valid).astype('float32'), 
-                                                y_valid),
-                                verbose=1)
+                tuner = Hyperband(
+                    self.optimize,
+                    objective="val_mean_absolute_error",
+                    max_epochs=50,
+                    overwrite=True,
+                    directory = "models/temporary", 
+                    seed=SEED
+                )
+
+                best_hps = tuner.get_best_hyperparameters(num_trials=1)[0]
+                lstm = tuner.hypermodel.build(best_hps)
+                lstm.fit(X_train, y_train, epochs=100, validation_data=(X_valid, y_valid))
+
+                #remove the directory
+                shutil.rmtree("models/temporary", ignore_errors=True)
 
                 #Save the model
                 if os.path.exists(f"models/{variable_name}") == False:

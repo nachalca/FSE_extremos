@@ -189,7 +189,7 @@ class CNNDownscaler():
             return model
         except Exception as _e:
             # raise error as failed to build
-            raise keraserrors.FailedTrialError(
+            raise errors.FailedTrialError(
                 f"Failed to build model with error: {_e}"
             )
 
@@ -210,7 +210,7 @@ class CNNDownscaler():
 
         #For each dataset, train a model
         for f in files:
-            if f.endswith('.csv') and f.startswith('tas'):
+            if f.endswith('.csv'):
                 variable_name = f.split(".")[0] #Get the variable name from the filename
                 print(f"Training model for \033[92m{variable_name}\033[0m")
             
@@ -268,38 +268,6 @@ class CNNDownscaler():
                 if os.path.exists(f"models/{variable_name}") == False:
                     os.makedirs(f"models/{variable_name}")
                 pickle.dump(cnn, open(f"models/{variable_name}/cnn.pkl", "wb"))
-
-                # # Define the model        
-                # cnn = Sequential()
-                # cnn.add(Input(shape=(TIMESTEPS, 
-                #                     N_FEATURES), 
-                #                 name='input'))
-                # cnn.add(Conv1D(filters=16, 
-                #                 kernel_size=4,
-                #                 activation='relu', 
-                #                 padding='valid'))
-                # cnn.add(MaxPool1D(pool_size=4, 
-                #                     padding='valid'))
-                # cnn.add(Flatten())
-                # cnn.add(Dense(units=16, 
-                #                 activation='relu'))
-                # cnn.add(Dense(units=1, 
-                #                 activation='linear', 
-                #                 name='output'))
-                # cnn.compile(optimizer='adam',
-                #             loss='mse',
-                #             metrics=[
-                #                 tf.keras.metrics.RootMeanSquaredError()
-                #             ])
-                # history = cnn.fit(x=X_train,
-                #                     y=y_train,
-                #                     batch_size=128,
-                #                     epochs=150,
-                #                     validation_data=(X_valid, y_valid),
-                #                     verbose=1,
-                #                     callbacks=callbacks).history
-
-
 
 def main():
     cnn_downscaler = CNNDownscaler()
