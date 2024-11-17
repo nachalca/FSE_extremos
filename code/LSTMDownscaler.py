@@ -124,7 +124,7 @@ class LSTMDownscaler():
         data = pd.read_csv(data)
         res = data.copy() # To keep the time
         data.drop(columns=["target", "time"], inplace=True, errors="ignore")
-        window_size =  24 if "hour" in data.columns else 7  
+        window_size =  24 if "hour" in data.columns else 28  
         print(f"Transforming dataset for prediction")      
         data = self.transform(window_size, data_x = data)
         print(f"Predicting with model {model}")
@@ -172,7 +172,7 @@ class LSTMDownscaler():
                 X_train, X_valid, y_train, y_valid = model_selection.train_test_split(X_train, y_train, test_size=0.2, shuffle=False)   
 
                 #Set the amount of future and past observations to be taken into account  
-                window_size =  24 if VARIABLES[variable_name]["daily"] else 7
+                window_size =  24 if VARIABLES[variable_name]["daily"] else 28
                 
                 # Transform the data
                 print("Transforming the data ...")

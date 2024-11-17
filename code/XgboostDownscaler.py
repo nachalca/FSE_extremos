@@ -51,7 +51,7 @@ class XgboostDownscaler():
         data.drop(columns=["target"], inplace=True, errors="ignore")
 
         #Set the window size
-        window_size =  24 if "hour" in data.columns else 1  
+        window_size =  24 if "hour" in data.columns else 28  
         
         print(f"Transforming dataset for prediction")      
         data = self.transform(window_size, data)
@@ -99,7 +99,7 @@ class XgboostDownscaler():
                 y_train = data["target"]
                                 
                 #Set the amount of future and past observation to be taked account  
-                window_size =  24 if VARIABLES[variable_name]["daily"] else 1
+                window_size =  24 if VARIABLES[variable_name]["daily"] else 28
                 
                 # Transform the data
                 print("Transforming the data ...")
