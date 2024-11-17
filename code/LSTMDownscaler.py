@@ -17,6 +17,7 @@ from tensorflow.keras.layers import RepeatVector
 from tensorflow.keras.layers import TimeDistributed
 from tensorflow.keras.layers import Flatten
 from tensorflow.keras.layers import Bidirectional
+from tensorflow.keras.callbacks import EarlyStopping
 
 from sklearn import model_selection, preprocessing
 from numpy.random import seed
@@ -151,11 +152,11 @@ class LSTMDownscaler():
 
             for i in range(hp.Int('num_layers', 1, 2)):
                 lstm.add(
-                    LSTM(units=hp.Int(f'filters_{i}', min_value=8, max_value=48, step=8),
+                    LSTM(units=hp.Int(f'units_{i}', min_value=8, max_value=48, step=8),
                         activation='tanh',
                         return_sequences=True,
                         recurrent_dropout=hp.Float('recurrent_dropout_rate', min_value=0.1, max_value=0.5, step=0.1),
-                        name='lstm_layer_1'))
+                        name=f'lstm_layer_{i}'))
                 
             lstm.add(Flatten())
 
@@ -185,7 +186,7 @@ class LSTMDownscaler():
     """
         TRAIN ALL LSTM MODELS FOR DIFFERENT VARIABLES. THIS FUNCTION WILL SAVE THE MODELS IN THE MODELS FOLDER.
     """
-    def fit(self):
+    def fit(self, testing=False):
         #Load the configuration file
         with open("code/conf.yml", 'r') as file:
             conf = yaml.safe_load(file)
@@ -203,6 +204,9 @@ class LSTMDownscaler():
             
                 data = pd.read_csv(f"data/training/{f}")
                 data = data.set_index("time")
+
+                if testing:
+                    data = data.head(365*24*2) #Train with 2 years of data
 
                 # Split the data into features and target
                 X_train = data.drop(columns=["target"])
@@ -232,7 +236,16 @@ class LSTMDownscaler():
                     seed=SEED
                 )
 
-                best_hps = tuner.get_best_hyperparameters(num_trials=1)[0]
+                callbacks = [EarlyStopping(patience=5)] #TODO: Check what is this.          
+
+                tuner.search(X_train, 
+                             y_train, 
+                             epochs=100, 
+                             validation_data=(X_valid, y_valid), 
+                             callbacks=[callbacks]
+                             )
+                
+                best_hps = tuner.get_best_hyperparameters()[0]
                 lstm = tuner.hypermodel.build(best_hps)
                 lstm.fit(X_train, y_train, epochs=100, validation_data=(X_valid, y_valid))
 
