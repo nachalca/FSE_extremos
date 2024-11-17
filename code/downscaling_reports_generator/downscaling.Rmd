@@ -1,7 +1,7 @@
 ---
 title: "`r paste0('Downscaling the variable ', params$variable)`"
 params:
-  variable: "sfcWind" #Use pr as default
+  variable: "rsds" #Use pr as default
 output: html_document
 ---
 
@@ -38,8 +38,8 @@ conf <- yaml.load_file("code/conf.yml")
 
 ```{r load_test_data}
 x <- paste0('data/to_be_downscaled/', params$variable)
-to_be_downscaled <- list.files(x)
-#to_be_downscaled <- c("cesm2-ssp5_8_5.csv")
+#to_be_downscaled <- list.files(x)
+to_be_downscaled <- c("cesm2-ssp5_8_5.csv")
 ```
 
 ```{r load_reanalyis}
@@ -105,9 +105,9 @@ for(f in to_be_downscaled){
 
   
   variable <- variable |> filter(time %in% xgboost_predictions$time)
-  res[[paste0("undownscaled.", lab, '-', scenario)]] <- variable[[params$variable]] 
+  res[[paste0("undownscaled.", lab, '-', scenario)]] <- variable[[params$variable]]
   res[[paste0("xgboost.", lab, '-', scenario)]]  <- xgboost_predictions[["xgboost"]]
-  res[[paste0("cnn.", lab, '-', scenario)]]  <- cnn_predictions[["cnn"]] 
+  res[[paste0("cnn.", lab, '-', scenario)]]  <- cnn_predictions[["cnn"]]
   res[[paste0("nv.", lab, '-', scenario)]] <- nv_predictions[["naive"]]
   res[[paste0("lstm.", lab, '-', scenario)]] <- lstm_predictions[["lstm"]]
   #rm(variable)
