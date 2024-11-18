@@ -245,7 +245,9 @@ class CNNDownscaler():
                     objective="val_mean_absolute_error",
                     max_epochs=50,
                     overwrite=True,
-                    directory = "models/temporary", 
+                    directory = "models/hyperparameters",
+                    project_name = f'cnn/{variable_name}', 
+                    seed = SEED
                 )
 
                 callbacks = [EarlyStopping(patience=5)] #TODO: Check what is this.          
@@ -262,7 +264,7 @@ class CNNDownscaler():
                 cnn.fit(X_train, y_train, epochs=100, validation_data=(X_valid, y_valid))
 
                 #remove the directory
-                shutil.rmtree("models/temporary", ignore_errors=True)
+                #shutil.rmtree("models/temporary", ignore_errors=True)
 
                 #Save the model
                 if os.path.exists(f"models/{variable_name}") == False:

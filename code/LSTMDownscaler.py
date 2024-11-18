@@ -181,8 +181,6 @@ class LSTMDownscaler():
                 f"Failed to build model with error: {_e}"
             )
 
-        
-
     """
         TRAIN ALL LSTM MODELS FOR DIFFERENT VARIABLES. THIS FUNCTION WILL SAVE THE MODELS IN THE MODELS FOLDER.
     """
@@ -198,7 +196,7 @@ class LSTMDownscaler():
 
         #For each dataset, train a model
         for f in files:
-            if f.endswith('.csv') and f.startswith("rsds"):
+            if f.endswith('.csv') and f.startswith("tas"):
                 variable_name = f.split(".")[0] #Get the variable name from the filename
                 print(f"Training model for \033[92m{variable_name}\033[0m")
             
@@ -232,7 +230,8 @@ class LSTMDownscaler():
                     objective="val_mean_absolute_error",
                     max_epochs=50,
                     overwrite=True,
-                    directory = "models/temporary", 
+                    directory = "models/hyperparameters",
+                    project_name = f'lstm/{variable_name}', 
                     seed=SEED
                 )
 
@@ -250,7 +249,7 @@ class LSTMDownscaler():
                 lstm.fit(X_train, y_train, epochs=100, validation_data=(X_valid, y_valid))
 
                 #remove the directory
-                shutil.rmtree("models/temporary", ignore_errors=True)
+                #shutil.rmtree("models/temporary", ignore_errors=True)
 
                 #Save the model
                 if os.path.exists(f"models/{variable_name}") == False:
