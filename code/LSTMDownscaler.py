@@ -54,7 +54,7 @@ class LSTMDownscaler():
             output_y = []
             for i in range(lookback, len(X) - lookback):
                 t = []
-                for j in range(lookback, 0, -1):
+                for j in range(lookback, -1, -1):
                     # Gather the past records upto the lookback period
                     t.append(X[[(i - j)], :])
                 for j in range(0, lookback): 
