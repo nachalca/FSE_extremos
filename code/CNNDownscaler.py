@@ -28,10 +28,9 @@ from keras_tuner.tuners import Hyperband
 from keras_tuner import Objective
 from keras_tuner import errors
 
-TIMESTEPS = None
-N_FEATURES = None
 class CNNDownscaler():
     
+    TIMESTEPS, N_FEATURES = 0, 0
 
     def __init__(self):
         pass
@@ -140,13 +139,12 @@ class CNNDownscaler():
         res["cnn"] = predictions
         return res[["time", "cnn"]]
 
-    @staticmethod
-    def optimize(hp):
+    def optimize(self, hp):
         try:
             model = Sequential()
 
-            model.add(Input(shape=(TIMESTEPS, 
-                                N_FEATURES), 
+            model.add(Input(shape=(self.TIMESTEPS, 
+                                self.N_FEATURES), 
                             name='input'))    
             # Tuning the number of Conv1D layers
             for i in range(hp.Int('num_conv_layers', 1, 3)):
@@ -235,10 +233,8 @@ class CNNDownscaler():
                 X_train, y_train = self.transform(window_size, X_train, y_train)
                 X_valid, y_valid = self.transform(window_size, X_valid, y_valid)
 
-                global TIMESTEPS
-                TIMESTEPS = X_train.shape[1]  # equal to the lookback
-                global N_FEATURES
-                N_FEATURES = X_train.shape[2]  # the number of features        
+                self.TIMESTEPS = X_train.shape[1]  # equal to the lookback
+                self.N_FEATURES = X_train.shape[2]  # the number of features        
                 
                 tuner = Hyperband(
                     self.optimize,

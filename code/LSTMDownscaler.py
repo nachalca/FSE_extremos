@@ -37,7 +37,7 @@ class LSTMDownscaler():
     @staticmethod
     def transform(window_size, data_x, data_y=None):
 
-        #TOOKED FROM THE BOOK
+        #TAKEN FROM THE BOOK
         def temporalize(X, y, lookback):
             '''
             Inputs
@@ -196,7 +196,7 @@ class LSTMDownscaler():
 
         #For each dataset, train a model
         for f in files:
-            if f.endswith('.csv') and f.startswith("tas"):
+            if f.endswith('.csv'):
                 variable_name = f.split(".")[0] #Get the variable name from the filename
                 print(f"Training model for \033[92m{variable_name}\033[0m")
             
@@ -235,7 +235,7 @@ class LSTMDownscaler():
                     seed=SEED
                 )
 
-                callbacks = [EarlyStopping(patience=5)] #TODO: Check what is this.          
+                callbacks = [EarlyStopping(patience=5)]           
 
                 tuner.search(X_train, 
                              y_train, 
