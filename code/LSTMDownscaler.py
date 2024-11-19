@@ -238,8 +238,7 @@ class LSTMDownscaler():
                 callbacks = [EarlyStopping(patience=5)]           
 
                 tuner.search(X_train, 
-                             y_train, 
-                             epochs=100, 
+                             y_train,  
                              validation_data=(X_valid, y_valid), 
                              callbacks=[callbacks]
                              )

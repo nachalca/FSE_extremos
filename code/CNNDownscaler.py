@@ -250,7 +250,6 @@ class CNNDownscaler():
 
                 tuner.search(X_train, 
                              y_train, 
-                             epochs=50, 
                              validation_data=(X_valid, y_valid), 
                              callbacks=[callbacks]
                              )
