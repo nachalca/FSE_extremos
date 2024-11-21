@@ -14,6 +14,7 @@ execute:
   warning: false
 ---
 
+<<<<<<< HEAD
 # Introducción
 
 ## Proyecto
@@ -24,9 +25,10 @@ execute:
 \item Proyecto ANII - 173061: Fondo sectorial de energía 2022. 
 \item Equipo de trabajo: Bruno Tancredi, Jairo Cugliari, Ignacio Alvarez-Castro
 \end{itemize}
-
-
+=======
 ## Introducción
+
+-   Proyecto ANII-173061: Fondo sectorial de energía 2022. 
 
 \begin{itemize}
 \setlength\itemsep{.5cm}
@@ -35,6 +37,7 @@ execute:
 \item Recursos primarios: lluvia, viento, radiación solar, temperatura. 
 \item Modelar generación de energía nesecita series de recursos primarios horaria
 \end{itemize}
+
 
 ## Objetivo
 
@@ -88,40 +91,52 @@ $$ \hat{y_{ih}^k} = \hat\beta_0 + \hat\beta_{1h} + \hat\beta_2 y_i^k + \hat\beta
 
 - $y_i^k$: es la variable de interés en el día $i$ proyectada por CMIP6 bajo escenario $k$. 
 
-- $\hat{y_{ih}^k}$: variable de interes en escala horaria. 
+- $\hat{y_{ih}^k}$: variable de interés en escala horaria. 
 
 
-## Técnicas utilizadas
+## Modelos estimados
+
+En general, 
 
 $$
 \begin{array}{cl}
-y_{ih} = & f(y_{i.}, x_{i}) +  \epsilon_i \\ 
+y_{ih} = & f(y_{i.}, x_{i}) + \epsilon_i  \\ 
 & \\ 
-\hat y_{ih} = & \hat f(y_{i.}^k, x_{i})
+\hat{y_{ih}^k} = & \hat f(y_{i}^k, x_{i})
 \end{array}
 $$
 
-- Estimar $f()$: lineal (nv), CNN, Xgboost, LSTM
-
-- Variables adicionales: recursos primarios, indicadoras de hora, momento del año, etc 
-
-- CUANTAS VARIABLES EN TOTAL ?????
+- Obtener $\hat f(\cdot)$: naive (lineal), Redes (cnn, lstm), Árboles(xgboost)
+- Variables explicativas: otras series de CMIP6, indicadoras de hora, horas de luz, etc
 
 
 ## Métodos evaluación
 
--   queremos evaluar cambios en aspectos de la distribución
+Crear conjunto entrenamiento y test en base a datos Re-Análisis. 
 
--   métricas usadas
+Métricas
 
-# Resultados
+- Errores absolutos, ratio varaibilidad, KGE
+
+- Percentiles (qq-plot)
+
+- Hora de ocurrencia del máximo
+
+- Incremento/caída
+
+- Dependencia: correlación, ACF, Extremograma
 
 ## Ressultados
 
--   elegir que mostrar
+-   Resultados de Temperatura ([enlace](https://rpubs.com/nachalca/tas))
 
-seleccionar: una o dos variables, un lab con varios escenarios
+-  Resultados Viento  ([enlace](https://rpubs.com/nachalca/viento))
 
--   link a dashboard?
+- Resultados Lluvia ([enlace](https://rpubs.com/nachalca/lluvia))
+
+
+
+
+
 
 

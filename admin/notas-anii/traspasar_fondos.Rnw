@@ -1,0 +1,24 @@
+\documentclass{letter}
+\usepackage{hyperref}
+\signature{Ignacio Alvarez-Castro}
+\address{}
+\date{Montevideo, 22 de Agosto de 2024}
+\begin{document}
+
+\begin{letter}{Agencia Nacional de Investigación e Innovación}
+\opening{Comisión Honoraria:}
+
+A través de este medio, solicito autorización para traspasar hasta \$120000 de los previstos para viajes (pasajes y viáticos) e imprevistos al rubro Sueldos. 
+
+Los fondos del rubro sueldos se destinaron a la contratación de un ayudante y alcanzan para pagar su salario hasta el mes de Setiembre. La solicitud se motiva en la extensión del proyecto de Setiembre a Diciembre de 2024. El objetivo es mantener la contratación del ayudante hasta que termine le proyecto. 
+
+Si bien se van a realizar todos los viajes que estaban planificados, accedimos a nuevas fuentes de financiamiento que financiaron parcialmente las estadías, en particular el Instituto Franco Uruguayo de Matemática e Interacciones (IFUMI) brinda fondos parciales en la estadía de investigación de Bruno Tancredi en Lyon. Por este motivo, hay disponibilidad para continuar contratando ayudante hasta Diciembre de 2024. 
+
+
+\closing{Sin otro particular,}
+\begin{center}
+\includegraphics[scale=.5]{../firma_nacho}
+\end{center}
+
+\end{letter}
+\end{document}

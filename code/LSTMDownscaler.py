@@ -49,7 +49,7 @@ class LSTMDownscaler():
             #TODO: Check the shape of the output
             output_X = []
             output_y = []
-            for i in range(lookback, len(X) - lookback - 1):
+            for i in range(lookback, len(X) - lookback):
                 t = []
                 for j in range(lookback, 0, -1):
                     # Gather the past records upto the lookback period
@@ -130,7 +130,12 @@ class LSTMDownscaler():
         print(f"Predicting with model {model}")
         model = pickle.load(open(model, "rb"))
         predictions = model.predict(data)
-        res = res.iloc[window_size+1:len(res) - window_size] # Match the sizes
+
+        print(res.iloc[window_size][["time"]])
+
+        print(res.iloc[len(res) - window_size]["time"])
+
+        res = res.iloc[window_size:len(res) - window_size] # Match the sizes
         res["lstm"] = predictions
         return res[["time", "lstm"]]
 
@@ -221,6 +226,7 @@ class LSTMDownscaler():
 def main():
     lstm_downscaler = LSTMDownscaler()
     lstm_downscaler.fit()
+    
 
 if __name__ == "__main__":
     main()

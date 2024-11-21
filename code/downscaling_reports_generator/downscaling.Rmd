@@ -39,6 +39,7 @@ conf <- yaml.load_file("code/conf.yml")
 ```{r load_test_data}
 x <- paste0('data/to_be_downscaled/', params$variable)
 to_be_downscaled <- list.files(x)
+#to_be_downscaled <- c("cesm2-ssp5_8_5.csv")
 ```
 
 ```{r load_reanalyis}
@@ -65,6 +66,9 @@ cnn_downscaler <- cnn$CNNDownscaler()
 nv <- import_from_path("NaiveDownscaler", path = paste0(here(), "/code"))
 nv_downscaler <- nv$NaiveDownscaler()
 
+lstm <- import_from_path("LSTMDownscaler", path = paste0(here(), "/code"))
+lstm_downscaler <- lstm$LSTMDownscaler()
+
 variable <- data.frame()
 res <- list()
 for(f in to_be_downscaled){
@@ -83,6 +87,11 @@ for(f in to_be_downscaled){
                             data = paste0(here(), "/", x)
                           )
   
+  lstm_predictions <- lstm_downscaler$predict(
+                           model = paste0(here(), "/models/", params$variable, "/lstm.pkl"), 
+                           data = paste0(here(), "/", x)
+                    ) 
+  
   cnn_predictions <- cnn_downscaler$predict(
                             model = paste0(here(), "/models/", params$variable, "/cnn.pkl"),
                             data = paste0(here(), "/", x)
@@ -93,11 +102,14 @@ for(f in to_be_downscaled){
                            data = paste0(here(), "/", x)
                     )  
   
+
+  
   variable <- variable |> filter(time %in% xgboost_predictions$time)
   res[[paste0("undownscaled.", lab, '-', scenario)]] <- variable[[params$variable]] 
   res[[paste0("xgboost.", lab, '-', scenario)]]  <- xgboost_predictions[["xgboost"]]
-  res[[paste0("cnn.", lab, '-', scenario)]]  <- cnn_predictions[["cnn"]][1:length(variable[[params$variable]] )] #TODO: CHECK DIMENSIONS
+  res[[paste0("cnn.", lab, '-', scenario)]]  <- cnn_predictions[["cnn"]] 
   res[[paste0("nv.", lab, '-', scenario)]] <- nv_predictions[["naive"]]
+  res[[paste0("lstm.", lab, '-', scenario)]] <- lstm_predictions[["lstm"]]
   #rm(variable)
 }
 
@@ -113,6 +125,7 @@ res_validation_wide <- reanalysis |>
 res_prediction_wide <- res_wide |> 
   filter(!(time %in% res_validation_wide$time))
 
+write_csv(res_wide, paste0("data/downscaled_data/",params$variable,".csv"))
 
 res_long <- as.data.frame(res) |> 
   mutate(time =  variable$time) |>

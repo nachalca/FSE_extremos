@@ -51,7 +51,7 @@ class CNNDownscaler():
             #TODO: Check the shape of the output
             output_X = []
             output_y = []
-            for i in range(lookback, len(X) - lookback - 1):
+            for i in range(lookback, len(X) - lookback):
                 t = []
                 for j in range(lookback, 0, -1):
                     # Gather the past records upto the lookback period
@@ -132,7 +132,7 @@ class CNNDownscaler():
         print(f"Predicting with model {model}")
         model = pickle.load(open(model, "rb"))
         predictions = model.predict(data)
-        res = res.iloc[window_size+1:len(res) - window_size] # Match the sizes
+        res = res.iloc[window_size:len(res) - window_size] # Match the sizes
         res["cnn"] = predictions
         return res[["time", "cnn"]]
 
