@@ -240,7 +240,7 @@ class CNNDownscaler():
                     self.optimize,
                     objective="val_mean_absolute_error",
                     max_epochs=50,
-                    overwrite=True,
+                #    overwrite=True,
                     directory = "models/hyperparameters",
                     project_name = f'cnn/{variable_name}', 
                     seed = SEED
