@@ -25,6 +25,8 @@ execute:
 ## Introducción
 
 - Generación de energía proveniente de fuentes renovables es cada vez más importante. 
+
+
 - Las fuentes renovables se basan en la transformación de *recursos primarios* 
 
 - Recursos primarios: lluvia, viento, radiación solar, temperatura. 
