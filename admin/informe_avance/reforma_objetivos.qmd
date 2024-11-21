@@ -1,0 +1,41 @@
+---
+title: "Reformular Objetivos"
+format: docx
+editor: visual
+---
+
+## Objetivos actuales
+
+Copio del proyecto los objetivos actuales
+
+### general
+
+Cuantificar la incertidumbre sobre eventos extremos en la generación de energía a partir de fuentes renovables. Esto consiste en obtener proyeccciones en la generación y su incertidumbre asociada, la variabilidad de curvas IDF y probabilidades de ocurrencia para eventos extremos en la generación
+
+### específicos
+
+1.  Series de recursos primarios a escala reducida. Se relevan alternativas de downscaling híbrido o estadístico y se aplicara alguna de las herramientas disponibles a los datos de clima global producidos por IPCC en cada escenario de cambio climático. **Resultado Esperado:** Datos con series proyectadas.
+
+2.  Calcular las series de generación de energía por fuente y por escenario. En base a los recursos primarios proyectados construir series de generación de energía y cuantificar incertidumbre con bandas de confianza asociadas. **Resultado Esperado:** Datos de generación proyectada.
+
+3.  Probabilidad de eventos extremos en la generación de energía. En base a caracterización de la distribución aleatoria de extremos multivariados se calibran probabilidades de eventos extremos de distinto tipo en cada escenario de cambio climático. **Resultado Esperado:** Tabla con eventos extremos y sus probabilidades
+
+## Objetivos reformulados
+
+*general:* re-escribirlo refiriendo a las series primarias en lugar de generación. La incertidumbre en series proyectadas y los extremos (multivariados?) deben referirse a las series de recursos renovables y no a las de energía.
+
+*específicos:* mantener el 1, quitar el 2, reformular el 3 (referirlo a series de recursos), agregar otro objetivo sobre la selección de esenarios, variables y modelos, adecuados a las series de Uruguay.
+
+### General (Nuevo)
+
+Cuantificar la incertidumbre sobre eventos extremos en los recursos primarios necesarios para la generación de energía a partir de fuentes renovables. Esto consiste en obtener proyeccciones de las series de recursos primarios (temperatura, viento, etc) y su incertidumbre asociada, la variabilidad de curvas IDF y probabilidades de ocurrencia para eventos extremos.
+
+### Específicos (Nuevos)
+
+1. Evaluación de modelos y escenarios climáticos relevantes. CMIP6 combina varios modelos (laboratorios en el mundo), escenarios climáticos y variables de distinta periodicidad (diaria, mensual). Sin embargo estas series son construidas a escala global y no todas se adaptan al clima relevante para Uruguay. Por este motivo un paso previo a trabajar con series de recursos primarios consiste en estudiar que combinación de modelos y escenarios se adecúa mejor a la realidad Uruguaya.  **Resultado Esperado:** Base de datos para una lista de de modelos y escenarios seleccionadas para adecuarse al clima de Uruguay. 
+
+2. (Es el ObjEsp 1 anterior)  Series de recursos primarios a escala reducida. Se relevan alternativas de downscaling híbrido o estadístico y se aplicara alguna de las herramientas disponibles a los datos de clima global producidos por IPCC en cada escenario de cambio climático. **Resultado Esperado:** Datos con series proyectadas.
+
+3.  Probabilidad de eventos extremos en la generación de energía. En base a caracterización de la distribución aleatoria de extremos multivariados se calibran probabilidades de eventos extremos de distinto tipo en cada escenario de cambio climático. **Resultado Esperado:** Tabla con eventos extremos y sus probabilidades
+
+
