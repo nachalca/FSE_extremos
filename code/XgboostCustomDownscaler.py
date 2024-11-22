@@ -73,15 +73,17 @@ class XgboostCustomDownscaler():
         data = self.transform(window_size, data)
         
         print(f"Predicting with model {model}")
-        model = pickle.load(open(model, "rb")) # Load the model
-        data = data[model.feature_names_in_] # Get the features that the model was trained on and in the SAME ORDER.
 
-        predictions = model.predict(data) # Predict
-        data["xgboost"] = predictions
+        with open(model, "rb") as f:
+            model = pickle.load(f) # Load the model
         
+        data = data[model.feature_names_in_] # Get the features that the model was trained on and in the SAME ORDER.
+        predictions = model.predict(data) # Predict
+
+        data["xgboost_custom"] = predictions
         data.reset_index(inplace=True)
         
-        return data[["time", "xgboost"]]
+        return data[["time", "xgboost_custom"]]
 
     def optimize(self, X_train, y_train, **space):
     #    model = xgboost.XGBRegressor(**space) # Define the model
@@ -178,4 +180,5 @@ def main():
     xgb_custom_downscaler.fit(testing=False) 
 
 if __name__ == "__main__":
+    print("Starting the training of the XGBoost models with custom loss function ...")
     main()
