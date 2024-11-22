@@ -96,7 +96,7 @@ class XgboostCustomDownscaler():
         return data[["time", "xgboost_custom"]]
 
     def optimize(self, X_train, y_train, **space):
-        model = xgboost.XGBRegressor(**space) # Define the model
+        model = xgboost.XGBRegressor(objective=self.custom_loss,**space) # Define the model
 
         # Define the scoring for cross_val_score
         custom_precision_scorer = make_scorer(self.custom_loss_cv, greater_is_better=False)
@@ -172,8 +172,7 @@ class XgboostCustomDownscaler():
                         algo=tpe.suggest,            
                         max_evals=5,            
                         trials=trials,
-                        rstate=np.random.default_rng(SEED),
-                        objective=self.custom_loss
+                        rstate=np.random.default_rng(SEED)
                 )
                 print(best)
 
@@ -184,7 +183,7 @@ class XgboostCustomDownscaler():
 
                 #Train the model with the best hyperparameters
                 print("Training the model with the best hyperparameters ...")
-                xgb = xgboost.XGBRegressor(**best)
+                xgb = xgboost.XGBRegressor(objective=self.custom_loss,**best)
                 xgb.fit(X=X_train, y=y_train)
 
                 #Save the model
