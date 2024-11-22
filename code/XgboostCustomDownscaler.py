@@ -9,6 +9,7 @@ import numpy as np
 import dill as pickle
 import os
 from scipy.stats import gamma
+from sklearn.metrics import make_scorer
 
 
 class XgboostCustomDownscaler():
@@ -19,7 +20,10 @@ class XgboostCustomDownscaler():
         pass
 
     def custom_loss(self, y_true, y_pred):
-        
+        """
+        XGBOOST requires the gradient and the hessian of the loss function, doesn't use directly the loss function. 
+        Remember that the loss function is MAE + gamma_cdf(y_true)*max(0, y_true - y_pred)
+        """
         # Calculate the gradient
         penalty_mask = (y_true > y_pred).astype(float) #1 if y_true > y_pred, 0 otherwise
         gamma_cummulative = gamma.cdf(y_true, a=self.alpha, scale=self.beta)
@@ -29,6 +33,12 @@ class XgboostCustomDownscaler():
         hessian = np.full_like(gradient, 2)  # Constant Hessian for MSE. full_like creates a vector with the same shape as gradient and fill it with 2.
     
         return gradient, hessian
+
+    def custom_loss_cv(self, y_true, y_pred):
+        # In the case of cross validation we need the actual loss function
+        gamma_cummulative = gamma.cdf(y_true, a=self.alpha, scale=self.beta)
+        loss = np.mean(np.abs(y_true - y_pred) + gamma_cummulative * np.maximum(0, y_true - y_pred))
+        return loss
 
     #Add past observations and next observations as predictors, also do the onehot encoding
     @staticmethod
@@ -86,12 +96,18 @@ class XgboostCustomDownscaler():
         return data[["time", "xgboost_custom"]]
 
     def optimize(self, X_train, y_train, **space):
-    #    model = xgboost.XGBRegressor(**space) # Define the model
+        model = xgboost.XGBRegressor(**space) # Define the model
+
+        # Define the scoring for cross_val_score
+        custom_precision_scorer = make_scorer(self.custom_loss_cv, greater_is_better=False)
+        scoring = {
+            'accuracy': 'accuracy',
+            'custom_precision': custom_precision_scorer,
+        }
 
         # Do Cross Validation
-    #    score = model_selection.cross_val_score(model, X_train, y_train, cv=5, scoring="neg_mean_squared_error").mean()
-    #    return {'loss': -score, 'status': STATUS_OK, 'model': model}
-        pass
+        score = model_selection.cross_val_score(model, X_train, y_train, cv=5, scoring=scoring).mean()
+        return {'loss': -score, 'status': STATUS_OK, 'model': model}
 
     """
         TRAIN ALL XGBOOST MODELS FOR DIFFERENT VARIABLES. THIS FUNCTION WILL SAVE THE MODELS IN THE MODELS FOLDER.
@@ -133,41 +149,42 @@ class XgboostCustomDownscaler():
                 y_train = y_train.iloc[window_size:-window_size] # delete first #window_size rows and the last #window_size rows, to have the same size as X_train.
 
                 # Define the search space
-                # hyper_params = {
-                #     'max_depth': hp.choice('max_depth', np.arange(1, 8, dtype=int)),  # tree
-                #     'min_child_weight': hp.loguniform('min_child_weight', -2, 3),
-                #     'subsample': hp.uniform('subsample', 0.5, 1),   # stochastic
-                #     'colsample_bytree': hp.uniform('colsample_bytree', 0.5, 1),
-                #     'reg_alpha': hp.uniform('reg_alpha', 0, 10),
-                #     'reg_lambda': hp.uniform('reg_lambda', 1, 10),
-                #     'gamma': hp.loguniform('gamma', -10, 10), # regularization
-                #     'learning_rate': hp.loguniform('learning_rate', -7, 0),  # boosting
-                #     'random_state': SEED,
-                #     'importance_type': 'gain', #Feature importance
-                #     'objective': 'reg:custom_loss' #Regression
-                # }     
+                hyper_params = {
+                    'max_depth': hp.choice('max_depth', np.arange(1, 8, dtype=int)),  # tree
+                    'min_child_weight': hp.loguniform('min_child_weight', -2, 3),
+                    'subsample': hp.uniform('subsample', 0.5, 1),   # stochastic
+                    'colsample_bytree': hp.uniform('colsample_bytree', 0.5, 1),
+                    'reg_alpha': hp.uniform('reg_alpha', 0, 10),
+                    'reg_lambda': hp.uniform('reg_lambda', 1, 10),
+                    'gamma': hp.loguniform('gamma', -10, 10), # regularization
+                    'learning_rate': hp.loguniform('learning_rate', -7, 0),  # boosting
+                    'random_state': SEED,
+                    'importance_type': 'gain', #Feature importance
+                    'objective': 'reg:custom_loss' #Regression
+                }     
                 
-                # Optimize the hyperparameters
-                # print("Doing the hyperparameters optimization ...")
-                # trials = Trials()
-                # best = fmin(
-                #         fn=lambda space: self.optimize(X_train=X_train, y_train=y_train, **space),            
-                #         space=hyper_params,           
-                #         algo=tpe.suggest,            
-                #         max_evals=5,            
-                #         trials=trials,
-                #         rstate=np.random.default_rng(SEED)
-                # )
-                # print(best)
+                #Optimize the hyperparameters
+                print("Doing the hyperparameters optimization ...")
+                trials = Trials()
+                best = fmin(
+                        fn=lambda space: self.optimize(X_train=X_train, y_train=y_train, **space),            
+                        space=hyper_params,           
+                        algo=tpe.suggest,            
+                        max_evals=5,            
+                        trials=trials,
+                        rstate=np.random.default_rng(SEED),
+                        objective=self.custom_loss
+                )
+                print(best)
 
                 #Save the trials
-                # if os.path.exists("models/hyperparameters") == False:
-                #     os.makedirs("models/hyperparameters")            
-                # pickle.dump(trials, open(f"models/hyperparameters/{variable_name}.pkl", "wb"))
+                if os.path.exists("models/hyperparameters") == False:
+                    os.makedirs("models/hyperparameters")            
+                pickle.dump(trials, open(f"models/hyperparameters/{variable_name}.pkl", "wb"))
 
                 #Train the model with the best hyperparameters
                 print("Training the model with the best hyperparameters ...")
-                xgb = xgboost.XGBRegressor(objective=self.custom_loss)
+                xgb = xgboost.XGBRegressor(**best)
                 xgb.fit(X=X_train, y=y_train)
 
                 #Save the model
