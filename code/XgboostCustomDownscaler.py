@@ -6,7 +6,7 @@ from hyperopt.early_stop import no_progress_loss
 import xgboost
 import yaml 
 import numpy as np
-import pickle
+import dill as pickle
 import os
 from scipy.stats import gamma
 
