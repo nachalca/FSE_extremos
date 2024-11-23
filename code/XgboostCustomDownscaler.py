@@ -100,13 +100,9 @@ class XgboostCustomDownscaler():
 
         # Define the scoring for cross_val_score
         custom_precision_scorer = make_scorer(self.custom_loss_cv, greater_is_better=False)
-        scoring = {
-            'accuracy': 'accuracy',
-            'custom_precision': custom_precision_scorer,
-        }
 
         # Do Cross Validation
-        score = model_selection.cross_val_score(model, X_train, y_train, cv=5, scoring=scoring).mean()
+        score = model_selection.cross_val_score(model, X_train, y_train, cv=5, scoring=custom_precision_scorer).mean()
         return {'loss': -score, 'status': STATUS_OK, 'model': model}
 
     """
@@ -159,8 +155,7 @@ class XgboostCustomDownscaler():
                     'gamma': hp.loguniform('gamma', -10, 10), # regularization
                     'learning_rate': hp.loguniform('learning_rate', -7, 0),  # boosting
                     'random_state': SEED,
-                    'importance_type': 'gain', #Feature importance
-                    'objective': 'reg:custom_loss' #Regression
+                    'importance_type': 'gain' #Feature importance
                 }     
                 
                 #Optimize the hyperparameters
@@ -170,7 +165,7 @@ class XgboostCustomDownscaler():
                         fn=lambda space: self.optimize(X_train=X_train, y_train=y_train, **space),            
                         space=hyper_params,           
                         algo=tpe.suggest,            
-                        max_evals=5,            
+                        max_evals=50,            
                         trials=trials,
                         rstate=np.random.default_rng(SEED)
                 )
