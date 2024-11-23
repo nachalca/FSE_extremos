@@ -22,7 +22,7 @@ class XgboostCustomDownscaler():
     def custom_loss(self, y_true, y_pred):
         """
         XGBOOST requires the gradient and the hessian of the loss function, doesn't use directly the loss function. 
-        Remember that the loss function is MAE + gamma_cdf(y_true)*max(0, y_true - y_pred)
+        Remember that the loss function is MSE + gamma_cdf(y_true)*max(0, y_true - y_pred)
         """
         # Calculate the gradient
         penalty_mask = (y_true > y_pred).astype(float) #1 if y_true > y_pred, 0 otherwise
@@ -37,8 +37,8 @@ class XgboostCustomDownscaler():
     def custom_loss_cv(self, y_true, y_pred):
         # In the case of cross validation we need the actual loss function
         gamma_cummulative = gamma.cdf(y_true, a=self.alpha, scale=self.beta)
-        loss = np.mean(np.abs(y_true - y_pred) + gamma_cummulative * np.maximum(0, y_true - y_pred))
-        return loss
+        loss = np.mean((y_true - y_pred)**2 + gamma_cummulative * np.maximum(0, y_true - y_pred))
+        return -1*loss
 
     #Add past observations and next observations as predictors, also do the onehot encoding
     @staticmethod
@@ -165,7 +165,7 @@ class XgboostCustomDownscaler():
                         fn=lambda space: self.optimize(X_train=X_train, y_train=y_train, **space),            
                         space=hyper_params,           
                         algo=tpe.suggest,            
-                        max_evals=50,            
+                        max_evals=5,            
                         trials=trials,
                         rstate=np.random.default_rng(SEED)
                 )
