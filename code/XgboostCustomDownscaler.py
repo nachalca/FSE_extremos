@@ -132,7 +132,7 @@ class XgboostCustomDownscaler():
                 X_train = data.drop(columns=["target"])
                 y_train = data["target"]
 
-                #Estimate gamma parameters
+                #Estimate gamma parameters (On the paper they do this only with rainy days)
                 self.alpha = y_train.mean()**2/y_train.var()
                 self.beta = y_train.var()/y_train.mean()
 
@@ -188,7 +188,7 @@ class XgboostCustomDownscaler():
 
 def main():
     xgb_custom_downscaler = XgboostCustomDownscaler()
-    xgb_custom_downscaler.fit(testing=False) 
+    xgb_custom_downscaler.fit(testing=True) 
 
 if __name__ == "__main__":
     print("Starting the training of the XGBoost models with custom loss function ...")
