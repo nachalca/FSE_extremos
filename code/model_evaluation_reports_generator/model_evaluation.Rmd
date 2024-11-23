@@ -25,8 +25,9 @@ library(ggplot2)
 library(tidyverse)
 library(knitr)
 library(gridExtra)
-Sys.setenv(RETICULATE_PYTHON = "/home/tancre/bin/miniconda3/bin/python")
+#Sys.setenv(RETICULATE_PYTHON = "/home/tancre/bin/miniconda3/bin/python")
 library(reticulate)
+use_python("/home/tancre/bin/miniconda3/bin/python", required = TRUE)
 library(yaml)
 library("extremogram")
 source('code/metrics.R')
@@ -49,9 +50,22 @@ conf <- yaml.load_file("code/conf.yml")
 xgb <- import_from_path("XgboostDownscaler", path = paste0(here(), "/code"))
 xgboost_downscaler <- xgb$XgboostDownscaler()
 
-xgboost_predictions <- xgboost_downscaler$predict(model = paste0(here(), "/models/", params$variable, "/xgboost.pkl"), 
-                           data = paste0(here(), "/data/testing/", params$variable, ".csv"))
+xgboost_predictions <- xgboost_downscaler$predict(
+                           model = paste0(here(), "/models/", params$variable, "/xgboost.pkl"), 
+                           data = paste0(here(), "/data/testing/", params$variable, ".csv")
+                       )
 
+```
+
+```{r xgboost_custom, results=F, warning=F, message=F}
+if(params$variable == "pr"){
+  xgb_custom <- import_from_path("XgboostCustomDownscaler", path = paste0(here(), "/code"))
+  xgb_custom_downscaler <- xgb_custom$XgboostCustomDownscaler()
+  xgb_custom_predictions <- xgb_custom_downscaler$predict(
+                                model = paste0(here(), "/models/", params$variable, "/xgboost_custom.pkl"), 
+                                data = paste0(here(), "/data/testing/", params$variable, ".csv")
+                            )
+}
 ```
 
 ```{r cnn_predictions, results=F, warning=F, message=F}
@@ -82,11 +96,20 @@ lstm_predictions <- lstm_downscaler$predict(model = paste0(here(), "/models/", p
 ```
 
 ```{r res_dataframe, results=F}
-res <- res |> 
+if(params$variable == "pr"){
+  res <- res |> 
   inner_join(xgboost_predictions, by = join_by(time)) |>
   inner_join(cnn_predictions, by = join_by(time)) |>
   inner_join(nv_predictions, by = join_by(time)) |>
-  inner_join(lstm_predictions, by = join_by(time))
+  inner_join(lstm_predictions, by = join_by(time)) |>
+  inner_join(xgb_custom_predictions, by = join_by(time))
+} else {
+  res <- res |> 
+    inner_join(xgboost_predictions, by = join_by(time)) |>
+    inner_join(cnn_predictions, by = join_by(time)) |>
+    inner_join(nv_predictions, by = join_by(time)) |>
+    inner_join(lstm_predictions, by = join_by(time))
+}
 ```
 
 The observations for the validation were taken from `r min(res$time)` to `r max(res$time)`.
@@ -283,7 +306,7 @@ models <- res |> select(-c("time", "reanalysis")) |> colnames()
 plots <- lapply(models, function(col) qq_plot_against(res, col))
 
 # Arrange the plots using gridExtra
-do.call(grid.arrange, c(plots, ncol = 1))  # Arrange in a grid
+do.call(grid.arrange, c(plots, ncol = 2))  # Arrange in a grid
 ```
 
 ## Distribution of the undownscaled value on days with estimated extremes values.
