@@ -88,6 +88,7 @@ metrics_paired_hourly <- function(time, truth, estimate, model){
     "amplitude_mae" = c(amplitude_mae(time, truth, estimate)),
     "maximum_correlation" = c(maximum_correlation(time, truth, estimate)),
     "sign_correlation" = c(sign_correlation(truth, estimate)),
+    "qqplot_mae" =  c(qqplot_mae(truth, estimate)),
     "acf_mae" = c(acf_mae(truth,estimate)),
     "extremogram_mae" = c(extremogram_mae(truth,estimate))
   )
@@ -111,6 +112,7 @@ metrics_paired_hourly_rain <- function(time, truth, estimate, model){
     "amplitude_mae" = c(amplitude_mae(time, truth, estimate)),
     "maximum_correlation" = c(maximum_correlation(time, truth, estimate)),
     "sign_correlation" = c(sign_correlation(truth, estimate)),
+    "qqplot_mae" =  c(qqplot_mae(truth, estimate)),
     "acf_mae" = c(acf_mae(truth,estimate)),
     "extremogram_mae" = c(extremogram_mae(truth,estimate)),
     "amount_rainy_hours_mae" = amount_rainy_hours_mae(time, truth, estimate)
@@ -135,6 +137,7 @@ metrics_paired_daily <- function(time, truth, estimate, model){
 #    "amplitude_mae" = c(amplitude_mae(time, truth, estimate)),
 #    "maximum_correlation" = c(maximum_correlation(time, truth, estimate)),
     "sign_correlation" = c(sign_correlation(truth, estimate)),
+    "qqplot_mae" =  c(qqplot_mae(truth, estimate)),
     "acf_mae" = c(acf_mae(truth,estimate)),
     "extremogram_mae" = c(extremogram_mae(truth,estimate))
   )
