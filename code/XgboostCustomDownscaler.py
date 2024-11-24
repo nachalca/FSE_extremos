@@ -99,7 +99,7 @@ class XgboostCustomDownscaler():
         model = xgboost.XGBRegressor(objective=self.custom_loss,**space) # Define the model
 
         # Define the scoring for cross_val_score
-        custom_precision_scorer = make_scorer(self.custom_loss_cv, greater_is_better=False)
+        custom_precision_scorer = make_scorer(self.custom_loss_cv)
 
         # Do Cross Validation
         score = model_selection.cross_val_score(model, X_train, y_train, cv=5, scoring=custom_precision_scorer).mean()
@@ -172,9 +172,9 @@ class XgboostCustomDownscaler():
                 print(best)
 
                 #Save the trials
-                if os.path.exists("models/hyperparameters") == False:
-                    os.makedirs("models/hyperparameters")            
-                pickle.dump(trials, open(f"models/hyperparameters/{variable_name}.pkl", "wb"))
+                if os.path.exists("models/hyperparameters/xgboost_custom") == False:
+                    os.makedirs("models/hyperparameters/xgboost_custom")            
+                pickle.dump(trials, open(f"models/hyperparameters/xgboost_custom/{variable_name}.pkl", "wb"))
 
                 #Train the model with the best hyperparameters
                 print("Training the model with the best hyperparameters ...")
@@ -188,7 +188,7 @@ class XgboostCustomDownscaler():
 
 def main():
     xgb_custom_downscaler = XgboostCustomDownscaler()
-    xgb_custom_downscaler.fit(testing=True) 
+    xgb_custom_downscaler.fit() 
 
 if __name__ == "__main__":
     print("Starting the training of the XGBoost models with custom loss function ...")
