@@ -149,7 +149,7 @@ class CNNDownscaler():
             # Tuning the number of Conv1D layers
             for i in range(hp.Int('num_conv_layers', 1, 3)):
                 model.add(Conv1D(
-                    filters=hp.Int(f'filters_{i}', min_value=16, max_value=64, step=32),
+                    filters=hp.Int(f'filters_{i}', min_value=16, max_value=64, step=16),
                     kernel_size=hp.Choice(f'kernel_size_{i}', values=[3,4,5,7]),
                     activation='relu',
                     padding='same'
@@ -162,14 +162,14 @@ class CNNDownscaler():
             
             # Tuning the number of neurons in Dense layers
             model.add(Dense(
-                units=hp.Int('dense_units', min_value=32, max_value=128, step=32),
+                units=hp.Int('dense_units', min_value=16, max_value=144, step=32),
                 activation='relu'
             ))
             
-            if hp.Boolean("dropout"):
-                model.add(Dropout(
-                    rate=hp.Float('dropout_rate', min_value=0.1, max_value=0.5, step=0.1)
-                ))
+     
+            model.add(Dropout(
+                rate=hp.Float('dropout_rate', min_value=0, max_value=0.5, step=0.1)
+            ))
 
             model.add(Dense(units=1, 
                             activation='linear', 
@@ -177,9 +177,7 @@ class CNNDownscaler():
 
             # Compile the model
             model.compile(
-                optimizer=optimizers.Adam(
-                    hp.Choice('learning_rate', values=[1e-2, 1e-3, 1e-4])
-                ),
+                optimizer='adam',
                 loss='mse',
                 metrics=['mean_absolute_error']
             )
@@ -240,7 +238,7 @@ class CNNDownscaler():
                     self.optimize,
                     objective="val_mean_absolute_error",
                     max_epochs=50,
-                #    overwrite=True,
+                    overwrite=True,
                     directory = "models/hyperparameters",
                     project_name = f'cnn/{variable_name}', 
                     seed = SEED
@@ -248,15 +246,27 @@ class CNNDownscaler():
 
                 callbacks = [EarlyStopping(patience=5)] #TODO: Check what is this.          
 
-                tuner.search(X_train, 
-                             y_train, 
-                             validation_data=(X_valid, y_valid), 
+                x_train_subset, _, y_train_subset, _ = model_selection.train_test_split(X_train, y_train, train_size=.20)
+
+                x_train_subset, x_valid_subset, y_train_subset, y_valid_subset = model_selection.train_test_split(
+                                                                                    x_train_subset, y_train_subset, 
+                                                                                    test_size=0.2, 
+                                                                                    shuffle=False)   
+
+                tuner.search(x_train_subset, 
+                             y_train_subset,  
+                             validation_data=(x_valid_subset, y_valid_subset), 
                              callbacks=[callbacks]
                              )
 
                 best_hps = tuner.get_best_hyperparameters(num_trials=1)[0]
                 cnn = tuner.hypermodel.build(best_hps)
-                cnn.fit(X_train, y_train, epochs=100, validation_data=(X_valid, y_valid))
+                cnn.fit(X_train, 
+                        y_train, 
+                        epochs=100, 
+                        validation_data=(X_valid, y_valid),
+                        callbacks=[callbacks]  # Pass the callback
+                        )
 
                 #remove the directory
                 #shutil.rmtree("models/temporary", ignore_errors=True)

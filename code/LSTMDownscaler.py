@@ -4,7 +4,6 @@ import pickle
 from feature_engine import encoding
 import yaml 
 import os
-import shutil
 
 from tensorflow.keras import optimizers
 from tensorflow.keras.models import Model
@@ -18,6 +17,7 @@ from tensorflow.keras.layers import TimeDistributed
 from tensorflow.keras.layers import Flatten
 from tensorflow.keras.layers import Bidirectional
 from tensorflow.keras.callbacks import EarlyStopping
+from  tensorflow.python.keras.utils.layer_utils import count_params
 
 from sklearn import model_selection, preprocessing
 from numpy.random import seed
@@ -150,29 +150,34 @@ class LSTMDownscaler():
             lstm.add(Input(shape=(self.TIMESTEPS, self.N_FEATURES), 
                             name='input'))
 
-            for i in range(hp.Int('num_layers', 1, 2)):
-                lstm.add(
-                    LSTM(units=hp.Int(f'units_{i}', min_value=8, max_value=48, step=8),
-                        activation='tanh',
-                        return_sequences=True,
-                        recurrent_dropout=hp.Float('recurrent_dropout_rate', min_value=0.1, max_value=0.5, step=0.1),
-                        name=f'lstm_layer_{i}'))
-                
-            lstm.add(Flatten())
+            lstm.add(
+                LSTM(units=hp.Int(f'units_1', min_value=8, max_value=48, step=8),
+                    activation='relu',
+                    return_sequences=True,  
+                    dropout=hp.Float(f'dropout_rate_1', min_value=0, max_value=0.5, step=0.25),
+                    recurrent_dropout=hp.Float(f'recurrent_dropout_rate_1', min_value=0, max_value=0.5, step=0.25),
+                    name=f'lstm_layer_1')
+            )
 
-            if hp.Boolean("dropout"):
-                lstm.add(Dropout(
-                    rate=hp.Float('dropout_rate', min_value=0.1, max_value=0.5, step=0.1)
-                ))
+            lstm.add(
+                LSTM(units=hp.Int(f'units_2', min_value=8, max_value=48, step=8),
+                    activation='relu',
+                    return_sequences=False, 
+                    dropout=hp.Float(f'dropout_rate_2', min_value=0, max_value=0.5, step=0.25),
+                    recurrent_dropout=hp.Float(f'recurrent_dropout_rate_2', min_value=0, max_value=0.5, step=0.25),
+                    name=f'lstm_layer_2')
+            )
 
-            lstm.add(Dense(units=1,
-                            activation='linear', 
-                            name='output'))
+            lstm.add(Dropout(rate=hp.Float('dropout_rate', min_value=0, max_value=0.5, step=0.1)))
+
+            lstm.add(Dense(units=1, activation='linear', name='output'))
+
             lstm.compile(
-                            optimizer='adam',
-                            loss='mse',
-                            metrics=['mean_absolute_error']
-                        )
+                optimizer='adam',
+                loss='mse',
+                metrics=['mean_absolute_error']
+            )
+
             return lstm
         
         except Exception as _e:
@@ -196,7 +201,7 @@ class LSTMDownscaler():
 
         #For each dataset, train a model
         for f in files:
-            if f.endswith('.csv'):
+            if f.endswith('.csv') and f.startswith('pr'):
                 variable_name = f.split(".")[0] #Get the variable name from the filename
                 print(f"Training model for \033[92m{variable_name}\033[0m")
             
@@ -229,7 +234,7 @@ class LSTMDownscaler():
                     self.optimize,
                     objective="val_mean_absolute_error",
                     max_epochs=50,
-                    #overwrite=True,
+                    overwrite=True,
                     directory = "models/hyperparameters",
                     project_name = f'lstm/{variable_name}', 
                     seed=SEED
@@ -237,18 +242,32 @@ class LSTMDownscaler():
 
                 callbacks = [EarlyStopping(patience=5)]           
 
-                tuner.search(X_train, 
-                             y_train,  
-                             validation_data=(X_valid, y_valid), 
+                #Use a smaller dataset for the searach of hyperparameters (We keep only 20%)
+                x_train_subset, _, y_train_subset, _ = model_selection.train_test_split(X_train, y_train, train_size=.20)
+                
+                print(X_train.shape)
+                print(x_train_subset.shape)
+                
+                x_train_subset, x_valid_subset, y_train_subset, y_valid_subset = model_selection.train_test_split(
+                                                                                    x_train_subset, y_train_subset, 
+                                                                                    test_size=0.2, 
+                                                                                    shuffle=False)   
+
+
+                tuner.search(x_train_subset, 
+                             y_train_subset,  
+                             validation_data=(x_valid_subset, y_valid_subset), 
                              callbacks=[callbacks]
                              )
                 
                 best_hps = tuner.get_best_hyperparameters()[0]
                 lstm = tuner.hypermodel.build(best_hps)
-                lstm.fit(X_train, y_train, epochs=100, validation_data=(X_valid, y_valid))
-
-                #remove the directory
-                #shutil.rmtree("models/temporary", ignore_errors=True)
+                lstm.fit(X_train, 
+                         y_train, 
+                         epochs=100, 
+                         validation_data=(X_valid, y_valid),
+                         callbacks=[callbacks]
+                         )
 
                 #Save the model
                 if os.path.exists(f"models/{variable_name}") == False:
