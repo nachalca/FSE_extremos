@@ -201,7 +201,7 @@ class LSTMDownscaler():
 
         #For each dataset, train a model
         for f in files:
-            if f.endswith('.csv') and f.startswith('pr'):
+            if f.endswith('.csv') and f.startswith('tas'):
                 variable_name = f.split(".")[0] #Get the variable name from the filename
                 print(f"Training model for \033[92m{variable_name}\033[0m")
             
@@ -234,7 +234,7 @@ class LSTMDownscaler():
                     self.optimize,
                     objective="val_mean_absolute_error",
                     max_epochs=50,
-                    overwrite=True,
+#                    overwrite=True,
                     directory = "models/hyperparameters",
                     project_name = f'lstm/{variable_name}', 
                     seed=SEED

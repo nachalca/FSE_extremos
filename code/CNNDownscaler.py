@@ -28,6 +28,8 @@ from keras_tuner.tuners import Hyperband
 from keras_tuner import Objective
 from keras_tuner import errors
 
+import shap
+
 class CNNDownscaler():
     
     TIMESTEPS, N_FEATURES = 0, 0
@@ -138,6 +140,16 @@ class CNNDownscaler():
         res = res.iloc[window_size:len(res) - window_size] # Match the sizes
         res["cnn"] = predictions
         return res[["time", "cnn"]]
+
+    def explain(self, data, model):
+        data = pd.read_csv(data)
+        data.drop(columns=["target", "time"], inplace=True, errors="ignore")
+        window_size =  24 if "hour" in data.columns else 28
+        data = self.transform(window_size, data_x = data)        
+        model = pickle.load(open(model, "rb"))
+        explainer = shap.Explainer(model, data)
+        shap_values = explainer.shap_values(data)
+        return shap_values
 
     def optimize(self, hp):
         try:
@@ -275,6 +287,7 @@ class CNNDownscaler():
                 if os.path.exists(f"models/{variable_name}") == False:
                     os.makedirs(f"models/{variable_name}")
                 pickle.dump(cnn, open(f"models/{variable_name}/cnn.pkl", "wb"))
+        
 
 def main():
     cnn_downscaler = CNNDownscaler()
