@@ -201,7 +201,7 @@ class LSTMDownscaler():
 
         #For each dataset, train a model
         for f in files:
-            if f.endswith('.csv') and f.startswith('tas'):
+            if f.endswith('.csv') and f.startswith('sfcWind'):
                 variable_name = f.split(".")[0] #Get the variable name from the filename
                 print(f"Training model for \033[92m{variable_name}\033[0m")
             
@@ -234,7 +234,7 @@ class LSTMDownscaler():
                     self.optimize,
                     objective="val_mean_absolute_error",
                     max_epochs=50,
-#                    overwrite=True,
+                    overwrite=True,
                     directory = "models/hyperparameters",
                     project_name = f'lstm/{variable_name}', 
                     seed=SEED
@@ -242,23 +242,33 @@ class LSTMDownscaler():
 
                 callbacks = [EarlyStopping(patience=5)]           
 
-                #Use a smaller dataset for the searach of hyperparameters (We keep only 20%)
-                x_train_subset, _, y_train_subset, _ = model_selection.train_test_split(X_train, y_train, train_size=.20)
-                
-                print(X_train.shape)
-                print(x_train_subset.shape)
-                
-                x_train_subset, x_valid_subset, y_train_subset, y_valid_subset = model_selection.train_test_split(
-                                                                                    x_train_subset, y_train_subset, 
-                                                                                    test_size=0.2, 
-                                                                                    shuffle=False)   
+                if VARIABLES[variable_name]["daily"]:
+                    #Use a smaller dataset for the searach of hyperparameters (We keep only 20%)
+                    x_train_subset, _, y_train_subset, _ = model_selection.train_test_split(X_train, y_train, train_size=.20)
+                    
+                    x_train_subset, x_valid_subset, y_train_subset, y_valid_subset = model_selection.train_test_split(
+                                                                                        x_train_subset, y_train_subset, 
+                                                                                        test_size=0.2, 
+                                                                                        shuffle=False)   
 
+                    tuner.search(x_train_subset, 
+                                y_train_subset,  
+                                validation_data=(x_valid_subset, y_valid_subset), 
+                                callbacks=[callbacks]
+                                )
+                else:
+                    x_train_subset, x_valid_subset, y_train_subset, y_valid_subset = model_selection.train_test_split(
+                                                                    X_train, y_train, 
+                                                                    test_size=0.2, 
+                                                                    shuffle=False)  
+                    tuner.search(x_train_subset, 
+                                y_train_subset,  
+                                validation_data=(x_valid_subset, y_valid_subset), 
+                                callbacks=[callbacks]
+                                )
 
-                tuner.search(x_train_subset, 
-                             y_train_subset,  
-                             validation_data=(x_valid_subset, y_valid_subset), 
-                             callbacks=[callbacks]
-                             )
+                            
+                callbacks = [EarlyStopping(patience=10)]           
                 
                 best_hps = tuner.get_best_hyperparameters()[0]
                 lstm = tuner.hypermodel.build(best_hps)
