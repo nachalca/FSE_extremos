@@ -1,6 +1,7 @@
-from XgboostCustomDownscaler import XgboostCustomDownscaler
+from CNNDownscaler import CNNDownscaler
 
 
-xgb = XgboostCustomDownscaler()
-p = xgb.predict(data = "data/to_be_downscaled/pr/cesm2-ssp3_7_0.csv", model = "/home/tancre/dev/UTE/FSE_extremos/models/pr/xgboost_custom.pkl")
+cnn = CNNDownscaler()
+parent = "/home/tancre/dev/UTE/FSE_extremos"
+p = cnn.predict(data = f"{parent}/data/to_be_downscaled/clt/cesm2-ssp2_4_5.csv", model = f"{parent}/models/clt/cnn.pkl")
 print(p)

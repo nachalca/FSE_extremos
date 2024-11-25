@@ -51,7 +51,7 @@ class XgboostDownscaler():
         data.drop(columns=["target"], inplace=True, errors="ignore")
 
         #Set the window size
-        window_size =  24 if "hour" in data.columns else 1  
+        window_size =  24 if "hour" in data.columns else 28  
         
         print(f"Transforming dataset for prediction")      
         data = self.transform(window_size, data)
@@ -99,7 +99,7 @@ class XgboostDownscaler():
                 y_train = data["target"]
                                 
                 #Set the amount of future and past observation to be taked account  
-                window_size =  24 if VARIABLES[variable_name]["daily"] else 1
+                window_size =  24 if VARIABLES[variable_name]["daily"] else 28
                 
                 # Transform the data
                 print("Transforming the data ...")
@@ -127,7 +127,7 @@ class XgboostDownscaler():
                         fn=lambda space: self.optimize(X_train=X_train, y_train=y_train, **space),            
                         space=hyper_params,           
                         algo=tpe.suggest,            
-                        max_evals=5,            
+                        max_evals=50,            
                         trials=trials,
                         rstate=np.random.default_rng(SEED)
                 )
@@ -136,8 +136,8 @@ class XgboostDownscaler():
 
                 #Save the trials
                 if os.path.exists("models/hyperparameters") == False:
-                    os.makedirs("models/hyperparameters")            
-                pickle.dump(trials, open(f"models/hyperparameters/{variable_name}.pkl", "wb"))
+                    os.makedirs("models/hyperparameters/xgboost")            
+                pickle.dump(trials, open(f"models/hyperparameters/xgboost/{variable_name}.pkl", "wb"))
 
                 #Train the model with the best hyperparameters
                 print("Training the model with the best hyperparameters ...")

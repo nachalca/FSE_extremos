@@ -4,6 +4,9 @@ import pickle
 from feature_engine import encoding
 import yaml 
 import os
+from sklearn import model_selection, preprocessing
+import shutil
+
 import tensorflow as tf
 from tensorflow.keras import optimizers
 from tensorflow.keras.models import Model
@@ -19,15 +22,15 @@ from tensorflow.keras.layers import MaxPool2D
 from tensorflow.keras.layers import ReLU
 from tensorflow.keras.layers import Flatten
 from tensorflow.python.keras import backend as K
+from tensorflow.keras.callbacks import EarlyStopping
 
-from sklearn import model_selection, preprocessing
-
-
-from collections import Counter
-
-from numpy.random import seed
+from keras_tuner.tuners import Hyperband
+from keras_tuner import Objective
+from keras_tuner import errors
 
 class CNNDownscaler():
+    
+    TIMESTEPS, N_FEATURES = 0, 0
 
     def __init__(self):
         pass
@@ -36,7 +39,7 @@ class CNNDownscaler():
     @staticmethod
     def transform(window_size, data_x, data_y=None):
 
-        #TOOKED FROM THE BOOK
+        #It is used to shape the data for the model
         def temporalize(X, y, lookback):
             '''
             Inputs
@@ -53,7 +56,7 @@ class CNNDownscaler():
             output_y = []
             for i in range(lookback, len(X) - lookback):
                 t = []
-                for j in range(lookback, 0, -1):
+                for j in range(lookback, -1, -1):
                     # Gather the past records upto the lookback period
                     t.append(X[[(i - j)], :])
                 for j in range(0, lookback): 
@@ -72,7 +75,7 @@ class CNNDownscaler():
             Flatten a 3D array.
 
             Input
-            X            A 3D array for lstm, where the array is sample x timesteps x features.
+            X            A 3D array, where the array is sample x timesteps x features.
 
             Output
             flattened_X  A 2D array, sample x features.
@@ -88,7 +91,7 @@ class CNNDownscaler():
             Scale 3D array.
 
             Inputs
-            X            A 3D array for lstm, where the array is sample x timesteps x features.
+            X            A 3D array, where the array is sample x timesteps x features.
             scaler       A scaler object, e.g., sklearn.preprocessing.StandardScaler, sklearn.preprocessing.normalize
 
             Output
@@ -126,7 +129,7 @@ class CNNDownscaler():
         data = pd.read_csv(data)
         res = data.copy() # To keep the time
         data.drop(columns=["target", "time"], inplace=True, errors="ignore")
-        window_size =  24 if "hour" in data.columns else 7  
+        window_size =  24 if "hour" in data.columns else 28
         print(f"Transforming dataset for prediction")      
         data = self.transform(window_size, data_x = data)
         print(f"Predicting with model {model}")
@@ -136,13 +139,62 @@ class CNNDownscaler():
         res["cnn"] = predictions
         return res[["time", "cnn"]]
 
-    def optimize():
-        pass
+    def optimize(self, hp):
+        try:
+            model = Sequential()
 
+            model.add(Input(shape=(self.TIMESTEPS, 
+                                self.N_FEATURES), 
+                            name='input'))    
+            # Tuning the number of Conv1D layers
+            for i in range(hp.Int('num_conv_layers', 1, 3)):
+                model.add(Conv1D(
+                    filters=hp.Int(f'filters_{i}', min_value=16, max_value=64, step=16),
+                    kernel_size=hp.Choice(f'kernel_size_{i}', values=[3,4,5,7]),
+                    activation='relu',
+                    padding='same'
+                ))
+                model.add(MaxPool1D(
+                    pool_size=hp.Choice(f'pool_size_{i}', values=[2, 3, 4])
+                ))
+
+            model.add(Flatten())
+            
+            # Tuning the number of neurons in Dense layers
+            model.add(Dense(
+                units=hp.Int('dense_units', min_value=16, max_value=144, step=32),
+                activation='relu'
+            ))
+            
+     
+            model.add(Dropout(
+                rate=hp.Float('dropout_rate', min_value=0, max_value=0.5, step=0.1)
+            ))
+
+            model.add(Dense(units=1, 
+                            activation='linear', 
+                            name='output'))
+
+            # Compile the model
+            model.compile(
+                optimizer='adam',
+                loss='mse',
+                metrics=['mean_absolute_error']
+            )
+            
+            return model
+        except Exception as _e:
+            # raise error as failed to build
+            raise errors.FailedTrialError(
+                f"Failed to build model with error: {_e}"
+            )
+
+        
     """
-        TRAIN ALL XGBOOST MODELS FOR DIFFERENT VARIABLES. THIS FUNCTION WILL SAVE THE MODELS IN THE MODELS FOLDER.
+        TRAIN ALL CNN MODELS FOR DIFFERENT VARIABLES. THIS FUNCTION WILL SAVE THE MODELS IN THE MODELS FOLDER.
+        Testing: If it is true, then we train with a small dataset. It is used for testing different models.
     """
-    def fit(self):
+    def fit(self, testing = False):
         #Load the configuration file
         with open("code/conf.yml", 'r') as file:
             conf = yaml.safe_load(file)
@@ -161,6 +213,9 @@ class CNNDownscaler():
                 data = pd.read_csv(f"data/training/{f}")
                 data = data.set_index("time")
 
+                if testing:
+                    data = data.head(365*24*2) #Train with 2 years of data
+
                 # Split the data into features and target
                 X_train = data.drop(columns=["target"])
                 y_train = data["target"]
@@ -169,46 +224,52 @@ class CNNDownscaler():
                 X_train, X_valid, y_train, y_valid = model_selection.train_test_split(X_train, y_train, test_size=0.2, shuffle=False)                
                                 
                 #Set the amount of future and past observations to be taken into account  
-                window_size =  24 if VARIABLES[variable_name]["daily"] else 7
+                window_size =  24 if VARIABLES[variable_name]["daily"] else 28
                 
                 # Transform the data
                 print("Transforming the data ...")
                 X_train, y_train = self.transform(window_size, X_train, y_train)
-
                 X_valid, y_valid = self.transform(window_size, X_valid, y_valid)
 
-                TIMESTEPS = X_train.shape[1]  # equal to the lookback
-                N_FEATURES = X_train.shape[2]  # the number of features        
+                self.TIMESTEPS = X_train.shape[1]  # equal to the lookback
+                self.N_FEATURES = X_train.shape[2]  # the number of features        
+                
+                tuner = Hyperband(
+                    self.optimize,
+                    objective="val_mean_absolute_error",
+                    max_epochs=50,
+                    overwrite=True,
+                    directory = "models/hyperparameters",
+                    project_name = f'cnn/{variable_name}', 
+                    seed = SEED
+                )
 
-                # Define the model        
-                cnn = Sequential()
-                cnn.add(Input(shape=(TIMESTEPS, 
-                                    N_FEATURES), 
-                                name='input'))
-                cnn.add(Conv1D(filters=16, 
-                                kernel_size=4,
-                                activation='relu', 
-                                padding='valid'))
-                cnn.add(MaxPool1D(pool_size=4, 
-                                    padding='valid'))
-                cnn.add(Flatten())
-                cnn.add(Dense(units=16, 
-                                activation='relu'))
-                cnn.add(Dense(units=1, 
-                                activation='linear', 
-                                name='output'))
+                callbacks = [EarlyStopping(patience=5)] #TODO: Check what is this.          
 
-                cnn.compile(optimizer='adam',
-                            loss='mse',
-                            metrics=[
-                                tf.keras.metrics.RootMeanSquaredError()
-                            ])
-                history = cnn.fit(x=X_train,
-                                    y=y_train,
-                                    batch_size=128,
-                                    epochs=150,
-                                    validation_data=(X_valid, y_valid),
-                                    verbose=1).history
+                x_train_subset, _, y_train_subset, _ = model_selection.train_test_split(X_train, y_train, train_size=.20)
+
+                x_train_subset, x_valid_subset, y_train_subset, y_valid_subset = model_selection.train_test_split(
+                                                                                    x_train_subset, y_train_subset, 
+                                                                                    test_size=0.2, 
+                                                                                    shuffle=False)   
+
+                tuner.search(x_train_subset, 
+                             y_train_subset,  
+                             validation_data=(x_valid_subset, y_valid_subset), 
+                             callbacks=[callbacks]
+                             )
+
+                best_hps = tuner.get_best_hyperparameters(num_trials=1)[0]
+                cnn = tuner.hypermodel.build(best_hps)
+                cnn.fit(X_train, 
+                        y_train, 
+                        epochs=100, 
+                        validation_data=(X_valid, y_valid),
+                        callbacks=[callbacks]  # Pass the callback
+                        )
+
+                #remove the directory
+                #shutil.rmtree("models/temporary", ignore_errors=True)
 
                 #Save the model
                 if os.path.exists(f"models/{variable_name}") == False:
@@ -217,7 +278,7 @@ class CNNDownscaler():
 
 def main():
     cnn_downscaler = CNNDownscaler()
-    cnn_downscaler.fit()
+    cnn_downscaler.fit(testing=False)
 
 if __name__ == "__main__":
     main()
