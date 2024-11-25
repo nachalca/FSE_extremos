@@ -8,6 +8,8 @@ import pickle
 from sklearn import base, pipeline, model_selection
 from sklearn.linear_model import LinearRegression
 
+import shap 
+
 class NaiveDownscaler():
 
     def __init__(self):
@@ -65,6 +67,22 @@ class NaiveDownscaler():
 
     def optimize(self, X_train, y_train, **space):
         pass
+
+    def explain(self, data, model):
+        data = pd.read_csv(data)
+
+        data.drop(columns=["target"], inplace=True, errors="ignore")
+        window_size =  24 if "hour" in data.columns else 28 
+        
+        data = self.transform(window_size, data)
+        
+        model = pickle.load(open(model, "rb"))
+        data = data[model.feature_names_in_] # Get the features that the model was trained on and in the SAME ORDER.
+
+        explainer = shap.Explainer(model, data)
+        shap_values = explainer.shap_values(data)
+        return shap_values
+
 
     """
         TRAIN ALL NAIVE MODELS FOR DIFFERENT VARIABLES. THIS FUNCTION WILL SAVE THE MODELS IN THE MODELS FOLDER.
