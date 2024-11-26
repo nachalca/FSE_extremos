@@ -27,7 +27,7 @@ from keras_tuner.tuners import Hyperband
 from keras_tuner import Objective
 from keras_tuner import errors
 
-class LSTMDownscaler():
+class LSTMDownscalerOriginal():
 
     TIMESTEPS, N_FEATURES = 0, 0
 
@@ -140,60 +140,12 @@ class LSTMDownscaler():
         print(res.iloc[len(res) - window_size]["time"])
 
         res = res.iloc[window_size:len(res) - window_size] # Match the sizes
-        res["lstm"] = predictions
-        return res[["time", "lstm"]]
+        res["lstm_original"] = predictions
+        return res[["time", "lstm_original"]]
 
     def optimize(self, hp):
-        try:
-            # Define the model        
-            lstm = Sequential()
-            
-            lstm.add(Input(shape=(self.TIMESTEPS, self.N_FEATURES), 
-                            name='input'))
-
-            lstm.add(
-                LSTM(units=hp.Int(f'units_1', min_value=8, max_value=32, step=8),
-                    activation='tanh',
-                    return_sequences=True,  
-#                    dropout=hp.Float(f'dropout_rate_1', min_value=0, max_value=0.5, step=0.25),
-                    recurrent_dropout=hp.Float(f'recurrent_dropout_rate_1', min_value=0, max_value=0.5, step=0.25),
-                    name=f'lstm_layer_1')
-            )
-
-            lstm.add(Dropout(rate=hp.Float('dropout_rate_1', min_value=0, max_value=0.5, step=0.125)))
-
-            lstm.add(
-                LSTM(units=hp.Int(f'units_2', min_value=8, max_value=16, step=4),
-                    activation='tanh',
-                    return_sequences=False, 
-#                    dropout=hp.Float(f'dropout_rate_2', min_value=0, max_value=0.5, step=0.25),
-                    recurrent_dropout=hp.Float(f'recurrent_dropout_rate_2', min_value=0, max_value=0.5, step=0.25),
-                    name=f'lstm_layer_2')
-            )
-
-            lstm.add(Dropout(rate=hp.Float('dropout_rate_2', min_value=0, max_value=0.5, step=0.125)))
-
-            lstm.add(Flatten())
-
-            lstm.add(Dense(units=1, activation='linear', name='output'))
-
-            lstm.compile(
-                optimizer='adam',
-                loss='mse',
-                metrics=['mean_absolute_error']
-            )
-
-            return lstm
+        pass
         
-        except Exception as _e:
-            # raise error as failed to build
-            raise errors.FailedTrialError(
-                f"Failed to build model with error: {_e}"
-            )
-
-    """
-        TRAIN ALL LSTM MODELS FOR DIFFERENT VARIABLES. THIS FUNCTION WILL SAVE THE MODELS IN THE MODELS FOLDER.
-    """
     def fit(self, testing=False):
         #Load the configuration file
         with open("code/conf.yml", 'r') as file:
@@ -237,63 +189,48 @@ class LSTMDownscaler():
                 self.TIMESTEPS = X_train.shape[1]  # equal to the lookback
                 self.N_FEATURES = X_train.shape[2]  # the number of features        
 
-                tuner = Hyperband(
-                    self.optimize,
-                    objective="val_mean_absolute_error",
-                    max_epochs=50,
-#                    overwrite=True,
-                    directory = "models/hyperparameters",
-                    project_name = f'lstm/{variable_name}', 
-                    seed=SEED
-                )
-
-                callbacks = [EarlyStopping(patience=5)]           
-
-                if VARIABLES[variable_name]["daily"]:
-                    #Use a smaller dataset for the searach of hyperparameters (We keep only 20%)
-                    x_train_subset, _, y_train_subset, _ = model_selection.train_test_split(X_train, y_train, train_size=.20)
-                    
-                    x_train_subset, x_valid_subset, y_train_subset, y_valid_subset = model_selection.train_test_split(
-                                                                                        x_train_subset, y_train_subset, 
-                                                                                        test_size=0.2, 
-                                                                                        shuffle=False)   
-
-                    tuner.search(x_train_subset, 
-                                y_train_subset,  
-                                validation_data=(x_valid_subset, y_valid_subset), 
-                                callbacks=[callbacks]
-                                )
-                else:
-                    x_train_subset, x_valid_subset, y_train_subset, y_valid_subset = model_selection.train_test_split(
-                                                                    X_train, y_train, 
-                                                                    test_size=0.2, 
-                                                                    shuffle=False)  
-                    tuner.search(x_train_subset, 
-                                y_train_subset,  
-                                validation_data=(x_valid_subset, y_valid_subset), 
-                                callbacks=[callbacks]
-                                )
-
-                            
-                callbacks = [EarlyStopping(patience=10)]           
-                
-                best_hps = tuner.get_best_hyperparameters()[0]
-                lstm = tuner.hypermodel.build(best_hps)
-                lstm.fit(X_train, 
-                         y_train, 
-                         epochs=100, 
-                         batch_size=128,                         
-                         validation_data=(X_valid, y_valid),
-                         callbacks=[callbacks]
-                         )
+                # Define the model        
+                lstm = Sequential()
+                lstm.add(Input(shape=(self.TIMESTEPS, self.N_FEATURES), 
+                                name='input'))
+                lstm.add(
+                    LSTM(units=16,
+                        activation='tanh',
+                        return_sequences=True,
+                        recurrent_dropout=0.5,
+                        name='lstm_layer_1'))
+                lstm.add(Dropout(0.5))
+                lstm.add(
+                    LSTM(units=8,
+                        activation='tanh',
+                        return_sequences=True,
+                        recurrent_dropout=0.5,
+                        name='lstm_layer_2'))
+                lstm.add(Flatten())
+                lstm.add(Dropout(0.5))
+                lstm.add(Dense(units=1,
+                                activation='linear', 
+                                name='output'))
+                lstm.compile(optimizer='adam',
+                            loss='mse',
+                            metrics=[
+                                tf.keras.metrics.RootMeanSquaredError()
+                            ])
+                lstm_history = lstm.fit(x= np.asarray(X_train).astype('float32'),
+                                y=y_train,
+                                batch_size=128,
+                                epochs=100,
+                                validation_data=(np.asarray(X_valid).astype('float32'), 
+                                                y_valid),
+                                verbose=1)
 
                 #Save the model
                 if os.path.exists(f"models/{variable_name}") == False:
                     os.makedirs(f"models/{variable_name}")
-                pickle.dump(lstm, open(f"models/{variable_name}/lstm.pkl", "wb"))
+                pickle.dump(lstm, open(f"models/{variable_name}/lstm_original.pkl", "wb"))
 
 def main():
-    lstm_downscaler = LSTMDownscaler()
+    lstm_downscaler = LSTMDownscalerOriginal()
     lstm_downscaler.fit()
     
 
