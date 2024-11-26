@@ -135,7 +135,7 @@ class XgboostDownscaler():
                 print(best)
 
                 #Save the trials
-                if os.path.exists("models/hyperparameters") == False:
+                if os.path.exists("models/hyperparameters/xgboost") == False:
                     os.makedirs("models/hyperparameters/xgboost")            
                 pickle.dump(trials, open(f"models/hyperparameters/xgboost/{variable_name}.pkl", "wb"))
 
