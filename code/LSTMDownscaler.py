@@ -18,6 +18,7 @@ from tensorflow.keras.layers import Flatten
 from tensorflow.keras.layers import Bidirectional
 from tensorflow.keras.callbacks import EarlyStopping
 from  tensorflow.python.keras.utils.layer_utils import count_params
+from  tensorflow import random
 
 from sklearn import model_selection, preprocessing
 from numpy.random import seed
@@ -152,7 +153,7 @@ class LSTMDownscaler():
 
             lstm.add(
                 LSTM(units=hp.Int(f'units_1', min_value=8, max_value=48, step=8),
-                    activation='relu',
+                    activation='tanh',
                     return_sequences=True,  
                     dropout=hp.Float(f'dropout_rate_1', min_value=0, max_value=0.5, step=0.25),
                     recurrent_dropout=hp.Float(f'recurrent_dropout_rate_1', min_value=0, max_value=0.5, step=0.25),
@@ -161,7 +162,7 @@ class LSTMDownscaler():
 
             lstm.add(
                 LSTM(units=hp.Int(f'units_2', min_value=8, max_value=48, step=8),
-                    activation='relu',
+                    activation='tanh',
                     return_sequences=False, 
                     dropout=hp.Float(f'dropout_rate_2', min_value=0, max_value=0.5, step=0.25),
                     recurrent_dropout=hp.Float(f'recurrent_dropout_rate_2', min_value=0, max_value=0.5, step=0.25),
@@ -196,12 +197,14 @@ class LSTMDownscaler():
         VARIABLES = conf["VARIABLES"]
         SEED = conf["SEED"]        
 
+        random.set_seed(SEED)
+
         # List all the training datataset
         files = os.listdir("data/training")
 
         #For each dataset, train a model
         for f in files:
-            if f.endswith('.csv') and f.startswith('sfcWind'):
+            if f.endswith('.csv') and f.startswith('tas'):
                 variable_name = f.split(".")[0] #Get the variable name from the filename
                 print(f"Training model for \033[92m{variable_name}\033[0m")
             
@@ -234,7 +237,7 @@ class LSTMDownscaler():
                     self.optimize,
                     objective="val_mean_absolute_error",
                     max_epochs=50,
-                    overwrite=True,
+#                    overwrite=True,
                     directory = "models/hyperparameters",
                     project_name = f'lstm/{variable_name}', 
                     seed=SEED

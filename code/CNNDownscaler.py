@@ -23,6 +23,7 @@ from tensorflow.keras.layers import ReLU
 from tensorflow.keras.layers import Flatten
 from tensorflow.python.keras import backend as K
 from tensorflow.keras.callbacks import EarlyStopping
+from  tensorflow import random
 
 from keras_tuner.tuners import Hyperband
 from keras_tuner import Objective
@@ -213,6 +214,8 @@ class CNNDownscaler():
         VARIABLES = conf["VARIABLES"]
         SEED = conf["SEED"]        
 
+        random.set_seed(SEED)
+
         # List all the training datataset
         files = os.listdir("data/training")
 
@@ -250,7 +253,7 @@ class CNNDownscaler():
                     self.optimize,
                     objective="val_mean_absolute_error",
                     max_epochs=50,
-                    overwrite=True,
+#                    overwrite=True,
                     directory = "models/hyperparameters",
                     project_name = f'cnn/{variable_name}', 
                     seed = SEED
@@ -258,18 +261,30 @@ class CNNDownscaler():
 
                 callbacks = [EarlyStopping(patience=5)] #TODO: Check what is this.          
 
-                x_train_subset, _, y_train_subset, _ = model_selection.train_test_split(X_train, y_train, train_size=.20)
+                if VARIABLES[variable_name]["daily"]:
+                    #Use a smaller dataset for the searach of hyperparameters (We keep only 20%)
+                    x_train_subset, _, y_train_subset, _ = model_selection.train_test_split(X_train, y_train, train_size=.20)
+                    
+                    x_train_subset, x_valid_subset, y_train_subset, y_valid_subset = model_selection.train_test_split(
+                                                                                        x_train_subset, y_train_subset, 
+                                                                                        test_size=0.2, 
+                                                                                        shuffle=False)   
 
-                x_train_subset, x_valid_subset, y_train_subset, y_valid_subset = model_selection.train_test_split(
-                                                                                    x_train_subset, y_train_subset, 
-                                                                                    test_size=0.2, 
-                                                                                    shuffle=False)   
-
-                tuner.search(x_train_subset, 
-                             y_train_subset,  
-                             validation_data=(x_valid_subset, y_valid_subset), 
-                             callbacks=[callbacks]
-                             )
+                    tuner.search(x_train_subset, 
+                                y_train_subset,  
+                                validation_data=(x_valid_subset, y_valid_subset), 
+                                callbacks=[callbacks]
+                                )
+                else:
+                    x_train_subset, x_valid_subset, y_train_subset, y_valid_subset = model_selection.train_test_split(
+                                                                    X_train, y_train, 
+                                                                    test_size=0.2, 
+                                                                    shuffle=False)  
+                    tuner.search(x_train_subset, 
+                                y_train_subset,  
+                                validation_data=(x_valid_subset, y_valid_subset), 
+                                callbacks=[callbacks]
+                                )
 
                 best_hps = tuner.get_best_hyperparameters(num_trials=1)[0]
                 cnn = tuner.hypermodel.build(best_hps)
@@ -279,9 +294,6 @@ class CNNDownscaler():
                         validation_data=(X_valid, y_valid),
                         callbacks=[callbacks]  # Pass the callback
                         )
-
-                #remove the directory
-                #shutil.rmtree("models/temporary", ignore_errors=True)
 
                 #Save the model
                 if os.path.exists(f"models/{variable_name}") == False:
