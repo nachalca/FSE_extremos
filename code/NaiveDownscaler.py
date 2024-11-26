@@ -81,7 +81,13 @@ class NaiveDownscaler():
 
         explainer = shap.Explainer(model, data)
         shap_values = explainer.shap_values(data)
-        return shap_values
+
+        shap_importance_df = pd.DataFrame({
+            'Variable': data.columns,
+            'SHAP_Value': np.mean(shap_values, axis=0)
+        })     
+
+        return shap_importance_df
 
 
     """

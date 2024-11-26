@@ -8,6 +8,7 @@ import yaml
 import numpy as np
 import pickle
 import os
+import shap
 
 class XgboostDownscaler():
 
@@ -74,6 +75,26 @@ class XgboostDownscaler():
         score = model_selection.cross_val_score(model, X_train, y_train, cv=5, scoring="neg_mean_squared_error").mean()
         return {'loss': -score, 'status': STATUS_OK, 'model': model}
 
+    def explain(self, data, model):
+        data = pd.read_csv(data)
+
+        data.drop(columns=["target"], inplace=True, errors="ignore")
+        window_size =  24 if "hour" in data.columns else 28 
+        
+        data = self.transform(window_size, data)
+        
+        model = pickle.load(open(model, "rb"))
+        data = data[model.feature_names_in_] # Get the features that the model was trained on and in the SAME ORDER.
+
+        explainer = shap.Explainer(model, data)
+        shap_values = explainer.shap_values(data)
+
+        shap_importance_df = pd.DataFrame({
+            'Variable': data.columns,
+            'SHAP_Value': np.mean(shap_values, axis=0)
+        })     
+
+        return shap_importance_df
     """
         TRAIN ALL XGBOOST MODELS FOR DIFFERENT VARIABLES. THIS FUNCTION WILL SAVE THE MODELS IN THE MODELS FOLDER.
     """
