@@ -179,10 +179,10 @@ class CNNDownscaler():
                 activation='relu'
             ))
             
-     
-            model.add(Dropout(
-                rate=hp.Float('dropout_rate', min_value=0, max_value=0.5, step=0.1)
-            ))
+            if hp.Boolean("dropout"):
+                model.add(Dropout(
+                    rate=hp.Float('dropout_rate', min_value=0.1, max_value=0.5, step=0.1)
+                ))
 
             model.add(Dense(units=1, 
                             activation='linear', 
@@ -253,41 +253,41 @@ class CNNDownscaler():
                     self.optimize,
                     objective="val_mean_absolute_error",
                     max_epochs=50,
-#                    overwrite=True,
+                    overwrite=True,
                     directory = "models/hyperparameters",
                     project_name = f'cnn/{variable_name}', 
                     seed = SEED
                 )
 
-                callbacks = [EarlyStopping(patience=5)] #TODO: Check what is this.          
+                callbacks = [EarlyStopping(patience=5)] 
 
                 if VARIABLES[variable_name]["daily"]:
-                    #Use a smaller dataset for the searach of hyperparameters (We keep only 20%)
-                    x_train_subset, _, y_train_subset, _ = model_selection.train_test_split(X_train, y_train, train_size=.20)
-                    
+                    #For hourly data use a smaller dataset for the search of hyperparameters (We keep only 20%). 
+                    #For simplicity, we use the valid because is the size that we wanted                    
                     x_train_subset, x_valid_subset, y_train_subset, y_valid_subset = model_selection.train_test_split(
-                                                                                        x_train_subset, y_train_subset, 
-                                                                                        test_size=0.2, 
+                                                                                        X_train, y_train, 
+                                                                                        test_size=0.25, 
                                                                                         shuffle=False)   
-
                     tuner.search(x_train_subset, 
-                                y_train_subset,  
-                                validation_data=(x_valid_subset, y_valid_subset), 
-                                callbacks=[callbacks]
+                                 y_train_subset,  
+                                 batch_size=128,  # Fixed batch size
+                                 validation_data=(x_valid_subset, y_valid_subset), 
+                                 callbacks=[callbacks]
                                 )
+
                 else:
-                    x_train_subset, x_valid_subset, y_train_subset, y_valid_subset = model_selection.train_test_split(
-                                                                    X_train, y_train, 
-                                                                    test_size=0.2, 
-                                                                    shuffle=False)  
-                    tuner.search(x_train_subset, 
-                                y_train_subset,  
-                                validation_data=(x_valid_subset, y_valid_subset), 
-                                callbacks=[callbacks]
+                    tuner.search(X_train, 
+                                 y_train,  
+                                 batch_size=128,  # Fixed batch size
+                                 validation_data=(X_valid, y_valid), 
+                                 callbacks=[callbacks]
                                 )
 
                 best_hps = tuner.get_best_hyperparameters(num_trials=1)[0]
                 cnn = tuner.hypermodel.build(best_hps)
+
+                callbacks = [EarlyStopping(patience=10)]       
+
                 cnn.fit(X_train, 
                         y_train, 
                         epochs=100, 
@@ -303,7 +303,7 @@ class CNNDownscaler():
 
 def main():
     cnn_downscaler = CNNDownscaler()
-    cnn_downscaler.fit(testing=False)
+    cnn_downscaler.fit()
 
 if __name__ == "__main__":
     main()
