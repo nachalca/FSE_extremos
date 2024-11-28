@@ -110,6 +110,8 @@ if(params$variable == "pr"){
     inner_join(nv_predictions, by = join_by(time)) |>
     inner_join(lstm_predictions, by = join_by(time))
 }
+
+write_csv(res, paste0("data/model_evaluation_data/",params$variable,".csv"))
 ```
 
 The observations for the validation were taken from `r min(res$time)` to `r max(res$time)`.
