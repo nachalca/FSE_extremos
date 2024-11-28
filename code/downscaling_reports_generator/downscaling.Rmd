@@ -1,7 +1,7 @@
 ---
 title: "`r paste0('Downscaling the variable ', params$variable)`"
 params:
-  variable: "rsds" #Use pr as default
+  variable: "tas" #Use pr as default
 output: html_document
 ---
 
@@ -38,8 +38,8 @@ conf <- yaml.load_file("code/conf.yml")
 
 ```{r load_test_data}
 x <- paste0('data/to_be_downscaled/', params$variable)
-#to_be_downscaled <- list.files(x)
-to_be_downscaled <- c("cesm2-ssp5_8_5.csv")
+to_be_downscaled <- list.files(x)
+#to_be_downscaled <- c("cesm2-ssp5_8_5.csv")
 ```
 
 ```{r load_reanalyis}
@@ -125,7 +125,7 @@ res_validation_wide <- reanalysis |>
 res_prediction_wide <- res_wide |> 
   filter(!(time %in% res_validation_wide$time))
 
-write_csv(res_wide, paste0("data/downscaled_data/",params$variable,".csv"))
+write_csv(res_validation_wide, paste0("data/downscaled_data/",params$variable,".csv"))
 
 res_long <- as.data.frame(res) |> 
   mutate(time =  variable$time) |>
