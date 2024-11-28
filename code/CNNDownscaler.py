@@ -202,7 +202,24 @@ class CNNDownscaler():
                 f"Failed to build model with error: {_e}"
             )
 
+    def explain(self, data, model):
+        data = pd.read_csv(data)
+        data.drop(columns=["target", "time"], inplace=True, errors="ignore")
+        window_size =  24 if "hour" in data.columns else 28
+        data = self.transform(window_size, data_x = data)
+        model = pickle.load(open(model, "rb"))
+
+        explainer = shap.DeepExplainer(model.predict, data)
+        shap_values = explainer.shap_values(data)       
         
+        feature_importance = np.abs(shap_values).mean(axis=0)
+        feature_names = [f"Feature {i}" for i in range(data.shape[1])]
+        importance_df = pd.DataFrame({
+            "Feature": feature_names,
+            "Importance": feature_importance
+        }).sort_values(by="Importance", ascending=False)
+        return importance_df
+
     """
         TRAIN ALL CNN MODELS FOR DIFFERENT VARIABLES. THIS FUNCTION WILL SAVE THE MODELS IN THE MODELS FOLDER.
         Testing: If it is true, then we train with a small dataset. It is used for testing different models.
