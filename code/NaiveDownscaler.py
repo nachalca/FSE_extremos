@@ -82,12 +82,16 @@ class NaiveDownscaler():
         explainer = shap.Explainer(model, data)
         shap_values = explainer.shap_values(data)
 
-        shap_importance_df = pd.DataFrame({
-            'Variable': data.columns,
-            'SHAP_Value': np.mean(shap_values, axis=0)
-        })     
+        feature_importance = np.abs(shap_values).mean(axis=0)
+        feature_names = data.columns 
 
-        return shap_importance_df
+        # Combine into a DataFrame for better readability
+        importance_df = pd.DataFrame({
+            "Feature": feature_names,
+            "Importance": feature_importance
+        }).sort_values(by="Importance", ascending=False)
+
+        return importance_df
 
 
     """
