@@ -3,7 +3,7 @@ title: "`r paste0('Model evaluation for ', params$variable)`"
 header-includes:
    - \usepackage{bbm}
 params:
-  variable: "pr" #Use pr as default
+  variable: "tas" #Use pr as default
 output: html_document
 ---
 
@@ -110,6 +110,8 @@ if(params$variable == "pr"){
     inner_join(nv_predictions, by = join_by(time)) |>
     inner_join(lstm_predictions, by = join_by(time))
 }
+
+write_csv(res, paste0("data/model_evaluation_data/",params$variable,".csv"))
 ```
 
 The observations for the validation were taken from `r min(res$time)` to `r max(res$time)`.
@@ -156,10 +158,10 @@ $$
   * $A_d$: is the amplitude of day d, defined as the difference between the highest and lowest temperatures of that day.
   * $\hat{A}_d$: Estimated amplitude of day d.
   
-### Maximum correlation
+### Maximum difference
 
 $$
-\frac{\sum_{d=1}^D \mathbb{1}_{{mh}_d = \hat{mh}_d}}{D}
+\frac{\sum_{d=1}^D |{mh}_d - \hat{mh}_d}|
 $$
 
 **Where**
@@ -168,9 +170,7 @@ $$
   * $mh_d$ is the actual hour of the day when the peak occurred on day $d$.
   * $\hat{mh}_d$ is the estimated hour of the day when the peak occurred on day $d$.
 
-The function $\mathbb{1}_{mh_d = \hat{mh}_d}$ is an indicator function that equals 1 when the actual peak hour $mh_d$ matches the estimated peak hour $\hat{mh}_d$, and 0 otherwise.
-
-The possible values of this indicator range between 0 (the estimated peak hour never matches the observed one) and 1 (the estimated hour always matches the observed one). Higher values are better.
+Lower values are better.
 
 ### Sign correlation
 
@@ -323,6 +323,7 @@ mean_on_days_with_extremes_plot(res, standarize=T)
 
 ```{r acf}
 models <- res |> select(-c("time")) |> colnames()
+
 r <- lapply(models, function(x) {
   acf(res[[x]], lag.max = 47, plot = F)$acf
 })
@@ -351,7 +352,8 @@ ggplot(results, mapping = aes(x = lag, y = acf)) +
 models <- res |> select(-c("time")) |> colnames()
 
 r <- lapply(models, function(x) {
-  extremogram1(res[[x]], quant = .97, maxlag = 48, type = 1, ploting = 0)
+  extremogram1(res[[x]], 
+               quant = .97, maxlag = 48, type = 1, ploting = 0)
 })
 
 results <- do.call(cbind, r)
