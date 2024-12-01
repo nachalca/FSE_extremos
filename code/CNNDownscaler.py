@@ -23,7 +23,8 @@ from tensorflow.keras.layers import ReLU
 from tensorflow.keras.layers import Flatten
 from tensorflow.python.keras import backend as K
 from tensorflow.keras.callbacks import EarlyStopping
-from  tensorflow import random
+from tensorflow import random
+from tensorflow.keras.models import load_model
 
 from keras_tuner.tuners import Hyperband
 from keras_tuner import Objective
@@ -147,7 +148,8 @@ class CNNDownscaler():
         data.drop(columns=["target", "time"], inplace=True, errors="ignore")
         window_size =  24 if "hour" in data.columns else 28
         data = self.transform(window_size, data_x = data)        
-        model = pickle.load(open(model, "rb"))
+#        model = pickle.load(open(model, "rb"))
+        model = load_model(model)
         explainer = shap.Explainer(model, data)
         shap_values = explainer.shap_values(data)
         return shap_values
@@ -315,12 +317,14 @@ class CNNDownscaler():
                 #Save the model
                 if os.path.exists(f"models/{variable_name}") == False:
                     os.makedirs(f"models/{variable_name}")
-                pickle.dump(cnn, open(f"models/{variable_name}/cnn.pkl", "wb"))
+                
+                cnn.save(f"models/{variable_name}/cnn.h5")
+#                pickle.dump(cnn, open(f"models/{variable_name}/cnn.pkl", "wb"))
         
 
 def main():
     cnn_downscaler = CNNDownscaler()
-    cnn_downscaler.fit()
+    cnn_downscaler.fit(testing=False)
 
 if __name__ == "__main__":
     main()
