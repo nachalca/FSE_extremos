@@ -5,23 +5,8 @@ import os
 import pandas as pd
 import xarray as xr    
 from datetime import datetime, timedelta
-import pvlib
+import yaml
 
-HISTORICAL_YEARS = [str(i) for i in range(2000,2015)]
-PROJECTION_YEARS = [str(i) for i in range(2015,2101)] 
-AREA = [-30, -59, -35, -53] #If we want to do the Salto Grande area we need to set the invervals to  [-26,-60,-36,-48]
-CDS = cdsapi.Client()
-ROOT_FOLDER = os.getcwd()
-EXPERIMENTS = ["ssp2_4_5","ssp4_3_4", "ssp3_7_0", "ssp5_8_5"]
-MODELS = [
-        "ec_earth3", 
-        "ec_earth3_veg_lr", 
-        "cesm2",
-        "cesm2_waccm",
-        "cnrm_cm6_1",
-        "mri_esm2_0", 
-        "ukesm1_0_ll"
-        ]
 VARIABLES = {
     "near_surface_wind_speed": {
         "cmip6_name":"sfcWind",
@@ -62,6 +47,34 @@ VARIABLES = {
         "daily": False,
     },
 }
+
+CDS = cdsapi.Client()
+ROOT_FOLDER = os.getcwd()
+
+HISTORICAL_YEARS = [str(i) for i in range(2000,2015)]
+PROJECTION_YEARS = [] 
+AREA = [] 
+MODELS = []
+EXPERIMENTS = []
+VARIABLES = {}
+SEED = 0
+
+#Load the configuration from the conf.json file
+def load_configuration():
+    global PROJECTION_YEARS, AREA, MODELS, EXPERIMENTS, VARIABLES, SEED
+
+    with open("code/conf.yml", 'r') as file:
+        conf = yaml.safe_load(file)
+    
+    #OVERWRITE THE GLOBAL VARIABLES
+    PROJECTION_YEARS = range(conf["YEARS"]["START"], conf["YEARS"]["END"] + 1)
+    AREA = conf["AREA"]
+    MODELS = conf["MODELS"]   
+    EXPERIMENTS = conf["EXPERIMENTS"]            
+    VARIABLES = conf["VARIABLES"]
+    SEED = conf["SEED"]
+
+    return conf
 
 def unzip_file(file):
     #get folder from file

@@ -1,47 +1,65 @@
 VARIABLES:
   sfcWind:
+    reanalysis_name: ["10m_u_component_of_wind", "10m_v_component_of_wind"] #We need to take the module sqrt(u10^2 + v10^2)
     cmip6_name: near_surface_wind_speed
     daily: true
+    need_to_transform: True
   tas:
+    reanalysis_name: ["2m_temperature"]
     cmip6_name: near_surface_air_temperature
     daily: true
+    need_to_transform: False
   pr:
+    reanalysis_name: ["total_precipitation"]
     cmip6_name: precipitation
     daily: true
+    need_to_transform: True # Multiple by 1000, m to mm
   tasmax:
-    cmip6_name: daily_maximum_near_surface_air_temperature
+    reanalysis_name: ["maximum_2m_temperature_since_previous_post_processing"]
+    cmip6_name: tasmax
     daily: true
+    need_to_transform: False
   tasmin:
-    cmip6_name: daily_minimum_near_surface_air_temperature
+    reanalysis_name: ["minimum_2m_temperature_since_previous_post_processing"] 
+    cmip6_name: daily_minimum_near_surface_air_temperature     
     daily: true
+    need_to_transform: False
   psl:
-    cmip6_name: sea_level_pressure
+    reanalysis_name: ["mean_sea_level_pressure"]  
+    cmip6_name: sea_level_pressure     
     daily: true
+    need_to_transform: False
   clt:
-    cmip6_name: total_cloud_cover_percentage
+    reanalysis_name: ["total_cloud_cover"]  
+    cmip6_name: total_cloud_cover_percentage  
     daily: false
+    need_to_transform: True #We need to multiply by 100
   rsdt:
+    reanalysis_name: ["toa_incident_solar_radiation"]  
     cmip6_name: toa_incident_shortwave_radiation
     daily: false
+    need_to_transform: True # We need to transform Joules to Watts, so we need to divide by the amount of seconds 60*60*24
   rsds:
+    reanalysis_name: ["surface_solar_radiation_downwards"]  
     cmip6_name: surface_downwelling_shortwave_radiation
     daily: false
+    need_to_transform: True # We need to transform Joules to Watts, so we need to divide by the amount of seconds 60*60*24
 
 VARIABLES_TO_BE_DOWNSCALED:
   sfcWind:
-    cmip6_name: near_surface_wind_speed
+    reanalysis_name: near_surface_wind_speed
     daily: true
   tas:
-    cmip6_name: near_surface_air_temperature
+    reanalysis_name: near_surface_air_temperature
     daily: true
   pr:
-    cmip6_name: precipitation
+    reanalysis_name: precipitation
     daily: true
   clt:
-    cmip6_name: total_cloud_cover_percentage
+    reanalysis_name: total_cloud_cover_percentage
     daily: false
   rsds:
-    cmip6_name: surface_downwelling_shortwave_radiation
+    reanalysis_name: surface_downwelling_shortwave_radiation
     daily: false
 
 
@@ -63,3 +81,12 @@ EXPERIMENTS: [
 ]
 
 SEED: 1234
+AREA: []
+
+REANALYSIS_YEARS: 
+  START: 1980
+  END: 2023
+
+PROJECTION_YEARS: 
+  START: 2015
+  END: 2100  

@@ -6,76 +6,32 @@ Also transform the data.
 import cdsapi
 import os
 import pandas as pd
-import xarray as xr    
+import xarray as xr
+import yaml    
 from datetime import datetime, timedelta
-import pvlib
 
-YEARS = range(1980,2024)
-AREA = [-30, -59, -35, -53] #If we want to do the Salto Grande area we need to set the invervals to  [-26,-60,-36,-48]
 CDS = cdsapi.Client()
 ROOT_FOLDER = os.getcwd()
-VARIABLES = {
-  "2m_temperature": {
-       "reanalysis_name": "t2m", 
-       "cmip6_name": "tas",
-       "hourly": True,
-       "need_to_transform": False,
-   },
-    "total_precipitation": {
-        "reanalysis_name": "tp", 
-        "cmip6_name":"pr",
-        "hourly": True,
-        "need_to_transform": True, # Multiple by 1000, m to mm
-    },
-    "10m_u_component_of_wind": {
-        "reanalysis_name": "u10", 
-        "cmip6_name":"uas",
-        "hourly": True,
-        "need_to_transform": True, #We need to take the module sqrt(u10^2 + v10^2)
-    },
-    "10m_v_component_of_wind": {
-        "reanalysis_name": "v10", 
-        "cmip6_name":"vas",
-        "hourly": True,   
-        "need_to_transform": True, #We need to take the module sqrt(u10^2 + v10^2)
-    },
-    "maximum_2m_temperature_since_previous_post_processing": {
-        "reanalysis_name": "mx2t", 
-        "cmip6_name":"tasmax",
-        "hourly": True,
-        "need_to_transform": False, 
-    },
-    "minimum_2m_temperature_since_previous_post_processing": {
-        "reanalysis_name": "mn2t", 
-        "cmip6_name":"tasmin",
-        "hourly": True,
-        "need_to_transform": False, 
-   },
-    "mean_sea_level_pressure": {
-        "reanalysis_name": "msl", 
-        "cmip6_name":"psl",
-        "hourly": True,
-        "need_to_transform": False, 
-    },
-    "total_cloud_cover": {
-        "reanalysis_name": "tcc", 
-        "cmip6_name":"clt",
-        "hourly": True,
-        "need_to_transform": True, #We need to multiply by 100
-    },   
-    "toa_incident_solar_radiation": {
-        "reanalysis_name": "tisr", 
-        "cmip6_name":"rsdt",
-        "hourly": True,
-        "need_to_transform": True, # We need to transform Joules to Watts, so we need to divide by the amount of seconds 60*60*24
-    },
-    "surface_solar_radiation_downwards": {
-        "reanalysis_name": "ssrd", 
-        "cmip6_name":"rsds",
-        "hourly": True,
-        "need_to_transform": True, # We need to transform Joules to Watts, so we need to divide by the amount of seconds 60*60*24
-    },
-}
+
+VARIABLES = {}
+YEARS = []
+AREA = []
+SEED = 0
+
+#Load the configuration from the conf.json file
+def load_configuration():
+    global VARIABLES, YEARS, AREA, SEED
+
+    with open("code/conf.yml", 'r') as file:
+        conf = yaml.safe_load(file)
+    
+    #OVERWRITE THE GLOBAL VARIABLES
+    VARIABLES = conf["VARIABLES"]
+    YEARS = range(conf["REANALYSIS_YEARS"]["START"], conf["YEARS"]["END"] + 1)
+    SEED = conf["SEED"]
+    AREA = conf["AREA"]
+
+    return conf
 
 def download_data(variable):
 
@@ -221,18 +177,22 @@ def final_dataset():
 
 
 def main():
-#    Download the data for each variable
-    for variable in VARIABLES:
-        try:
-            download_data(variable)
-            join_files(variable)
-            summarize_data(variable)
 
-        except Exception as e:
-            print(f"\033[91mError with variable {variable}: {e}\033[0m")
+    load_configuration()
+
+#    Download the data for each variable
+    for cmip_variable in VARIABLES:
+        for variable in VARIABLES[cmip_variable]["reanalysis_name"]:
+            try:
+                download_data(variable)
+    #            join_files(variable)
+    #            summarize_data(variable)
+
+            except Exception as e:
+                print(f"\033[91mError with variable {variable}: {e}\033[0m")
     
-    merge_all_data()
-    final_dataset()
+#    merge_all_data()
+#    final_dataset()
 
 if __name__ == "__main__":
     main()
