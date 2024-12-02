@@ -240,7 +240,7 @@ class CNNDownscaler():
 
         #For each dataset, train a model
         for f in files:
-            if f.endswith('.csv'):
+            if f.endswith('.csv') and f.startswith("pr"):
                 variable_name = f.split(".")[0] #Get the variable name from the filename
                 print(f"Training model for \033[92m{variable_name}\033[0m")
             
@@ -272,7 +272,7 @@ class CNNDownscaler():
                     self.optimize,
                     objective="val_mean_absolute_error",
                     max_epochs=50,
-                    overwrite=True,
+#                    overwrite=True,
                     directory = "models/hyperparameters",
                     project_name = f'cnn/{variable_name}', 
                     seed = SEED
@@ -324,7 +324,7 @@ class CNNDownscaler():
 
 def main():
     cnn_downscaler = CNNDownscaler()
-    cnn_downscaler.fit(testing=False)
+    cnn_downscaler.fit(testing=True)
 
 if __name__ == "__main__":
     main()

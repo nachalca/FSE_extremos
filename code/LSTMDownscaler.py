@@ -230,7 +230,7 @@ class LSTMDownscaler():
                     self.optimize,
                     objective="val_mean_absolute_error",
                     max_epochs=50,
-                    overwrite=True,
+#                    overwrite=True,
                     directory = "models/hyperparameters",
                     project_name = f'lstm/{variable_name}', 
                     seed=SEED
@@ -279,7 +279,7 @@ class LSTMDownscaler():
 
 def main():
     lstm_downscaler = LSTMDownscaler()
-    lstm_downscaler.fit()
+    lstm_downscaler.fit(testing=True)
     
 
 if __name__ == "__main__":
