@@ -18,6 +18,10 @@ getYearMonth <- function(time) {
   strftime(time, format="%Y-%m", tz="GMT")
 }
 
+getMonthDay <- function(time){
+  strftime(time, format="%m-%d", tz="GMT")
+}
+
 flatten_list <- function(lst, parent_key = "") {
   result <- list()
   
@@ -34,4 +38,17 @@ flatten_list <- function(lst, parent_key = "") {
   return(result)
 }
 
-date()
+substract_seasonality <- function(data, variable){
+  
+  variable <- rlang::sym(variable)
+  
+  data <- data |> 
+    mutate(day = getMonthDay(time))
+  
+  data <- data |>
+    group_by(day) |>
+    mutate(m = mean(!!variable), new := !!variable - mean(!!variable)) |>     
+    ungroup() 
+  
+  data  
+}

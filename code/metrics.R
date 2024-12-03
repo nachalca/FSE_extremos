@@ -86,7 +86,7 @@ metrics_paired_hourly <- function(time, truth, estimate, model){
     "ratio_of_sd" =  c(ratio_of_sd(truth, estimate)),
     "KGE" = KGE(obs = truth, pred = estimate),
     "amplitude_mae" = c(amplitude_mae(time, truth, estimate)),
-    "maximum_correlation" = c(maximum_correlation(time, truth, estimate)),
+    "maximum_difference" = c(maximum_difference(time, truth, estimate)),
     "sign_correlation" = c(sign_correlation(truth, estimate)),
     "qqplot_mae" =  c(qqplot_mae(truth, estimate)),
     "acf_mae" = c(acf_mae(truth,estimate)),
@@ -110,7 +110,7 @@ metrics_paired_hourly_rain <- function(time, truth, estimate, model){
     "ratio_of_sd" =  c(ratio_of_sd(truth, estimate)),
     "KGE" = KGE(obs = truth, pred = estimate),
     "amplitude_mae" = c(amplitude_mae(time, truth, estimate)),
-    "maximum_correlation" = c(maximum_correlation(time, truth, estimate)),
+    "maximum_difference" = c(maximum_difference(time, truth, estimate)),
     "sign_correlation" = c(sign_correlation(truth, estimate)),
     "qqplot_mae" =  c(qqplot_mae(truth, estimate)),
     "acf_mae" = c(acf_mae(truth,estimate)),
@@ -174,7 +174,7 @@ mape <- function(truth, estimate){
 
 ks <- function(truth, estimate){
   p <- ks.test(truth, estimate)
-  p$p.value
+  p$statistic
 }
 
 sign_error <- function(time, truth, estimate) {

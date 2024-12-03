@@ -23,7 +23,8 @@ from tensorflow.keras.layers import ReLU
 from tensorflow.keras.layers import Flatten
 from tensorflow.python.keras import backend as K
 from tensorflow.keras.callbacks import EarlyStopping
-from  tensorflow import random
+from tensorflow import random
+from tensorflow.keras.models import load_model
 
 from keras_tuner.tuners import Hyperband
 from keras_tuner import Objective
@@ -147,7 +148,8 @@ class CNNDownscaler():
         data.drop(columns=["target", "time"], inplace=True, errors="ignore")
         window_size =  24 if "hour" in data.columns else 28
         data = self.transform(window_size, data_x = data)        
-        model = pickle.load(open(model, "rb"))
+#        model = pickle.load(open(model, "rb"))
+        model = load_model(model)
         explainer = shap.Explainer(model, data)
         shap_values = explainer.shap_values(data)
         return shap_values
@@ -179,10 +181,10 @@ class CNNDownscaler():
                 activation='relu'
             ))
             
-     
-            model.add(Dropout(
-                rate=hp.Float('dropout_rate', min_value=0, max_value=0.5, step=0.1)
-            ))
+            if hp.Boolean("dropout"):
+                model.add(Dropout(
+                    rate=hp.Float('dropout_rate', min_value=0.1, max_value=0.5, step=0.1)
+                ))
 
             model.add(Dense(units=1, 
                             activation='linear', 
@@ -202,7 +204,24 @@ class CNNDownscaler():
                 f"Failed to build model with error: {_e}"
             )
 
+    def explain(self, data, model):
+        data = pd.read_csv(data)
+        data.drop(columns=["target", "time"], inplace=True, errors="ignore")
+        window_size =  24 if "hour" in data.columns else 28
+        data = self.transform(window_size, data_x = data)
+        model = pickle.load(open(model, "rb"))
+
+        explainer = shap.DeepExplainer(model.predict, data)
+        shap_values = explainer.shap_values(data)       
         
+        feature_importance = np.abs(shap_values).mean(axis=0)
+        feature_names = [f"Feature {i}" for i in range(data.shape[1])]
+        importance_df = pd.DataFrame({
+            "Feature": feature_names,
+            "Importance": feature_importance
+        }).sort_values(by="Importance", ascending=False)
+        return importance_df
+
     """
         TRAIN ALL CNN MODELS FOR DIFFERENT VARIABLES. THIS FUNCTION WILL SAVE THE MODELS IN THE MODELS FOLDER.
         Testing: If it is true, then we train with a small dataset. It is used for testing different models.
@@ -221,7 +240,7 @@ class CNNDownscaler():
 
         #For each dataset, train a model
         for f in files:
-            if f.endswith('.csv'):
+            if f.endswith('.csv') and f.startswith("pr"):
                 variable_name = f.split(".")[0] #Get the variable name from the filename
                 print(f"Training model for \033[92m{variable_name}\033[0m")
             
@@ -259,35 +278,35 @@ class CNNDownscaler():
                     seed = SEED
                 )
 
-                callbacks = [EarlyStopping(patience=5)] #TODO: Check what is this.          
+                callbacks = [EarlyStopping(patience=5)] 
 
                 if VARIABLES[variable_name]["daily"]:
-                    #Use a smaller dataset for the searach of hyperparameters (We keep only 20%)
-                    x_train_subset, _, y_train_subset, _ = model_selection.train_test_split(X_train, y_train, train_size=.20)
-                    
+                    #For hourly data use a smaller dataset for the search of hyperparameters (We keep only 20%). 
+                    #For simplicity, we use the valid because is the size that we wanted                    
                     x_train_subset, x_valid_subset, y_train_subset, y_valid_subset = model_selection.train_test_split(
-                                                                                        x_train_subset, y_train_subset, 
-                                                                                        test_size=0.2, 
+                                                                                        X_train, y_train, 
+                                                                                        test_size=0.25, 
                                                                                         shuffle=False)   
-
                     tuner.search(x_train_subset, 
-                                y_train_subset,  
-                                validation_data=(x_valid_subset, y_valid_subset), 
-                                callbacks=[callbacks]
+                                 y_train_subset,  
+                                 batch_size=128,  # Fixed batch size
+                                 validation_data=(x_valid_subset, y_valid_subset), 
+                                 callbacks=[callbacks]
                                 )
+
                 else:
-                    x_train_subset, x_valid_subset, y_train_subset, y_valid_subset = model_selection.train_test_split(
-                                                                    X_train, y_train, 
-                                                                    test_size=0.2, 
-                                                                    shuffle=False)  
-                    tuner.search(x_train_subset, 
-                                y_train_subset,  
-                                validation_data=(x_valid_subset, y_valid_subset), 
-                                callbacks=[callbacks]
+                    tuner.search(X_train, 
+                                 y_train,  
+                                 batch_size=128,  # Fixed batch size
+                                 validation_data=(X_valid, y_valid), 
+                                 callbacks=[callbacks]
                                 )
 
                 best_hps = tuner.get_best_hyperparameters(num_trials=1)[0]
                 cnn = tuner.hypermodel.build(best_hps)
+
+                callbacks = [EarlyStopping(patience=10)]       
+
                 cnn.fit(X_train, 
                         y_train, 
                         epochs=100, 
@@ -298,12 +317,14 @@ class CNNDownscaler():
                 #Save the model
                 if os.path.exists(f"models/{variable_name}") == False:
                     os.makedirs(f"models/{variable_name}")
-                pickle.dump(cnn, open(f"models/{variable_name}/cnn.pkl", "wb"))
+                
+                cnn.save(f"models/{variable_name}/cnn.h5")
+#                pickle.dump(cnn, open(f"models/{variable_name}/cnn.pkl", "wb"))
         
 
 def main():
     cnn_downscaler = CNNDownscaler()
-    cnn_downscaler.fit(testing=False)
+    cnn_downscaler.fit(testing=True)
 
 if __name__ == "__main__":
     main()

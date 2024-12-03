@@ -151,38 +151,29 @@ class LSTMDownscaler():
             lstm.add(Input(shape=(self.TIMESTEPS, self.N_FEATURES), 
                             name='input'))
 
-            lstm.add(
-                LSTM(units=hp.Int(f'units_1', min_value=8, max_value=32, step=8),
-                    activation='tanh',
-                    return_sequences=True,  
-#                    dropout=hp.Float(f'dropout_rate_1', min_value=0, max_value=0.5, step=0.25),
-                    recurrent_dropout=hp.Float(f'recurrent_dropout_rate_1', min_value=0, max_value=0.5, step=0.25),
-                    name=f'lstm_layer_1')
-            )
-
-            lstm.add(Dropout(rate=hp.Float('dropout_rate_1', min_value=0, max_value=0.5, step=0.125)))
-
-            lstm.add(
-                LSTM(units=hp.Int(f'units_2', min_value=8, max_value=16, step=4),
-                    activation='tanh',
-                    return_sequences=False, 
-#                    dropout=hp.Float(f'dropout_rate_2', min_value=0, max_value=0.5, step=0.25),
-                    recurrent_dropout=hp.Float(f'recurrent_dropout_rate_2', min_value=0, max_value=0.5, step=0.25),
-                    name=f'lstm_layer_2')
-            )
-
-            lstm.add(Dropout(rate=hp.Float('dropout_rate_2', min_value=0, max_value=0.5, step=0.125)))
-
+            for i in range(hp.Int('num_layers', 1, 2)):
+                lstm.add(
+                    LSTM(units=hp.Int(f'units_{i}', min_value=8, max_value=48, step=8),
+                        activation='tanh',
+                        return_sequences=True,
+                        recurrent_dropout=hp.Float('recurrent_dropout_rate', min_value=0.1, max_value=0.5, step=0.1),
+                        name=f'lstm_layer_{i}'))
+                
             lstm.add(Flatten())
 
-            lstm.add(Dense(units=1, activation='linear', name='output'))
+            if hp.Boolean("dropout"):
+                lstm.add(Dropout(
+                    rate=hp.Float('dropout_rate', min_value=0.1, max_value=0.5, step=0.1)
+                ))
 
+            lstm.add(Dense(units=1,
+                            activation='linear', 
+                            name='output'))
             lstm.compile(
-                optimizer='adam',
-                loss='mse',
-                metrics=['mean_absolute_error']
-            )
-
+                            optimizer='adam',
+                            loss='mse',
+                            metrics=['mean_absolute_error']
+                        )
             return lstm
         
         except Exception as _e:
@@ -201,14 +192,12 @@ class LSTMDownscaler():
         VARIABLES = conf["VARIABLES"]
         SEED = conf["SEED"]        
 
-        random.set_seed(SEED)
-
         # List all the training datataset
         files = os.listdir("data/training")
 
         #For each dataset, train a model
         for f in files:
-            if f.endswith('.csv') and f.startswith('clt'):
+            if f.endswith('.csv'):
                 variable_name = f.split(".")[0] #Get the variable name from the filename
                 print(f"Training model for \033[92m{variable_name}\033[0m")
             
@@ -250,30 +239,26 @@ class LSTMDownscaler():
                 callbacks = [EarlyStopping(patience=5)]           
 
                 if VARIABLES[variable_name]["daily"]:
-                    #Use a smaller dataset for the searach of hyperparameters (We keep only 20%)
-                    x_train_subset, _, y_train_subset, _ = model_selection.train_test_split(X_train, y_train, train_size=.20)
-                    
+                    #For hourly data use a smaller dataset for the search of hyperparameters (We keep only 20%). 
+
                     x_train_subset, x_valid_subset, y_train_subset, y_valid_subset = model_selection.train_test_split(
-                                                                                        x_train_subset, y_train_subset, 
-                                                                                        test_size=0.2, 
+                                                                                        X_train, y_train, 
+                                                                                        test_size=0.25, #.8*.25 = .2 
                                                                                         shuffle=False)   
-
                     tuner.search(x_train_subset, 
-                                y_train_subset,  
-                                validation_data=(x_valid_subset, y_valid_subset), 
-                                callbacks=[callbacks]
+                                 y_train_subset,  
+                                 batch_size=128,  # Fixed batch size
+                                 validation_data=(x_valid_subset, y_valid_subset), 
+                                 callbacks=[callbacks]
                                 )
+
                 else:
-                    x_train_subset, x_valid_subset, y_train_subset, y_valid_subset = model_selection.train_test_split(
-                                                                    X_train, y_train, 
-                                                                    test_size=0.2, 
-                                                                    shuffle=False)  
-                    tuner.search(x_train_subset, 
-                                y_train_subset,  
-                                validation_data=(x_valid_subset, y_valid_subset), 
-                                callbacks=[callbacks]
+                    tuner.search(X_train, 
+                                 y_train,  
+                                 batch_size=128,  # Fixed batch size
+                                 validation_data=(X_valid, y_valid), 
+                                 callbacks=[callbacks]
                                 )
-
                             
                 callbacks = [EarlyStopping(patience=10)]           
                 
@@ -281,7 +266,7 @@ class LSTMDownscaler():
                 lstm = tuner.hypermodel.build(best_hps)
                 lstm.fit(X_train, 
                          y_train, 
-                         epochs=100, 
+                         epochs=100 if VARIABLES[variable_name]["daily"] else 200, 
                          batch_size=128,                         
                          validation_data=(X_valid, y_valid),
                          callbacks=[callbacks]
@@ -294,7 +279,7 @@ class LSTMDownscaler():
 
 def main():
     lstm_downscaler = LSTMDownscaler()
-    lstm_downscaler.fit()
+    lstm_downscaler.fit(testing=True)
     
 
 if __name__ == "__main__":
