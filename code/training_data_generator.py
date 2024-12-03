@@ -146,9 +146,15 @@ def generate_dataframe(model, experiment = "", truncate = -1):
             data_test.to_csv(f"data/testing/{variable}.csv", index=False)
 
         else:
-            if not os.path.exists(f"data/to_be_downscaled//{variable}"):
+            if not os.path.exists(f"data/to_be_downscaled/{variable}"):
                 os.makedirs(f"data/to_be_downscaled/{variable}")            
             data_variable.drop(columns=["target"], inplace=True) #We don't have the target for the cmip models
+
+            #Load reanalysis data to get the column order
+            reanalysis = pd.read_csv(f"data/training/{variable}.csv").drop(columns=["target"])
+
+            #Reorder the columns
+            data_variable = data_variable[reanalysis.columns]
 
             #To test the model I will use the first N years (We don't truncate the dailies datasets)
             if(VARIABLES_TO_BE_DOWNSCALED.get(variable).get("daily") and truncate != -1):
@@ -163,13 +169,14 @@ def main():
 
     load_configuration()
 
-    generate_dataframe("reanalysis")
+#    generate_dataframe("reanalysis")
     
     for model in MODELS:
         for experiment in EXPERIMENTS:
             #If the dataset of the model and experiment exists, we generate the dataset to be downscaled
             if os.path.exists(f"data/cmip/projections/{model}/{experiment}/{experiment}.csv"):
                 generate_dataframe(model, experiment, 10)
+    
 
 if __name__ == "__main__":
     main()
