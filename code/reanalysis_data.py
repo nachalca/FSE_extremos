@@ -27,69 +27,73 @@ def load_configuration():
     
     #OVERWRITE THE GLOBAL VARIABLES
     VARIABLES = conf["VARIABLES"]
-    YEARS = range(conf["REANALYSIS_YEARS"]["START"], conf["YEARS"]["END"] + 1)
+    YEARS = list(range(conf["REANALYSIS_YEARS"]["START"], conf["REANALYSIS_YEARS"]["END"] + 1))
     SEED = conf["SEED"]
     AREA = conf["AREA"]
 
     return conf
 
-def download_data(variable):
+def download_data(variable, variable_name):
 
     print(f"Downloading data for variable \033[92m{variable}\033[0m")
 
     os.chdir(ROOT_FOLDER)
-    variable_name = VARIABLES.get(variable).get("reanalysis_name")
+
     #If the directory does not exist, create it
     if not os.path.exists(f"data/reanalysis/reanalysis-{variable_name}"):
+        print(f"Creating directory data/reanalysis/reanalysis-{variable_name}")
         os.makedirs(f"data/reanalysis/reanalysis-{variable_name}")
 
     
     file = f"{ROOT_FOLDER}/data/reanalysis/reanalysis-{variable_name}"    
     os.chdir(file)
 
-    for year in YEARS:
+#    for year in YEARS:
         #If the file already exists, do not download it
-        if not os.path.exists(f"{year}.nc"):
-                CDS.retrieve(
-                    'reanalysis-era5-single-levels',
-                    {
-                        'variable': variable,
-                        'year': year,
-                        'area': AREA,
-                        'format': 'netcdf',
-                        'product_type': 'reanalysis',       
-                        'month': [
-                            '01', '02', '03',
-                            '04', '05', '06',
-                            '07', '08', '09',
-                            '10', '11', '12',
-                        ],
-                        'day': [
-                            '01', '02', '03',
-                            '04', '05', '06',
-                            '07', '08', '09',
-                            '10', '11', '12',
-                            '13', '14', '15',
-                            '16', '17', '18',
-                            '19', '20', '21',
-                            '22', '23', '24',
-                            '25', '26', '27',
-                            '28', '29', '30',
-                            '31',
-                        ],
-                        'time': [
-                            '00:00', '01:00', '02:00',
-                            '03:00', '04:00', '05:00',
-                            '06:00', '07:00', '08:00',
-                            '09:00', '10:00', '11:00',
-                            '12:00', '13:00', '14:00',
-                            '15:00', '16:00', '17:00',
-                            '18:00', '19:00', '20:00',
-                            '21:00', '22:00', '23:00',
-                        ],
-                    },
-                    f"{year}.nc")
-
+    if not os.path.exists(f"{variable_name}.nc"):
+        #Download the data in 10 years batches
+        for i in range(0, len(YEARS), 10):
+            CDS.retrieve(
+                'reanalysis-era5-single-levels',
+                {
+                    'variable': variable,
+                    'year': YEARS[i:min(i+10,len(YEARS))],
+                    'area': AREA,
+                    'format': 'netcdf',
+                    'product_type': ['reanalysis'],  
+                    "download_format": "unarchived",    
+                    'month': [
+                        '01', '02', '03',
+                        '04', '05', '06',
+                        '07', '08', '09',
+                        '10', '11', '12',
+                    ],
+                    'day': [
+                        '01', '02', '03',
+                        '04', '05', '06',
+                        '07', '08', '09',
+                        '10', '11', '12',
+                        '13', '14', '15',
+                        '16', '17', '18',
+                        '19', '20', '21',
+                        '22', '23', '24',
+                        '25', '26', '27',
+                        '28', '29', '30',
+                        '31',
+                    ],
+                    'time': [
+                        '00:00', '01:00', '02:00',
+                        '03:00', '04:00', '05:00',
+                        '06:00', '07:00', '08:00',
+                        '09:00', '10:00', '11:00',
+                        '12:00', '13:00', '14:00',
+                        '15:00', '16:00', '17:00',
+                        '18:00', '19:00', '20:00',
+                        '21:00', '22:00', '23:00',
+                    ]
+                },
+                f"{variable_name}_part{i}.nc")
+            
     os.chdir(ROOT_FOLDER)
 
             
@@ -182,14 +186,14 @@ def main():
 
 #    Download the data for each variable
     for cmip_variable in VARIABLES:
-        for variable in VARIABLES[cmip_variable]["reanalysis_name"]:
+        for reanalysis_name in VARIABLES[cmip_variable]["reanalysis_name"]:
             try:
-                download_data(variable)
-    #            join_files(variable)
-    #            summarize_data(variable)
+                download_data(reanalysis_name[0], reanalysis_name[1])
+                # join_files(variable)
+                # summarize_data(variable)
 
             except Exception as e:
-                print(f"\033[91mError with variable {variable}: {e}\033[0m")
+                print(f"\033[91mError with variable {reanalysis_name[0]}: {e}\033[0m")
     
 #    merge_all_data()
 #    final_dataset()

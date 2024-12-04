@@ -7,47 +7,6 @@ import xarray as xr
 from datetime import datetime, timedelta
 import yaml
 
-VARIABLES = {
-    "near_surface_wind_speed": {
-        "cmip6_name":"sfcWind",
-        "daily": True,
-    },    
-    "near_surface_air_temperature": {
-       "cmip6_name": "tas",
-       "daily": True,
-    },
-    "precipitation": {
-        "cmip6_name":"pr",
-        "daily": True,
-    },
-    "daily_maximum_near_surface_air_temperature": {
-        "dataset_name": "mx2t", 
-        "cmip6_name":"tasmax",
-        "daily": True,
-    },
-    "daily_minimum_near_surface_air_temperature": {
-        "dataset_name": "mn2t", 
-        "cmip6_name":"tasmin",
-        "daily": True,
-   },
-    "sea_level_pressure": {
-        "cmip6_name":"psl",
-        "daily": True,
-    },
-    "total_cloud_cover_percentage": {
-        "cmip6_name":"clt",
-        "daily": False,
-    },   
-    "toa_incident_shortwave_radiation": { 
-        "cmip6_name":"rsdt",
-        "daily": False,
-    },
-    "surface_downwelling_shortwave_radiation": {
-        "cmip6_name":"rsds",
-        "daily": False,
-    },
-}
-
 CDS = cdsapi.Client()
 ROOT_FOLDER = os.getcwd()
 
@@ -101,18 +60,18 @@ def download_data(model, download_historical = False):
     completed_folders = find_folders(f"data/cmip/projections/{model}")
     for experiment in EXPERIMENTS:
         if experiment not in completed_folders:
-            variable_name = ""
+            cmip6_name = ""
             try:
                 for variable in VARIABLES:
                     print(f"Downloading data for model: \033[92m{model}\033[0m experiment: \033[92m{experiment}\033[0m variable: \033[92m{variable}\033[0m")
-                    variable_name = VARIABLES.get(variable).get("cmip6_name")
+                    cmip6_name = VARIABLES.get(variable).get("cmip6_name")
             
                     #If the directory does not exist, create it
                     if not os.path.exists(f"data/cmip/projections/{model}/{experiment}"):
                         os.makedirs(f"data/cmip/projections/{model}/{experiment}")
 
-                    file = f"data/cmip/projections/{model}/{experiment}/{variable_name}.zip"
-                    file_nc = f"data/cmip/projections/{model}/{experiment}/{variable_name}.nc"
+                    file = f"data/cmip/projections/{model}/{experiment}/{variable}.zip"
+                    file_nc = f"data/cmip/projections/{model}/{experiment}/{variable}.nc"
                     #If the file does not exist, download it
                     if not os.path.exists(f"{file_nc}"):
                         if(VARIABLES.get(variable).get("daily")):
@@ -124,7 +83,7 @@ def download_data(model, download_historical = False):
                                         {
                                             'experiment': experiment,
                                             'model': model,
-                                            'variable': variable,
+                                            'variable': cmip6_name,
                                             'year': PROJECTION_YEARS,
                                             'temporal_resolution': 'daily',
                                             'area': AREA,
@@ -167,7 +126,7 @@ def download_data(model, download_historical = False):
                                         {
                                             'experiment': experiment,
                                             'model': model,
-                                            'variable': variable,
+                                            'variable': cmip6_name,
                                             'year': PROJECTION_YEARS,
                                             'temporal_resolution': 'monthly',
                                             'area': AREA,
@@ -210,11 +169,11 @@ def download_data(model, download_historical = False):
 
             #Download historical data
             for variable in VARIABLES:
-                variable_name = VARIABLES.get(variable).get("cmip6_name")
+                cmip6_name = VARIABLES.get(variable).get("cmip6_name")
 
                 
-                file = f"data/cmip/historical/{model}/{variable_name}.zip"
-                file_nc = f"data/cmip/historical/{model}/{variable_name}.nc"
+                file = f"data/cmip/historical/{model}/{cmip6_name}.zip"
+                file_nc = f"data/cmip/historical/{model}/{cmip6_name}.nc"
                 
                 if not os.path.exists(f"{file_nc}"):
                     if(VARIABLES.get(variable).get("daily")):
@@ -315,12 +274,11 @@ def summarize_data(model):
         if experiment in completed_folders:
             print(f"Summarizing data for model: \033[92m{model}\033[0m experiment: \033[92m{experiment}\033[0m")
             for variable in VARIABLES:
-                variable_name = VARIABLES.get(variable).get("cmip6_name")
-                data_nc = xr.open_dataset(f"data/cmip/projections/{model}/{experiment}/{variable_name}.nc")
+                data_nc = xr.open_dataset(f"data/cmip/projections/{model}/{experiment}/{variable}.nc")
     
                 #Assert that the nc file doesn't contain missing values
-                assert data_nc[variable_name].where(data_nc[variable_name] == data_nc[variable_name].encoding['missing_value']).count() == 0 or \
-                        data_nc[variable_name].isnull().sum() == 0, f"Missing values in the nc file {variable_name}.nc"
+                assert data_nc[variable].where(data_nc[variable] == data_nc[variable].encoding['missing_value']).count() == 0 or \
+                        data_nc[variable].isnull().sum() == 0, f"Missing values in the nc file {variable}.nc"
                 
                 dataset = pd.DataFrame()
                 try:
@@ -342,19 +300,19 @@ def summarize_data(model):
                 
                 if VARIABLES.get(variable).get("daily"):
                     assert days_between == len(dataset) or days_between_without_leap_years == len(dataset), \
-                        f"Time for {variable_name} has the wrong size: {len(dataset)}, when it should be {days_between} or {days_between_without_leap_years}"
+                        f"Time for {variable} has the wrong size: {len(dataset)}, when it should be {days_between} or {days_between_without_leap_years}"
                 else:
                     assert months_between == len(dataset),\
-                        f"Time for {variable_name} has the wrong size: {len(months_between)}, when it should be {months_between}"
+                        f"Time for {variable} has the wrong size: {len(months_between)}, when it should be {months_between}"
 
-                if(variable_name == "tasmax"):
-                    dataset[variable_name] = data_nc[variable_name].max(dim=["lat","lon"])
-                elif(variable_name == "tasmin"):
-                    dataset[variable_name] = data_nc[variable_name].min(dim=["lat","lon"])
+                if(variable == "tasmax"):
+                    dataset[variable] = data_nc[variable].max(dim=["lat","lon"])
+                elif(variable == "tasmin"):
+                    dataset[variable] = data_nc[variable].min(dim=["lat","lon"])
                 else:
-                    dataset[variable_name] = data_nc[variable_name].mean(dim=["lat","lon"]) 
+                    dataset[variable] = data_nc[variable].mean(dim=["lat","lon"]) 
 
-                dataset.to_csv(f"data/cmip/projections/{model}/{experiment}/{variable_name}.csv", index=False)   
+                dataset.to_csv(f"data/cmip/projections/{model}/{experiment}/{variable}.csv", index=False)   
 
 #A function to expand the variables to a hourly scale using the csv file obtained in summarize_data
 def expand_data(model):
@@ -363,8 +321,7 @@ def expand_data(model):
         if experiment in completed_folders:
             print(f"Expanding data for model: \033[92m{model}\033[0m experiment: \033[92m{experiment}\033[0m")
             for variable in VARIABLES:
-                variable_name = VARIABLES.get(variable).get("cmip6_name")        
-                data = pd.read_csv(f"data/cmip/projections/{model}/{experiment}/{variable_name}.csv")
+                data = pd.read_csv(f"data/cmip/projections/{model}/{experiment}/{variable}.csv")
 
                 data['time'] = pd.to_datetime(data['time'])
                 data = data.set_index('time')
@@ -384,7 +341,7 @@ def expand_data(model):
                     data = data[data.index < last_day]                   
 
                     assert days_between == len(data) or days_between_without_leap_years == len(data), \
-                        f"Time for {variable_name} has the wrong size: {len(data)}, when it should be {days_between} or {days_between_without_leap_years}"
+                        f"Time for {variable} has the wrong size: {len(data)}, when it should be {days_between} or {days_between_without_leap_years}"
                 
                 ##All the data needs to be expanded to a hourly scale
                 
@@ -400,7 +357,7 @@ def expand_data(model):
                 #Assert that time has the correct size
                 assert days_between * 24 == len(data), f"Time has the wrong size: {len(data)}, when it should be {days_between * 24}"
                 
-                data.to_csv(f"data/cmip/projections/{model}/{experiment}/{variable_name}.csv")
+                data.to_csv(f"data/cmip/projections/{model}/{experiment}/{variable}.csv")
 
 # A function to merge all the dataframes
 def merge_all_data(model):
@@ -410,11 +367,10 @@ def merge_all_data(model):
             print(f"Merging data for model: \033[92m{model}\033[0m experiment: \033[92m{experiment}\033[0m")
             data = pd.DataFrame()
             for variable in VARIABLES:
-                variable_name = VARIABLES.get(variable).get("cmip6_name")
                 if data.empty:
-                    data = pd.read_csv(f"data/cmip/projections/{model}/{experiment}/{variable_name}.csv")
+                    data = pd.read_csv(f"data/cmip/projections/{model}/{experiment}/{variable}.csv")
                 else:
-                    data = data.merge(pd.read_csv(f"data/cmip/projections/{model}/{experiment}/{variable_name}.csv"), how='inner', on='time')
+                    data = data.merge(pd.read_csv(f"data/cmip/projections/{model}/{experiment}/{variable}.csv"), how='inner', on='time')
 
             data["pr"] = data["pr"]*3600
             data.to_csv(f"data/cmip/projections/{model}/{experiment}/{experiment}.csv", index=False)
@@ -422,9 +378,9 @@ def merge_all_data(model):
 
 def main():
     for model in MODELS:
-#        download_data(model, download_historical = False)
-        summarize_data(model)
-        expand_data(model)
-        merge_all_data(model)
+        download_data(model, download_historical = False)
+        # summarize_data(model)
+        # expand_data(model)
+        # merge_all_data(model)
 if __name__ == "__main__":
     main()
