@@ -52,7 +52,8 @@ xgboost_downscaler <- xgb$XgboostDownscaler()
 
 xgboost_predictions <- xgboost_downscaler$predict(
                            model = paste0(here(), "/models/", params$variable, "/xgboost.pkl"), 
-                           data = paste0(here(), "/data/testing/", params$variable, ".csv")
+                           data = paste0(here(), "/data/testing/", params$variable, ".csv"),
+                           variable = params$variable
                        )
 
 ```
@@ -63,7 +64,8 @@ if(params$variable == "pr"){
   xgb_custom_downscaler <- xgb_custom$XgboostCustomDownscaler()
   xgb_custom_predictions <- xgb_custom_downscaler$predict(
                                 model = paste0(here(), "/models/", params$variable, "/xgboost_custom.pkl"), 
-                                data = paste0(here(), "/data/testing/", params$variable, ".csv")
+                                data = paste0(here(), "/data/testing/", params$variable, ".csv"),
+                                variable = params$variable
                             )
 }
 ```
@@ -74,7 +76,8 @@ cnn <- import_from_path("CNNDownscaler", path = paste0(here(), "/code"))
 cnn_downscaler <- cnn$CNNDownscaler()
 
 cnn_predictions <- cnn_downscaler$predict(model = paste0(here(), "/models/", params$variable, "/cnn.pkl"), 
-                           data = paste0(here(), "/data/testing/", params$variable, ".csv"))
+                           data = paste0(here(), "/data/testing/", params$variable, ".csv"),
+                           variable = params$variable)
 ```
 
 ```{r naive_predictions, results=F, warning=F, message=F}
@@ -83,7 +86,8 @@ nv <- import_from_path("NaiveDownscaler", path = paste0(here(), "/code"))
 nv_downscaler <- nv$NaiveDownscaler()
 
 nv_predictions <- nv_downscaler$predict(model = paste0(here(), "/models/", params$variable, "/naive.pkl"), 
-                           data = paste0(here(), "/data/testing/", params$variable, ".csv"))
+                           data = paste0(here(), "/data/testing/", params$variable, ".csv"),
+                           variable = params$variable)
 ```
 
 ```{r lstm_predictions, results=F, warning=F, message=F}
@@ -92,7 +96,8 @@ lstm <- import_from_path("LSTMDownscaler", path = paste0(here(), "/code"))
 lstm_downscaler <- lstm$LSTMDownscaler()
 
 lstm_predictions <- lstm_downscaler$predict(model = paste0(here(), "/models/", params$variable, "/lstm.pkl"), 
-                           data = paste0(here(), "/data/testing/", params$variable, ".csv"))
+                           data = paste0(here(), "/data/testing/", params$variable, ".csv"),
+                           variable = params$variable)
 ```
 
 ```{r res_dataframe, results=F}
@@ -161,7 +166,7 @@ $$
 ### Maximum difference
 
 $$
-\frac{\sum_{d=1}^D |{mh}_d - \hat{mh}_d}|
+\frac{\sum_{d=1}^D |{mh}_d - \hat{mh}_d|}{D}
 $$
 
 **Where**
@@ -188,6 +193,22 @@ $$
 The function $\mathbb{1}{sg(X{n+1} - X_{n}) = sg(\hat{X}{n+1} - \hat{X}{n})}$ is an indicator function that equals 1 when the direction of change in the actual series matches the direction of change in the estimated series (i.e., if the actual series increases, the estimated series also increases, or if the actual series decreases, the estimated series also decreases), and equals 0 otherwise.
 
 The possible values of this indicator range between 0 (meaning that whenever the actual series increases, the estimated series decreases, or vice versa) and 1 (meaning that the estimated series always follows the same direction as the actual series). Higher values are preferable.
+
+### Extreme correlation
+
+$$
+\sum_{d | d \in D*} \frac{\mathbb{1}_{E_d=\hat{E}_d}}{|D*|}
+$$
+
+**Where**
+
+  * $D*$ Days that have an extreme value.
+  * $E_d$ A binary indicator for whether day d has an extreme value (1 if it does, 0 otherwise) in the observed data.
+  * $\hat{E}_d$ A binary indicator for whether day d is predicted to have an extreme value (1 if it does, 0 otherwise) based on the model.
+
+The function $\mathbb{1}_{E_d=\hat{E}_d}}$ is an indicator function that equals 1 when both of the days have and extreme value and 0 when one has an extreme value but the other don't.
+
+The possible values of this indicator range between 0 (the days with extremes in the actual serie and the estimated serie never match) and 1 (the days with extremes always match). Higher values are preferable.
 ```
 
 ## Time series of the first days

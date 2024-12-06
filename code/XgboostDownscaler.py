@@ -45,7 +45,7 @@ class XgboostDownscaler():
 
         return data
     
-    def predict(self, data, model):
+    def predict(self, data, model, variable=None):
         data = pd.read_csv(data)
 
         # Delete the target column if it exists (We don't have it in CMIP)
@@ -63,6 +63,7 @@ class XgboostDownscaler():
 
         predictions = model.predict(data) # Predict
         data["xgboost"] = predictions
+        data["xgboost"] = data["xgboost"].clip(lower=0, upper=100 if variable == "clt" else None)
         
         data.reset_index(inplace=True)
         

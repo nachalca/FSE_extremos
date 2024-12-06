@@ -45,7 +45,7 @@ class NaiveDownscaler():
         return data
 
     #Analagous to XgboostDownscaler too.    
-    def predict(self, data, model):
+    def predict(self, data, model, variable=None):
         data = pd.read_csv(data)
 
         data.drop(columns=["target"], inplace=True, errors="ignore")
@@ -57,10 +57,12 @@ class NaiveDownscaler():
         print(f"Predicting with model {model}")
         model = pickle.load(open(model, "rb"))
         data = data[model.feature_names_in_] # Get the features that the model was trained on and in the SAME ORDER.
-   
+
         predictions = model.predict(data)
    
         data["naive"] = predictions
+        data["naive"] = data["naive"].clip(lower=0, upper=100 if variable == "clt" else None)
+
         data.reset_index(inplace=True)
 
         return data[["time", "naive"]]

@@ -89,6 +89,7 @@ metrics_paired_hourly <- function(time, truth, estimate, model){
     "maximum_difference" = c(maximum_difference(time, truth, estimate)),
     "sign_correlation" = c(sign_correlation(truth, estimate)),
     "qqplot_mae" =  c(qqplot_mae(truth, estimate)),
+    "extreme_correlation" = c(extreme_correlation(time, truth, estimate)),
     "acf_mae" = c(acf_mae(truth,estimate)),
     "extremogram_mae" = c(extremogram_mae(truth,estimate))
   )
@@ -113,6 +114,7 @@ metrics_paired_hourly_rain <- function(time, truth, estimate, model){
     "maximum_difference" = c(maximum_difference(time, truth, estimate)),
     "sign_correlation" = c(sign_correlation(truth, estimate)),
     "qqplot_mae" =  c(qqplot_mae(truth, estimate)),
+    "extreme_correlation" = c(extreme_correlation(time, truth, estimate)),
     "acf_mae" = c(acf_mae(truth,estimate)),
     "extremogram_mae" = c(extremogram_mae(truth,estimate)),
     "amount_rainy_hours_mae" = amount_rainy_hours_mae(time, truth, estimate)
@@ -468,20 +470,28 @@ amount_rainy_hours_mae <- function(time, truth, estimate, threshold = 0.1){
 }
 
 #Extremes accuracy
-extreme_accuracy <- function(time, truth, estimate, quant = 0.97){
+extreme_correlation <- function(time, truth, estimate, quant = 0.97){
   truth_threshold <- quantile(truth, quant)
   estimate_threshold <- quantile(estimate, quant)
   
   data <- data.frame(
-    time = time,
+    date = getDate(time),
     truth = truth,
     estimate = estimate
   ) |> 
     mutate(truth_is_extreme= if_else(truth >= truth_threshold, 1, 0),
-           estimate_is_extreme = if_else(estimate >= estimate_threshold, 1,0))
+           estimate_is_extreme = if_else(estimate >= estimate_threshold, 1,0)) |>
+    group_by(date) |>
+    summarize(
+      max_truth = max(truth_is_extreme),
+      max_estimate = max(estimate_is_extreme)
+    ) |>
+    filter(max_truth == 1 | max_estimate == 1) |>
+    mutate(coincidence = if_else(max_truth == max_estimate, 1, 0)) |>
+    summarize(sum(coincidence)/n())
   
-  precision(data, truth_is_extreme, estimate_is_extreme)
-  recall(data, truth_is_extreme, estimate_is_extreme)
+  data[[1]]
+  
 }
 
 #Extreme value plot
@@ -529,4 +539,10 @@ mean_on_days_with_extremes_plot <- function(data, quant = .97, standarize = F){
   ggplot(df, aes(x=undownscaled_value, color = model)) +
     geom_density(bw = "nrd") +
     labs(x = "Undownscaled Value")
+}
+
+mean_on_days_with_extremes_ks <- function(time, truth, estimate, quant = .97, standarize = F) {
+  t1 <- mean_on_days_with_extremes(time, truth, quant = .97, standarize = F)
+  t2 <- mean_on_days_with_extremes(time, estimate, quant = .97, standarize = F)
+  unlist(ks.test(t1, t2)$statistic)
 }

@@ -4,7 +4,7 @@ from XgboostDownscaler import XgboostDownscaler
 
 cnn = CNNDownscaler()
 parent = "/home/tancre/dev/UTE/FSE_extremos"
-p = cnn.explain(data = f"{parent}/data/testing/clt.csv", model = f"{parent}/models/clt/cnn.pkl")
+p = cnn.predict(data = f"{parent}/data/testing/clt.csv", model = f"{parent}/models/clt/cnn.pkl", variable = "clt")
 
 # nv = NaiveDownscaler()
 # parent = "/home/tancre/dev/UTE/FSE_extremos"
