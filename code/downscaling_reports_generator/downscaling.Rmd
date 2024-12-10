@@ -1,7 +1,7 @@
 ---
 title: "`r paste0('Downscaling the variable ', params$variable)`"
 params:
-  variable: "tas" #Use pr as default
+  variable: "clt" #Use pr as default
 output: html_document
 ---
 
@@ -158,6 +158,9 @@ results <- results |>
   arrange(by = abs(diff_of_means)) |>
   mutate(diff_of_means = sprintf("%.2f%%", diff_of_means)) |>
   mutate(across(where(is.numeric), round, digits = 3)) 
+
+write.csv(results, paste0("reports/ds_acp/",params$variable,".csv"), row.names = TRUE)
+
 
 kable(results)
 ```
