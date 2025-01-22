@@ -80,7 +80,7 @@ EXPERIMENTS: [
   "ssp5_8_5"
 ]
 
-AREA: [-26, -58, -31, -49]
+AREA: [-30, -59, -35, -53]
 
 REANALYSIS_YEARS: 
   START: 1980

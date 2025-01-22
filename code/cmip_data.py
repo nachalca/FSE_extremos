@@ -26,7 +26,8 @@ def load_configuration():
         conf = yaml.safe_load(file)
     
     #OVERWRITE THE GLOBAL VARIABLES
-    PROJECTION_YEARS = range(conf["YEARS"]["START"], conf["YEARS"]["END"] + 1)
+    PROJECTION_YEARS = [str(num) for num in range(conf["PROJECTION_YEARS"]["START"], conf["PROJECTION_YEARS"]["END"] + 1)]
+
     AREA = conf["AREA"]
     MODELS = conf["MODELS"]   
     EXPERIMENTS = conf["EXPERIMENTS"]            
@@ -55,6 +56,10 @@ def find_folders(path):
     return folders
 
 def download_data(model, download_historical = False):
+
+    #If the directory does not exist, create it
+    if not os.path.exists(f"data/cmip/projections/{model}"):
+        os.makedirs(f"data/cmip/projections/{model}")    
 
     #Download projections data
     completed_folders = find_folders(f"data/cmip/projections/{model}")
@@ -115,7 +120,7 @@ def download_data(model, download_historical = False):
                                     if "matching"  or "are not in the list" in str(e):
                                         raise ""
                                     else:
-                                        raise e
+                                        KEEP_TRYING = True
                                     
                         else:
                             KEEP_TRYING = True
@@ -377,10 +382,11 @@ def merge_all_data(model):
 
 
 def main():
+    load_configuration()    
     for model in MODELS:
         download_data(model, download_historical = False)
-        # summarize_data(model)
-        # expand_data(model)
-        # merge_all_data(model)
+        summarize_data(model)
+        expand_data(model)
+        merge_all_data(model)
 if __name__ == "__main__":
     main()
