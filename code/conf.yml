@@ -46,21 +46,9 @@ VARIABLES:
     need_to_transform: True # We need to transform Joules to Watts, so we need to divide by the amount of seconds 60*60*24
 
 VARIABLES_TO_BE_DOWNSCALED:
-  sfcWind:
-    reanalysis_name: near_surface_wind_speed
-    daily: true
-  tas:
-    reanalysis_name: near_surface_air_temperature
-    daily: true
   pr:
     reanalysis_name: precipitation
     daily: true
-  clt:
-    reanalysis_name: total_cloud_cover_percentage
-    daily: false
-  rsds:
-    reanalysis_name: surface_downwelling_shortwave_radiation
-    daily: false
 
 
 MODELS: [
