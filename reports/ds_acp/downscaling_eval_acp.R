@@ -4,10 +4,10 @@
 
 library(FactoMineR)
 
-d_tas <- read.table("~/Documents/tas_metrics.txt", header = TRUE, row.names = 1)
+d_tas <- read.table("reports/ds_acp/tas_metrics.txt", header = TRUE, row.names = 1)
 rownames(d_tas) <- paste0("tas_", rownames(d_tas))
 
-d_pr <- read.table("~/Documents/pr_metrics.txt", header = TRUE, row.names = 1)
+d_pr <- read.table("reports/ds_acp/pr_metrics.txt", header = TRUE, row.names = 1)
 rownames(d_pr) <- paste0("pr_", rownames(d_pr))
 
 #d_clt <- read.table("~/Documents/clt_metrics.txt", header = TRUE, row.names = 1)
@@ -16,7 +16,7 @@ rownames(d_pr) <- paste0("pr_", rownames(d_pr))
 #d_rsds <- read.table("~/Documents/rsds_metrics.txt", header = TRUE, row.names = 1)
 #rownames(d_rsds) <- paste0("rsds_", rownames(d_rsds))
 
-d_sfcWind <- read.table("~/Documents/sfcWind_metrics.txt", header = TRUE, row.names = 1)
+d_sfcWind <- read.table("reports/ds_acp/sfcWind_metrics.txt", header = TRUE, row.names = 1)
 rownames(d_sfcWind) <- paste0("sfcWind_", rownames(d_sfcWind))
 
 
@@ -39,8 +39,13 @@ d$predictor <- strsplit(rownames(d), "\\.") |>
   lapply('[', 2) |> 
   unlist()
 
-PCA(d, quali.sup = 8:11)
+#PCA(d, quali.sup = 8:11)
+#install.packages('Factoshiny')
 
-#library(Factoshiny)
-#PCAshiny(d)
+library(Factoshiny)
+PCAshiny(d)
+
+
+
+
 
