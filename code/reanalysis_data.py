@@ -133,6 +133,9 @@ def wind_transform():
     # Compute the Euclidean norm
     norm = np.sqrt(u**2 + v**2)
 
+    norm.attrs = u.attrs.copy()  # Copy from u, or v depending on what metadata is more relevant
+    norm.encoding = u.encoding.copy()  # Copy all encoding properties
+
     # Create a new dataset to store the norm
     norm_ds = xr.Dataset({'u10': norm})
 
@@ -144,36 +147,35 @@ def summarize_data(variable):
     print(f"Summarizing the spatial data into a single point for variable \033[92m{variable}\033[0m")
     os.chdir(ROOT_FOLDER)
     variable_name = VARIABLES[variable]["reanalysis_name"][0][1]
-   # variable_cmip6_name = VARIABLES.get(variable).get("cmip6_name")
-    
+
     os.chdir(f"{ROOT_FOLDER}/data/reanalysis/reanalysis-{variable_name}")
-    data_nc = xr.open_dataset(f"{variable_name}.nc")
-    
-    #Assert that the nc file doesn't contain missing values
-    assert data_nc[variable_name].where(data_nc[variable_name] == data_nc[variable_name].encoding['missing_value']).count() == 0 or \
-            data_nc[variable_name].isnull().sum() == 0, f"Missing values in the nc file {variable_name}.nc"
-    
-    reanalysis = pd.DataFrame()
-    reanalysis['time'] = pd.to_datetime(data_nc.time)
-    
-    #Assert that time has the correct size
-    days_between = (datetime(YEARS[-1] + 1,1,1) - datetime(YEARS[0], 1, 1)).days
-    if VARIABLES.get(variable).get("hourly"):
+    if not os.path.exists(f"{variable_name}.csv"):
+
+        data_nc = xr.open_dataset(f"{variable_name}.nc")
+        
+        #Assert that the nc file doesn't contain missing values
+        assert data_nc[variable_name].where(data_nc[variable_name] == data_nc[variable_name].encoding['missing_value']).count() == 0 or \
+                data_nc[variable_name].isnull().sum() == 0, f"Missing values in the nc file {variable_name}.nc"
+        
+        reanalysis = pd.DataFrame()
+        reanalysis['valid_time'] = pd.to_datetime(data_nc.valid_time)
+        
+        #Assert that time has the correct size
+        days_between = (datetime(YEARS[-1] + 1,1,1) - datetime(YEARS[0], 1, 1)).days
+
         assert days_between * 24 == len(reanalysis), \
             f"Time has the wrong size: {len(reanalysis)}, when it should be {days_between * 24}"
-    else:
-        assert days_between == len(reanalysis),\
-            f"Time has the wrong size: {len(reanalysis)}, when it should be {days_between}"
-    
-    if(variable_name == "mx2t"):
-        reanalysis[variable] = data_nc[variable_name].max(dim=["latitude","longitude"])
-    elif(variable_name == "mn2t"):
-        reanalysis[variable] = data_nc[variable_name].min(dim=["latitude","longitude"])
-    else:
-        reanalysis[variable] = data_nc[variable_name].mean(dim=["latitude","longitude"]) 
-    
-    reanalysis.to_csv(f"{variable_name}.csv", index=False)
-#    os.remove(f"{variable_name}.nc") #drop the nc file to realese space
+        
+        if(variable_name == "mx2t"):
+            reanalysis[variable] = data_nc[variable_name].max(dim=["latitude","longitude"])
+        elif(variable_name == "mn2t"):
+            reanalysis[variable] = data_nc[variable_name].min(dim=["latitude","longitude"])
+        else:
+            reanalysis[variable] = data_nc[variable_name].mean(dim=["latitude","longitude"]) 
+        
+        reanalysis.to_csv(f"{variable_name}.csv", index=False)
+    #    os.remove(f"{variable_name}.nc") #drop the nc file to realese space
+
     os.chdir(ROOT_FOLDER)
 
 
@@ -182,12 +184,15 @@ def merge_all_data():
     print(f"\033[92mMerging all the dataframes\033[0m")
     data = pd.DataFrame()
     for variable in VARIABLES:
-        variable_name = VARIABLES.get(variable).get("reanalysis_name")
+        variable_name = VARIABLES[variable]["reanalysis_name"][0][1]
         if data.empty:
             data = pd.read_csv(f"data/reanalysis/reanalysis-{variable_name}/{variable_name}.csv")
         else:
-            data = data.merge(pd.read_csv(f"data/reanalysis/reanalysis-{variable_name}/{variable_name}.csv"), how='inner', on='time')
+            data = data.merge(pd.read_csv(f"data/reanalysis/reanalysis-{variable_name}/{variable_name}.csv"), how='inner', on='valid_time')
 
+    #Rename valid_time column to time
+    data.rename(columns={"valid_time": "time"}, inplace=True)
+    
     data.to_csv("data/reanalysis/reanalysis.csv", index=False)
 
 
@@ -198,9 +203,6 @@ def final_dataset():
     data = pd.read_csv(f"data/reanalysis/reanalysis.csv")
     #total_precipitation column needs to be transformed to kg m-2 h-1 (Cmip6 pr is in kg m-2 s-1 but it's to small)
     data['pr'] = data['pr'] * 1000
-    #We need to take the module of the wind
-    data['sfcWind'] = data['uas']
-    data = data.drop(columns=['uas', 'vas'])
     #We need to transform the cloud cover to percentage
     data['clt'] = data['clt']*100
     #We need to transform the toa_incident_solar_radiation to W m-2
@@ -216,7 +218,7 @@ def main():
     load_configuration()
 
 #    Download the data for each variable
-    for cmip_variable in VARIABLES:
+#    for cmip_variable in VARIABLES:
     #    for reanalysis_name in VARIABLES[cmip_variable]["reanalysis_name"]:
         #     try:
         #         download_data(reanalysis_name[0], reanalysis_name[1])
@@ -228,13 +230,13 @@ def main():
         # if(cmip_variable == "sfcWind"):
         #     wind_transform()
 
-        try:
-            summarize_data(cmip_variable)
-        except Exception as e:
-            print(f"\033[91mError with variable {cmip_variable[0]}: {e}\033[0m")
+        # try:
+        #     summarize_data(cmip_variable)
+        # except Exception as e:
+        #     print(f"\033[91mError with variable {cmip_variable}: {e}\033[0m")
 
     merge_all_data()
-#    final_dataset()
+    final_dataset()
 
 if __name__ == "__main__":
     main()
