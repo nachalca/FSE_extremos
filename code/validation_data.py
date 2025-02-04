@@ -24,7 +24,6 @@ VARIABLES = {
         "daily": False,
     },   
     "rsdt": { 
-        "cmip6_name":"rsdt",
         "daily": False,
     },
     "rsds": {
@@ -97,7 +96,7 @@ def generate_validation_dataset(variable):
         completed_folders = find_folders(f"data/cmip/projections/{model}")
         for experiment in EXPERIMENTS:
             if experiment in completed_folders:
-                print("experiment", experiment)
+                print("model", model, "experiment", experiment)
                 model_data = pd.read_csv(f"data/cmip/projections/{model}/{experiment}/{experiment}.csv")
                 model_data = model_data[model_data["time"] < "2024-01-01"]
                 model_data = model_data[["time", variable]]

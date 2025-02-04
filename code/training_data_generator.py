@@ -169,7 +169,7 @@ def main():
 
     load_configuration()
 
-#    generate_dataframe("reanalysis")
+    generate_dataframe("reanalysis")
     
     for model in MODELS:
         for experiment in EXPERIMENTS:
