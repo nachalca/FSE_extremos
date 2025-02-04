@@ -118,6 +118,30 @@ def join_files(variable_name):
         os.system(f"rm m_*.nc")
         os.chdir(ROOT_FOLDER)
 
+#Check if the generated nc file is correct
+def validate_nc(variable_name):
+    print(f"Validating the data for variable \033[92m{variable_name}\033[0m")
+    os.chdir(f"{ROOT_FOLDER}/data/reanalysis/reanalysis-{variable_name}")
+    data_nc = xr.open_dataset(f"{variable_name}.nc")
+    #Get first year
+    y = YEARS[0]
+    for i in range(0, len(YEARS), 10):
+        data_nc_part = xr.open_dataset(f"{variable_name}_part{i//10 + 1}.nc")
+        #Select specific days
+        data2 = data_nc[variable_name].sel(valid_time=f"{y+i}-01-01T10:00:00")
+        data1 = data_nc_part[variable_name].sel(valid_time=f"{y+i}-01-01T10:00:00")
+        # Check if they are equal
+        are_equal = np.allclose(data1.values, data2.values, atol=1e-6)
+
+        if are_equal:
+            print("The files are equal at the specified time.")
+        else:
+            print("The files are NOT equal at the specified time.")
+            diff = data1 - data2
+            print(diff)            
+
+    os.chdir(ROOT_FOLDER)
+
 def wind_transform():
 
     print("Transforming the wind data")
@@ -225,15 +249,16 @@ def main():
         #     except Exception as e:
         #         print(f"\033[91mError with variable {reanalysis_name[0]}: {e}\033[0m")
 
+        validate_nc(VARIABLES[cmip_variable]["reanalysis_name"][0][1])
         # if(cmip_variable == "sfcWind"):
         #     wind_transform()
 
-        try:
-            summarize_data(cmip_variable)
-        except Exception as e:
-            print(f"\033[91mError with variable {cmip_variable[0]}: {e}\033[0m")
+        # try:
+        #     summarize_data(cmip_variable)
+        # except Exception as e:
+        #     print(f"\033[91mError with variable {cmip_variable[0]}: {e}\033[0m")
 
-    merge_all_data()
+#    merge_all_data()
 #    final_dataset()
 
 if __name__ == "__main__":
