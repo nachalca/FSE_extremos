@@ -337,7 +337,7 @@ do.call(grid.arrange, c(plots, ncol = 2))  # Arrange in a grid
 The purpose of this plot is to illustrate the distribution of P(undownscaled value | we predicted an extreme). This is useful because it reveals how much information we can recover concerning extreme events. If the distribution is skewed to the right, it suggests that we're predicting extreme values only when extreme values have already occurred. Conversely, if the lower tail of the distribution resembles the reanalysis data, it indicates that we can capture short-duration extremes (e.g., brief periods of heavy rainfall, such as an intense downpour lasting an hour before stopping).
 
 ```{r extremes}
-mean_on_days_with_extremes_plot(res, standarize=T)
+mean_on_coarse_res_with_extremes_plot(res, daily = conf[["VARIABLES"]][[params$variable]][["daily"]], standarize=T)
 ```
 
 ## Autocorrelogram

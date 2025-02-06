@@ -22,7 +22,31 @@ metrics_unpaired_hourly <- function(time, truth, estimate, model){
     "ratio_of_sd" = c(ratio_of_sd(truth, estimate)),
     "amplitude_ratio_of_means" = c(amplitude_ratio_of_means(time, truth, estimate)),
     "maximum_error" = c(maximum_error(time, truth, estimate)),
-    "sign_error" = c(sign_error(time, truth, estimate)),
+    "ks_mean_on_coarse_res_with_extremes" = c(mean_on_coarse_res_with_extremes_ks(time, truth, estimate,daily=T)),
+    "qqplot_mae" = c(qqplot_mae(truth, estimate)),
+    "acf_mae" = c(acf_mae(truth,estimate)),
+    "extremogram_mae" = c(extremogram_mae(truth,estimate)),
+    "rainy_hours_ratio_of_means" = c(rainy_hours_ratio_of_means(time, truth, estimate)) 
+  )
+  rownames(df) <- c(model)
+  df
+}
+
+#' Computes metrics for unpaired models on a hourly scale. Adds new metrics for rain. Used to assess shared statistical properties 
+#' 
+#' @param time A vector representing the time points of the data. 
+#' @param truth A vector containing the true (or reference) values. Typically, this would be a reanalysis dataset. 
+#' @param estimate A vector representing the simulated values, typically derived from CMIP or downscaled CMIP data. #' 
+#'
+#' @returns A dataframe containing the calculated metrics.
+metrics_unpaired_hourly_rain <- function(time, truth, estimate, model){
+  df <- data.frame(
+    "diff_of_means" = c(diff_of_means_per(truth, estimate)),
+    "ratio_of_sd" = c(ratio_of_sd(truth, estimate)),
+    "amplitude_ratio_of_means" = c(amplitude_ratio_of_means(time, truth, estimate)),
+    "maximum_error" = c(maximum_error(time, truth, estimate)),
+    "ks_mean_on_coarse_res_with_extremes" = c(mean_on_coarse_res_with_extremes_ks(time, truth, estimate,daily=T)),
+    "amount_rainy_hours_ratio_of_means" = c(amount_rainy_hours_mae(time, truth, estimate)),
     "qqplot_mae" = c(qqplot_mae(truth, estimate)),
     "acf_mae" = c(acf_mae(truth,estimate)),
     "extremogram_mae" = c(extremogram_mae(truth,estimate))    
@@ -43,7 +67,7 @@ metrics_unpaired_daily <- function(time, truth, estimate, model){
     "diff_of_means" = c(diff_of_means_per(truth, estimate)),
     "ratio_of_sd" = c(ratio_of_sd(truth, estimate)),
     "monthly_amplitude_ratio_of_means" = c(monthly_amplitude_ratio_of_means(time, truth, estimate)),
-    "sign_correlation" = c(sign_correlation(truth, estimate)),
+    "ks_mean_on_coarse_res_with_extremes" = c(mean_on_coarse_res_with_extremes_ks(time, truth, estimate,daily=F)),
     "qqplot_mae" = c(qqplot_mae(truth, estimate)),
     "acf_mae" = c(acf_mae(truth,estimate)),
     "extremogram_mae" = c(extremogram_mae(truth,estimate))  
@@ -64,7 +88,6 @@ metrics_unpaired_monthly <- function(time, truth, estimate, model){
     "diff_of_means" = c(diff_of_means_per(truth, estimate)),
     "ratio_of_sd" = c(ratio_of_sd(truth, estimate)),
     "yearly_amplitude_ratio_of_means" = c(yearly_amplitude_ratio_of_means(time, truth, estimate)),
-    "sign_correlation" = c(sign_correlation(truth, estimate)),
     "qqplot_mae" = c(qqplot_mae(truth, estimate))
   )
   rownames(df) <- c(model)
@@ -88,8 +111,8 @@ metrics_paired_hourly <- function(time, truth, estimate, model){
     "amplitude_mae" = c(amplitude_mae(time, truth, estimate)),
     "maximum_difference" = c(maximum_difference(time, truth, estimate)),
     "sign_correlation" = c(sign_correlation(truth, estimate)),
+    "extreme_correlation" = c(extreme_correlation(time, truth, estimate, daily=T)),
     "qqplot_mae" =  c(qqplot_mae(truth, estimate)),
-    "extreme_correlation" = c(extreme_correlation(time, truth, estimate)),
     "acf_mae" = c(acf_mae(truth,estimate)),
     "extremogram_mae" = c(extremogram_mae(truth,estimate))
   )
@@ -113,8 +136,8 @@ metrics_paired_hourly_rain <- function(time, truth, estimate, model){
     "amplitude_mae" = c(amplitude_mae(time, truth, estimate)),
     "maximum_difference" = c(maximum_difference(time, truth, estimate)),
     "sign_correlation" = c(sign_correlation(truth, estimate)),
+    "extreme_correlation" = c(extreme_correlation(time, truth, estimate, daily=T)),
     "qqplot_mae" =  c(qqplot_mae(truth, estimate)),
-    "extreme_correlation" = c(extreme_correlation(time, truth, estimate)),
     "acf_mae" = c(acf_mae(truth,estimate)),
     "extremogram_mae" = c(extremogram_mae(truth,estimate)),
     "amount_rainy_hours_mae" = amount_rainy_hours_mae(time, truth, estimate)
@@ -136,9 +159,9 @@ metrics_paired_daily <- function(time, truth, estimate, model){
     "cor" = c(correlation(truth, estimate)),
     "ratio_of_sd" =  c(ratio_of_sd(truth, estimate)),
     "KGE" = KGE(obs = truth, pred = estimate),
-#    "amplitude_mae" = c(amplitude_mae(time, truth, estimate)),
-#    "maximum_correlation" = c(maximum_correlation(time, truth, estimate)),
+    "amplitude_mae_monthly" = c(amplitude_mae_monthly(time, truth, estimate)),
     "sign_correlation" = c(sign_correlation(truth, estimate)),
+    "extreme_correlation" = c(extreme_correlation(time, truth, estimate, daily=F)),
     "qqplot_mae" =  c(qqplot_mae(truth, estimate)),
     "acf_mae" = c(acf_mae(truth,estimate)),
     "extremogram_mae" = c(extremogram_mae(truth,estimate))
@@ -209,6 +232,16 @@ amplitude_mae <- function(time, truth, estimate){
   df <- data.frame("time" = time, "truth" = truth, "estimate" = estimate)
   r <- df |> mutate(date = getDate(time)) |> 
     group_by(date) |>
+    summarize(truth_amplitude = max(truth) - min(truth), estimate_amplitude = max(estimate) - min(estimate)) |>
+    ungroup() 
+  
+  mae(r$truth_amplitude, r$estimate_amplitude)
+}
+
+amplitude_mae_monthly <- function(time, truth, estimate){
+  df <- data.frame("time" = time, "truth" = truth, "estimate" = estimate)
+  r <- df |> mutate(yearMonth = getYearMonth(time)) |> 
+    group_by(yearMonth) |>
     summarize(truth_amplitude = max(truth) - min(truth), estimate_amplitude = max(estimate) - min(estimate)) |>
     ungroup() 
   
@@ -469,13 +502,34 @@ amount_rainy_hours_mae <- function(time, truth, estimate, threshold = 0.1){
   mae(data_2$t,data_2$e)
 }
 
+rainy_hours_ratio_of_means <- function(time, truth, estimate, threshold = 0.1){
+  data <- data.frame(
+    time = time,
+    truth = truth,
+    estimate = estimate
+  ) |> 
+    mutate(date = getDate(time),
+           truth_it_rain = if_else(truth >= threshold, 1, 0),
+           estimate_it_rain = if_else(estimate >= threshold, 1, 0))
+  
+  data_2 <- data |> 
+    group_by(date) |>
+    summarize(t = sum(truth_it_rain),
+              e = sum(estimate_it_rain)) |>
+    ungroup()
+  
+  
+  mean(data_2$t)/mean(data_2$e)  
+  
+}
+
 #Extremes accuracy
-extreme_correlation <- function(time, truth, estimate, quant = 0.97){
+extreme_correlation <- function(time, truth, daily, estimate, quant = 0.97){
   truth_threshold <- quantile(truth, quant)
   estimate_threshold <- quantile(estimate, quant)
   
   data <- data.frame(
-    date = getDate(time),
+    date = getCoarseResolution(time, daily),
     truth = truth,
     estimate = estimate
   ) |> 
@@ -495,34 +549,37 @@ extreme_correlation <- function(time, truth, estimate, quant = 0.97){
 }
 
 #Extreme value plot
-mean_on_days_with_extremes <- function(time, value, quant, standarize){
+mean_on_coarse_res_with_extremes <- function(time, value, daily, quant, standarize){
+  # Look for the value associated with the quant
   threshold <- quantile(value, probs = quant, names = F)
   
+  #Generate new indicator column, that is one if the day have an extreme (i.e. value is greather than the threshold)
   df <- data.frame(
     time = time,
     value = value,
     is_extreme = if_else(value >= threshold, 1, 0),
-    date = getDate(time)
+    date = getCoarseResolution(time, daily)
   ) 
   
   if(standarize) {
     df$value <- scale(df$value)
   }
   
+  # Filter days with extreme values
   days_with_extremes <- df |>
     filter(is_extreme == 1)
   
+  # Calculate the mean of these days, using all the values not only the extremes.
   mean_of_these_days <- df |>
     filter(date %in% days_with_extremes$date) |>
     group_by(date) |>
-    summarize(undownscaled_value = mean(value)) |>
+    summarize(daily_mean = mean(value)) |>
     ungroup()
   
-  
-  mean_of_these_days$undownscaled_value
+  mean_of_these_days$daily_mean
 }
 
-mean_on_days_with_extremes_plot <- function(data, quant = .97, standarize = F){
+mean_on_coarse_res_with_extremes_plot <- function(data, daily, quant = .97, standarize = F){
   models <- data |> 
     select(-c("time")) |> 
     colnames()
@@ -530,19 +587,26 @@ mean_on_days_with_extremes_plot <- function(data, quant = .97, standarize = F){
   p <- lapply(models, function(x) {
     data.frame(
       model = x,
-      undownscaled_value = mean_on_days_with_extremes(time = data$time, value = data[[x]], quant, standarize)
+      daily_mean = mean_on_coarse_res_with_extremes(time = data$time, value = data[[x]], daily = daily, quant, standarize)
     )
   })
   
   df <- do.call(rbind, p)
-  
-  ggplot(df, aes(x=undownscaled_value, color = model)) +
+
+  if(daily){
+    plot_text <- "Daily mean"
+  }
+  else {
+     plot_text <- "Monthly mean"
+  }
+
+  ggplot(df, aes(x=daily_mean, color = model)) +
     geom_density(bw = "nrd") +
-    labs(x = "Undownscaled Value")
+    labs(x = plot_text)
 }
 
-mean_on_days_with_extremes_ks <- function(time, truth, estimate, quant = .97, standarize = F) {
-  t1 <- mean_on_days_with_extremes(time, truth, quant = .97, standarize = F)
-  t2 <- mean_on_days_with_extremes(time, estimate, quant = .97, standarize = F)
-  unlist(ks.test(t1, t2)$statistic)
+mean_on_coarse_res_with_extremes_ks <- function(time, truth, estimate, daily, quant = .97, standarize = F) {
+  t1 <- mean_on_coarse_res_with_extremes(time, truth, daily, quant = .97, standarize = F)
+  t2 <- mean_on_coarse_res_with_extremes(time, estimate, daily, quant = .97, standarize = F)
+  unlist(ks.test(t1, t2, alternative='two.sided')$statistic)
 }

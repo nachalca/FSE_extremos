@@ -22,6 +22,14 @@ getMonthDay <- function(time){
   strftime(time, format="%m-%d", tz="GMT")
 }
 
+getCoarseResolution <- function(time, daily){
+  if(daily){
+    getDate(time)
+  }else{
+    getYearMonth(time)
+  }
+}
+
 flatten_list <- function(lst, parent_key = "") {
   result <- list()
   

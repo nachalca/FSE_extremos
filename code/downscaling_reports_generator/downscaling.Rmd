@@ -1,7 +1,7 @@
 ---
 title: "`r paste0('Downscaling the variable ', params$variable)`"
 params:
-  variable: "clt" #Use pr as default
+  variable: "pr" #Use pr as default
 output: html_document
 ---
 
@@ -146,9 +146,21 @@ models <- res_validation_wide |> select(-c("time", "reanalysis", starts_with('un
 
 r <- lapply(models, function(x) {
     if (conf[["VARIABLES"]][[params$variable]][["daily"]]) {
-      metrics_unpaired_hourly(time = res_validation_wide$time, truth = res_validation_wide$reanalysis, estimate = res_validation_wide[[x]], model = x)
+      if(params$variable == 'pr'){
+        metrics_unpaired_hourly(time = res_validation_wide$time, 
+                                truth = res_validation_wide$reanalysis, 
+                                estimate = res_validation_wide[[x]], 
+                                model = x)
+      }else{
+        metrics_unpaired_hourly_rain(time = res_validation_wide$time, 
+                                     truth = res_validation_wide$reanalysis, 
+                                     estimate = res_validation_wide[[x]], 
+                                     model = x)        
+      }
     } else {
-      metrics_unpaired_daily(time = res_validation_wide$time, truth = res_validation_wide$reanalysis, estimate = res_validation_wide[[x]], model = x)
+      metrics_unpaired_daily(time = res_validation_wide$time, 
+                             truth = res_validation_wide$reanalysis, 
+                             estimate = res_validation_wide[[x]], model = x)
     }
 })
 
@@ -313,7 +325,7 @@ extremes <- function(data, exp) {
     select(-c(experiment,undownscaled)) |>
     distinct() 
  
-  mean_on_days_with_extremes_plot(res_to_plot, standarize = TRUE) +
+  mean_on_coarse_res_with_extremes_plot(res_to_plot, daily = conf[["VARIABLES"]][[params$variable]][["daily"]], standarize = TRUE) +
     ggtitle(paste(exp))
 }
 
