@@ -1,7 +1,7 @@
 ---
 title: "`r paste0('Downscaling the variable ', params$variable)`"
 params:
-  variable: "pr" #Use pr as default
+  variable: "clt" #Use pr as default
 output: html_document
 ---
 

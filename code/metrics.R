@@ -197,11 +197,6 @@ mape <- function(truth, estimate){
   (sum(abs((truth - estimate)/truth))/length(truth))*100
 }
 
-ks <- function(truth, estimate){
-  p <- ks.test(truth, estimate)
-  p$statistic
-}
-
 sign_error <- function(time, truth, estimate) {
   n <- n_distinct(getDate(time))
   df <- data.frame("time" = time, "truth" = truth, "estimate" = estimate)
@@ -550,6 +545,11 @@ extreme_correlation <- function(time, truth, daily, estimate, quant = 0.97){
 
 #Extreme value plot
 mean_on_coarse_res_with_extremes <- function(time, value, daily, quant, standarize){
+  
+  if(standarize) {
+    value <- scale(value)
+  }
+  
   # Look for the value associated with the quant
   threshold <- quantile(value, probs = quant, names = F)
   
@@ -560,10 +560,6 @@ mean_on_coarse_res_with_extremes <- function(time, value, daily, quant, standari
     is_extreme = if_else(value >= threshold, 1, 0),
     date = getCoarseResolution(time, daily)
   ) 
-  
-  if(standarize) {
-    df$value <- scale(df$value)
-  }
   
   # Filter days with extreme values
   days_with_extremes <- df |>
@@ -579,7 +575,7 @@ mean_on_coarse_res_with_extremes <- function(time, value, daily, quant, standari
   mean_of_these_days$daily_mean
 }
 
-mean_on_coarse_res_with_extremes_plot <- function(data, daily, quant = .97, standarize = F){
+mean_on_coarse_res_with_extremes_plot <- function(data, daily, quant = .97, standarize = T){
   models <- data |> 
     select(-c("time")) |> 
     colnames()
@@ -605,8 +601,8 @@ mean_on_coarse_res_with_extremes_plot <- function(data, daily, quant = .97, stan
     labs(x = plot_text)
 }
 
-mean_on_coarse_res_with_extremes_ks <- function(time, truth, estimate, daily, quant = .97, standarize = F) {
-  t1 <- mean_on_coarse_res_with_extremes(time, truth, daily, quant = .97, standarize = F)
-  t2 <- mean_on_coarse_res_with_extremes(time, estimate, daily, quant = .97, standarize = F)
+mean_on_coarse_res_with_extremes_ks <- function(time, truth, estimate, daily, quant = .97, standarize = T) {
+  t1 <- mean_on_coarse_res_with_extremes(time, truth, daily, quant = quant, standarize = standarize)
+  t2 <- mean_on_coarse_res_with_extremes(time, estimate, daily, quant = quant, standarize = standarize)
   unlist(ks.test(t1, t2, alternative='two.sided')$statistic)
 }
