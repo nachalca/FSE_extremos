@@ -278,7 +278,7 @@ class LSTMDownscaler():
 
 def main():
     lstm_downscaler = LSTMDownscaler()
-    lstm_downscaler.fit(testing=True)
+    lstm_downscaler.fit()
     
 
 if __name__ == "__main__":

@@ -325,7 +325,7 @@ class CNNDownscaler():
 
 def main():
     cnn_downscaler = CNNDownscaler()
-    cnn_downscaler.fit(testing=True)
+    cnn_downscaler.fit()
 
 if __name__ == "__main__":
     main()
