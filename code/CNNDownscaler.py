@@ -129,7 +129,7 @@ class CNNDownscaler():
         else:
             return X_train_scaled, y_train
         
-    def predict(self, data, model):
+    def predict(self, data, model, variable=None):
         data = pd.read_csv(data)
         res = data.copy() # To keep the time
         data.drop(columns=["target", "time"], inplace=True, errors="ignore")
@@ -141,6 +141,7 @@ class CNNDownscaler():
         predictions = model.predict(data)
         res = res.iloc[window_size:len(res) - window_size] # Match the sizes
         res["cnn"] = predictions
+        res["cnn"] = res["cnn"].clip(lower=0, upper=100 if variable == "clt" else None)
         return res[["time", "cnn"]]
 
     def explain(self, data, model):

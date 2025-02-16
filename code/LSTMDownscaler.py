@@ -124,7 +124,7 @@ class LSTMDownscaler():
         else:
             return X_train_scaled, y_train
         
-    def predict(self, data, model):
+    def predict(self, data, model, variable=None):
         data = pd.read_csv(data)
         res = data.copy() # To keep the time
         data.drop(columns=["target", "time"], inplace=True, errors="ignore")
@@ -135,12 +135,11 @@ class LSTMDownscaler():
         model = pickle.load(open(model, "rb"))
         predictions = model.predict(data)
 
-        print(res.iloc[window_size][["time"]])
-
-        print(res.iloc[len(res) - window_size]["time"])
-
         res = res.iloc[window_size:len(res) - window_size] # Match the sizes
         res["lstm"] = predictions
+        #Clip predictions
+        res["lstm"] = res["lstm"].clip(lower=0, upper=100 if variable == "clt" else None)
+
         return res[["time", "lstm"]]
 
     def optimize(self, hp):
