@@ -1,5 +1,9 @@
 library(tidyverse)
 library(here)
+library("extremogram")
+source('code/metrics.R')
+source('code/utils.R')
+
 
 # install.packages('openair')
 library(openair) # taylor diagram
@@ -55,10 +59,9 @@ p1$data |>
 
 #-----------------
 # Resultados de "model_evaluation"
-
+#-----------------
 ff <- list.files('data/model_evaluation_data/', full.names = TRUE)
 dds <- lapply(ff, read.csv)
-
 vars <- gsub('.csv', '', basename(ff) )
 names(dds) <- vars
 
@@ -67,7 +70,7 @@ dt <- bind_rows(dds, .id='respuesta') |>
                names_to = 'model')
   
 pls <- vector(mode='list', length=length(vars))
-  
+
 for (i in 1:length(vars)) {
   m <- vars[i]
   pls[[i]] <- TaylorDiagram(mydata = filter(dt, respuesta==m),
@@ -104,6 +107,58 @@ pl$data |>
 
 
 pps <- (0:99+.5)/100
+
+res |> 
+  pivot_longer(cols = -c(1:2), values_to = 'value', 
+               names_to = 'model') |> 
+  group_by(model) |> 
+  reframe(qq.obs  = quantile(reanalysis, probs = pps),
+          qq.pred = quantile(value, probs = pps, na.rm = TRUE),
+          per = pps) |> 
+  ggplot() + 
+  geom_line(aes(qq.obs, qq.pred, color=model) ) + 
+  geom_abline(slope = 1, linetype='dashed') + 
+  #facet_wrap(~respuesta, scale='free') + 
+  scale_color_brewer(palette = 'Dark2') + 
+  theme_bw()
+
+res |> 
+  pivot_longer(cols = -c(1:2), values_to = 'value', 
+               names_to = 'model') |> 
+  group_by(model) |> 
+  reframe(qq.obs  = quantile(reanalysis, probs = pps),
+          qq.pred = quantile(value, probs = pps, na.rm = TRUE),
+          per = pps) |> 
+  ggplot() + 
+  geom_line(aes( y=qq.pred-qq.obs, x=per, color=model)) + 
+  geom_hline(yintercept = 0, linetype='dashed') + 
+  scale_color_brewer(palette = 'Dark2') + 
+  theme_bw()
+
+
+
+
+
+
+
+
+
+
+
+#########################################################
+res <- dds[[5]]
+
+models <- res |> select(-c("time", "reanalysis")) |> colnames()
+
+r <- lapply(models, function(x) {
+  metrics_paired_hourly(time = res$time, truth = res$reanalysis, estimate = res[[x]], model = x)
+})    
+
+results <- do.call(rbind, r) |> 
+  mutate(across(where(is.numeric), round, digits = 3)) 
+
+
+pps <- (0:99+.5)/100
 res_qq <- dt |> 
   group_by(model, respuesta) |> 
   reframe(qq.obs  = quantile(reanalysis, probs = pps),
@@ -123,6 +178,11 @@ ggplot(res_qq) +
   facet_wrap(~respuesta, scales = 'free_y') + 
   scale_color_brewer(palette = 'Dark2') + 
   theme_bw()
+
+
+#########################################################
+
+
 
 
 #-----------------
