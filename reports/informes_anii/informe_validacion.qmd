@@ -7,21 +7,19 @@ number-sections: true
 
 # Introducción
 
-- describir problema y estructura informe
-- foco principal: validación series de cmip6 (?) 
-- referencias de comparacion cmip6 para regiones
-- algunas trabajos de uruguay
+-   describir problema y estructura informe
+-   foco principal: validación series de cmip6 (?)
+-   referencias de comparacion cmip6 para regiones
+-   algunas trabajos de uruguay
 
 # Datos
 
-- que datos fueron descargados, de que manera
+-   que datos fueron descargados, de que manera
 
 # Validación
 
-- métodos para comparar las serires
-- taylor
-- comparaciónes de otras métricas
+-   métodos para comparar las serires
+-   taylor
+-   comparaciónes de otras métricas
 
 # Comentarios finales
-
-
