@@ -1,7 +1,7 @@
 ---
 title: "`r paste0('Downscaling the variable ', params$variable)`"
 params:
-  variable: "clt" #Use pr as default
+  variable: "pr" #Use pr as default
 output: html_document
 ---
 
@@ -23,8 +23,8 @@ library(ggplot2)
 library(tidyverse)
 library(knitr)
 library(gridExtra)
-Sys.setenv(RETICULATE_PYTHON = "/home/tancre/bin/miniconda3/bin/python")
 library(reticulate)
+use_python("/home/bruno/.miniconda3/envs/FSE_extremos/bin", required = TRUE)
 library(yaml)
 library(forcats)
 library(patchwork)
@@ -110,7 +110,7 @@ for(f in to_be_downscaled){
   res[[paste0("cnn.", lab, '-', scenario)]]  <- cnn_predictions[["cnn"]]
   res[[paste0("nv.", lab, '-', scenario)]] <- nv_predictions[["naive"]]
   res[[paste0("lstm.", lab, '-', scenario)]] <- lstm_predictions[["lstm"]]
-  #rm(variable)
+#  rm(variable)
 }
 
 ```
@@ -138,7 +138,7 @@ res_validation_long <- reanalysis |>
 res_prediction_long <- res_long |> 
   filter(!(time %in% res_validation_long$time))
 
-rm(res_df, res, res_wide, res_long)
+rm(res_df, res, res_wide, res_long, variable, res_prediction_wide, res_prediction_long)
 ```
 
 ```{r metrics}
@@ -147,15 +147,15 @@ models <- res_validation_wide |> select(-c("time", "reanalysis", starts_with('un
 r <- lapply(models, function(x) {
     if (conf[["VARIABLES"]][[params$variable]][["daily"]]) {
       if(params$variable == 'pr'){
-        metrics_unpaired_hourly(time = res_validation_wide$time, 
+        metrics_unpaired_hourly_rain(time = res_validation_wide$time, 
                                 truth = res_validation_wide$reanalysis, 
                                 estimate = res_validation_wide[[x]], 
                                 model = x)
       }else{
-        metrics_unpaired_hourly_rain(time = res_validation_wide$time, 
-                                     truth = res_validation_wide$reanalysis, 
-                                     estimate = res_validation_wide[[x]], 
-                                     model = x)        
+        metrics_unpaired_hourly(time = res_validation_wide$time, 
+                                truth = res_validation_wide$reanalysis, 
+                                estimate = res_validation_wide[[x]], 
+                                model = x)        
       }
     } else {
       metrics_unpaired_daily(time = res_validation_wide$time, 
