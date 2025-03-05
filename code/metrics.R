@@ -25,8 +25,7 @@ metrics_unpaired_hourly <- function(time, truth, estimate, model){
     "ks_mean_on_coarse_res_with_extremes" = c(mean_on_coarse_res_with_extremes_ks(time, truth, estimate,daily=T)),
     "qqplot_mae" = c(qqplot_mae(truth, estimate)),
     "acf_mae" = c(acf_mae(truth,estimate)),
-    "extremogram_mae" = c(extremogram_mae(truth,estimate)),
-    "rainy_hours_ratio_of_means" = c(rainy_hours_ratio_of_means(time, truth, estimate)) 
+    "extremogram_mae" = c(extremogram_mae(truth,estimate))
   )
   rownames(df) <- c(model)
   df
@@ -46,7 +45,7 @@ metrics_unpaired_hourly_rain <- function(time, truth, estimate, model){
     "amplitude_ratio_of_means" = c(amplitude_ratio_of_means(time, truth, estimate)),
     "maximum_error" = c(maximum_error(time, truth, estimate)),
     "ks_mean_on_coarse_res_with_extremes" = c(mean_on_coarse_res_with_extremes_ks(time, truth, estimate,daily=T)),
-    "amount_rainy_hours_ratio_of_means" = c(amount_rainy_hours_mae(time, truth, estimate)),
+    "rainy_hours_ratio_of_means" = c(rainy_hours_ratio_of_means(time, truth, estimate)),
     "qqplot_mae" = c(qqplot_mae(truth, estimate)),
     "acf_mae" = c(acf_mae(truth,estimate)),
     "extremogram_mae" = c(extremogram_mae(truth,estimate))    
@@ -137,10 +136,10 @@ metrics_paired_hourly_rain <- function(time, truth, estimate, model){
     "maximum_difference" = c(maximum_difference(time, truth, estimate)),
     "sign_correlation" = c(sign_correlation(truth, estimate)),
     "extreme_correlation" = c(extreme_correlation(time, truth, estimate, daily=T)),
+    "amount_rainy_hours_mae" = amount_rainy_hours_mae(time, truth, estimate),
     "qqplot_mae" =  c(qqplot_mae(truth, estimate)),
     "acf_mae" = c(acf_mae(truth,estimate)),
-    "extremogram_mae" = c(extremogram_mae(truth,estimate)),
-    "amount_rainy_hours_mae" = amount_rainy_hours_mae(time, truth, estimate)
+    "extremogram_mae" = c(extremogram_mae(truth,estimate))
   )
   rownames(df) <- c(model)
   df
