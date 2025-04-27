@@ -3,7 +3,7 @@ title: "`r paste0('Model evaluation for ', params$variable)`"
 header-includes:
    - \usepackage{bbm}
 params:
-  variable: "tas" #Use pr as default
+  variable: "sfcWind" #Use pr as default
 output: html_document
 ---
 
@@ -239,6 +239,14 @@ plots <- lapply(models, function(col) series_plot(res_to_plot, col))
 
 # Arrange the plots using gridExtra
 do.call(grid.arrange, c(plots, ncol = 1))
+```
+
+`r  if (conf[["VARIABLES"]][[params$variable]][["daily"]]) {"### Hourly distribution\n"}`
+
+```{r, fig.height=9, fig.width=8}
+if (conf[["VARIABLES"]][[params$variable]][["daily"]]){
+  hourly_distribution(res)
+}
 ```
 
 `r  if (conf[["VARIABLES"]][[params$variable]][["daily"]]) {"## How Often Peaks Hit Hourly\n"} else {"## Distribution of daily values by month\n"}`
