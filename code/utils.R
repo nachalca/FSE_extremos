@@ -14,6 +14,17 @@ getYear <- function(time) {
   strtoi(strftime(time, format="%Y", tz="GMT"), base=10)
 }
 
+getSeason <- function(time){
+  month <- getMonth(time)
+  season <- cut(
+    month,
+    breaks = c(0, 2, 5, 8, 11, 12),
+    labels = c("SUMMER", "AUTUMN", "WINTER", "SPRING", "SUMMER"),
+    right = TRUE
+  )
+  season
+}
+
 getYearMonth <- function(time) {
   strftime(time, format="%Y-%m", tz="GMT")
 }

@@ -221,6 +221,41 @@ sign_correlation <- function(truth, estimate) {
   cor[[1]]
 }
 
+#Hourly distribution
+hourly_distribution <- function(data){
+  df <- data |>
+    pivot_longer(cols = -c(time),
+                 names_to = "model",
+                 values_to = "value") |>
+    mutate(
+      hour = getHour(time),
+      season = getSeason(time)
+    ) |>
+    group_by(hour, season, model) |>
+    summarize(
+      hourly_mean = mean(value), 
+      hourly_sd = sd(value),
+      .groups = "drop"
+    ) |>
+    mutate(
+      ymin = hourly_mean - hourly_sd, 
+      ymax = hourly_mean + hourly_sd
+    )
+  
+  ggplot(df, aes(x = hour, y = hourly_mean, ymin = ymin, ymax = ymax, color = model, fill=model)) +
+    geom_ribbon(alpha = 0.2) +
+    scale_x_continuous(breaks = 0:23) +
+    geom_line() +
+    geom_point() +
+    labs(
+      x = "Hour of Day",
+      y = "Average Value",
+      color = "Model",
+      fill = "Model"
+    ) +
+    theme_minimal() +
+    facet_wrap(~season, nrow = 2)
+}
 
 amplitude_mae <- function(time, truth, estimate){
   df <- data.frame("time" = time, "truth" = truth, "estimate" = estimate)
@@ -255,9 +290,20 @@ amplitude_plot <- function(data){
     mutate(amplitude = max(value) - min(value), daily_mean = mean(value)) |>
     ungroup() 
   
-  ggplot(r, aes(model, amplitude, colour=daily_mean), alpha = 1/10000) +
-    scale_color_continuous_sequential("Batlow") +
-    geom_sina()
+  violin <- r |> filter(model != 'reanalysis')
+  
+  ref <- r |> 
+    filter(model == 'reanalysis') |>
+    slice(rep(1:n(), 4)) |>
+    mutate(model = rep(c("naive", "xgboost", "lstm", "cnn"), each=n()/4))
+  
+  ggplot(violin, aes(x = model, y = amplitude)) +
+    geom_boxplot(data = ref, aes(x = model, y = amplitude), color = 'black', fill='white') +
+    geom_violin(aes(color = model), fill=NA) +
+    labs(
+         x = "Model",
+         y = "Daily amplitude") +
+    theme_minimal()
 }
 
 amplitude_mape <- function(time, truth, estimate){
