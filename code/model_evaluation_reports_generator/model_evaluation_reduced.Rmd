@@ -101,7 +101,7 @@ plqq <- res |>
 if (conf[["VARIABLES"]][[params$variable]][["daily"]]) {
   res.mx <- res |> 
   pivot_longer(-time, names_to = 'model', values_to = 'vs')  |> 
-  mutate( date = ymd_hms(time) ) |> 
+  mutate( date = ymd_hms(time) - hours(3) ) |> 
   mutate(dd = as_date(date), hh = hour(date)) |> 
   group_by(dd, model) |> 
   mutate(mx = max(vs) ) |> 
