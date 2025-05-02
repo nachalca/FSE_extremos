@@ -79,7 +79,7 @@ data.frame(Metric = names(tabla), t(tabla)) |>
 
 ## Plots
 
-```{r qqplot, fig.height=8, fig.width=6}
+```{r qqplot}
 pps <- (0:99+.5)/100
 plqq <- res |> 
   pivot_longer(cols = -c(1:2), values_to = 'value', 
@@ -91,13 +91,12 @@ plqq <- res |>
   ggplot() + 
   geom_line(aes( y=qq.pred-qq.obs, x=per, color=model)) + 
   geom_hline(yintercept = 0, linetype='dashed') + 
-  labs(title = 'Rotated QQ-plot') + 
   scale_color_brewer(palette = 'Dark2') + 
   theme_bw() 
 ```
 
 
-```{r maximum, fig.height=9, fig.width=9}
+```{r maximum}
 if (conf[["VARIABLES"]][[params$variable]][["daily"]]) {
   res.mx <- res |> 
   pivot_longer(-time, names_to = 'model', values_to = 'vs')  |> 
@@ -114,10 +113,17 @@ pl.mx <- ggplot() +
            mapping = aes(x=hh), fill='grey') +
   geom_freqpoly(data= filter(res.mx, model !='reanalysis'),
             mapping = aes(x=hh, color=model) ) +
-  labs(title = 'Max hour per day') + 
   scale_color_brewer(palette = 'Dark2') + 
   theme_bw() 
 }
+```
+
+```{r hourly_distribution}
+pl.hourly_distribution <- hourly_distribution(res)
+```
+
+```{r amplitude_plot}
+pl.amplitude <- amplitude_plot(res)
 ```
 
 ```{r acf}
@@ -138,7 +144,6 @@ pl.acf <- ggplot() +
   geom_col(data=res.acf.obs, mapping = aes(x=lag, y=acf), fill='grey') + 
   geom_line(data= filter(results, model !='reanalysis'),
             mapping = aes(lag, acf, color=model) ) +
-    labs(title = 'AutoCorrelogram') + 
   scale_color_brewer(palette = 'Dark2') + 
   theme_bw() 
 ```
@@ -165,18 +170,95 @@ pl.ext <- ggplot() +
   geom_col(data=res.acf.obs, mapping = aes(x=lag, y=extremogram), fill='grey') + 
   geom_line(data= filter(results, model !='reanalysis'),
             mapping = aes(lag, extremogram, color=model) ) +
-    labs(title = 'Extremogram') + 
   scale_color_brewer(palette = 'Dark2') + 
   theme_bw() 
 ```
 
-```{r, fig.height=9, fig.width=9}
+```{r, fig.height=11, fig.width=11}
 # (plqq | pl.mx) / (pl.acf | pl.ext) +  plot_layout(guides = 'collect')
-f1<-ggplotly(plqq); f2<-ggplotly(pl.mx); f3 <- ggplotly(pl.acf); f4<- ggplotly(pl.ext)
+annotations = list( 
+  list( 
+    x = 0.15,  
+    y = 1.0,  
+    text = "Rotated QQ-plot",  
+    xref = "paper",  
+    yref = "paper",  
+    xanchor = "center",  
+    yanchor = "bottom",  
+    showarrow = FALSE 
+  ),  
+  list( 
+    x = 0.5,  
+    y = 1,  
+    text = "Extremogram",  
+    xref = "paper",  
+    yref = "paper",  
+    xanchor = "center",  
+    yanchor = "bottom",  
+    showarrow = FALSE 
+  ),  
+  list( 
+    x = 0.85,  
+    y = 1,  
+    text = "Autocorrelogram",  
+    xref = "paper",  
+    yref = "paper",  
+    xanchor = "center",  
+    yanchor = "bottom",  
+    showarrow = FALSE 
+  )
+)
+f1<-ggplotly(plqq); f2<-ggplotly(pl.ext); f3 <- ggplotly(pl.acf); 
+s1 <- subplot(
+        f1, f2, f3, 
+        nrows=1, titleY = TRUE, titleX = TRUE, shareX=FALSE, shareY=FALSE, margin=.05
+      ) |> 
+      layout(showlegend=TRUE, annotations = annotations, coloraxis=list( colorscale='Dark2' ))
 
-subplot(f1, f2, f3, f4, nrows=2, titleY = TRUE, titleX = TRUE, margin=.1) |> 
-  layout(showlegend=TRUE, coloraxis=list( colorscale='Dark2' ) )
+annotations = list( 
+  list( 
+    x = 0.25,  
+    y = 1.0,  
+    text = "Max hour per day",  
+    xref = "paper",  
+    yref = "paper",  
+    xanchor = "center",  
+    yanchor = "bottom",  
+    showarrow = FALSE 
+  ),  
+  list( 
+    x = 0.75,  
+    y = 1,  
+    text = "Daily amplitude",  
+    xref = "paper",  
+    yref = "paper",  
+    xanchor = "center",  
+    yanchor = "bottom",  
+    showarrow = FALSE 
+  )  
+)
+f4<- ggplotly(pl.mx); 
+f5 <- ggplotly(pl.amplitude)
+s2 <- subplot(f4, f5, nrows=1, titleY = TRUE, titleX = TRUE, margin=.05) |>
+        layout(showlegend=TRUE, annotations = annotations, coloraxis=list( colorscale='Dark2' ))
 
+annotations = list( 
+  list( 
+    x = 0.5,  
+    y = 1.0,  
+    text = "Hourly Average and Spread",  
+    xref = "paper",  
+    yref = "paper",  
+    xanchor = "center",  
+    yanchor = "bottom",  
+    showarrow = FALSE 
+  )
+)
+s3 <- subplot(ggplotly(pl.hourly_distribution), nrows=1, titleY = TRUE, titleX = TRUE, margin=.05) |>
+        layout(showlegend=TRUE, annotations = annotations, coloraxis=list( colorscale='Dark2' ))
+ 
+subplot(s1, s2, s3, nrows=3, titleY = TRUE, titleX = TRUE, margin=.05) |> 
+   layout(showlegend=TRUE, coloraxis=list( colorscale='Dark2' ) )
 ```
 
 
