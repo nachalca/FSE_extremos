@@ -1,0 +1,254 @@
+```{css}
+h4 {
+  margin-top: 3em;
+  font-size: 18pt;
+}
+```
+
+```{r}
+models <- res_validation_wide |> select(-c("time", "reanalysis", starts_with('undownscaled'))) |> colnames()
+
+r <- lapply(models, function(x) {
+    if (conf[["VARIABLES"]][[params$variable]][["daily"]]) {
+      if(params$variable == 'pr'){
+        metrics_unpaired_hourly_rain(time = res_validation_wide$time, 
+                                truth = res_validation_wide$reanalysis, 
+                                estimate = res_validation_wide[[x]], 
+                                model = x)
+      }else{
+        metrics_unpaired_hourly(time = res_validation_wide$time, 
+                                truth = res_validation_wide$reanalysis, 
+                                estimate = res_validation_wide[[x]], 
+                                model = x)        
+      }
+    } else {
+      metrics_unpaired_daily(time = res_validation_wide$time, 
+                             truth = res_validation_wide$reanalysis, 
+                             estimate = res_validation_wide[[x]], model = x)
+    }
+})
+
+results <- do.call(rbind, r)
+
+results <- results |>
+  arrange(by = abs(diff_of_means)) |>
+  mutate(diff_of_means = sprintf("%.2f%%", diff_of_means)) |>
+  mutate(across(where(is.numeric), round, digits = 3)) 
+
+#write.csv(results, paste0("reports/ds_acp/",params$variable,".csv"), row.names = TRUE)
+
+kable(results)
+```
+
+#### Time series of the first days
+
+```{r, echo=FALSE}
+days <- n_distinct(res_validation_long$model)*n_distinct(res_validation_long$experiment)*24*5
+res_to_plot <- res_validation_long[0:days,]
+
+
+series_plot <- function(data, exp) {
+  p <- data |> 
+    filter(experiment == exp) |>
+    mutate(time = as.POSIXct(time))
+  
+  p2 <- p |>
+      group_by(time) |>
+      summarise(model = "reanalysis", value = mean(reanalysis))
+  
+  p <- p |> 
+    select(time,model,value) |>
+    rbind(p2) |>
+    arrange(time)
+  
+    ### Assign black color to reanalyis
+    gg_color_hue <- function(n) {
+      hues = seq(15, 375, length = n + 1)
+      hcl(h = hues, l = 65, c = 100)[1:n]
+    } 
+    
+    pal <- gg_color_hue(length(unique(p$model)))
+    pal[which(sort(unique(p$model)) == "reanalysis") ] <- "black"
+    ##############################  
+
+    ggplot(p, aes(x=time, y=value, color=model)) +
+      geom_line() +
+      scale_color_manual(values=pal) +
+      labs(y = params$variable, x = "", title = exp)
+}
+
+# Serie to compare to reanalysis
+models <- unique(res_validation_long$experiment)
+
+# Generate Q-Q plots
+plots <- lapply(models, function(exp) series_plot(res_to_plot, exp))
+
+# Arrange the plots using gridExtra
+wrap_plots(plots, ncol = 1, guides = 'collect', pos)  & theme(legend.position = 'bottom')
+```
+
+`r  if (conf[["VARIABLES"]][[params$variable]][["daily"]]) {"#### How Often Peaks Hit Hourly\n"} else {"#### Distribution of daily values by month\n"}`
+
+```{r}
+models <- unique(res_validation_long$experiment)
+
+if (conf[["VARIABLES"]][[params$variable]][["daily"]]) {
+  
+  plots <- lapply(models, function(exp) {
+    maximum_histograms_downscaling(res_validation_long, exp) +
+      ggtitle(paste(exp))
+  })
+  
+  wrap_plots(plots, ncol = 1, guides = 'collect', pos)  & theme(legend.position = 'bottom')
+
+} else {
+  plots <- lapply(models, function(exp) {
+
+    p <- res_validation_long |> 
+      filter(experiment == exp) 
+
+    p2 <- p |>
+        group_by(time) |>
+        summarise(model = "reanalysis", value = mean(reanalysis))
+    
+    p <- p |> 
+      select(time,model,value) |>
+      rbind(p2) |>
+      arrange(time)
+          
+    monthly_boxplot_2(p)
+  })
+  
+  wrap_plots(plots, ncol = 1, guides = 'collect', pos)  & theme(legend.position = 'bottom')
+}
+```
+
+#### QQ Plot
+
+```{r}
+# Function to create a Q-Q plot comparing quantiles of a sample column against a reference column
+
+qq_plot_against <- function(data, exp) {
+  
+ data <- data |> 
+    filter(experiment == exp) |>
+    pivot_wider(names_from = model, values_from = value) |>
+    distinct() |>
+    select(-c(time, experiment))
+  
+  models <- data |> colnames()
+  
+  res <- lapply(models, function(x) {
+    ref_data <- data[[x]]
+    ref_data_sorted <- sort(ref_data) # Sort the data
+    n <- min(length(ref_data_sorted))
+    quantiles_ref <- ref_data_sorted[seq(1, length(ref_data_sorted), length.out = n)] # Calculate quantiles
+    df <- data.frame(
+      value = quantiles_ref
+    )
+    colnames(df) <- c(x)
+    df
+  })
+  
+  
+  quantile_df <- do.call(cbind, res) |>
+    pivot_longer(cols = -reanalysis, names_to = "model", values_to = "value")
+  
+  # Generate the Q-Q plot
+  ggplot(quantile_df, aes(x = reanalysis, y = value, color=model)) +
+    geom_point(alpha = .05) +
+    geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
+    ggtitle(paste(exp)) +
+    labs(x = NULL, y = NULL) +
+    guides(colour = guide_legend(override.aes = list(alpha = 1))) +
+    theme_minimal()
+}
+
+models <- unique(res_validation_long$experiment)
+# Generate Q-Q plots
+plots <- lapply(models, function(col) qq_plot_against(res_validation_long, col))
+
+# Arrange the plots using gridExtra
+wrap_plots(plots, guides = 'collect', pos)  & theme(legend.position = 'bottom')
+```
+
+#### Distribution of the undownscaled value on days with estimated extremes values.
+
+*On the x-axis we have the daily mean (standardized). It says `Undownscaled value`, but is the daily mean after the downscaling. A good idea is to plot the original undownscaled value.*
+
+The purpose of this plot is to illustrate the distribution of P(undownscaled value | we predicted an extreme). This is useful because it reveals how much information we can recover concerning extreme events. If the distribution is skewed to the right, it suggests that we're predicting extreme values only when extreme values have already occurred. Conversely, if the lower tail of the distribution resembles the reanalysis data, it indicates that we can capture short-duration extremes (e.g., brief periods of heavy rainfall, such as an intense downpour lasting an hour before stopping).
+
+```{r}
+models <- unique(res_validation_long$experiment)
+
+extremes <- function(data, exp) {
+ res_to_plot <- data |> 
+    filter(experiment == exp) |>
+    pivot_wider(names_from = model, values_from = value) |>
+    select(-c(experiment,undownscaled)) |>
+    distinct() 
+ 
+  mean_on_coarse_res_with_extremes_plot(res_to_plot, daily = conf[["VARIABLES"]][[params$variable]][["daily"]], standarize = TRUE) +
+    ggtitle(paste(exp))
+}
+
+models <- unique(res_validation_long$experiment)
+plots <- lapply(models, function(exp) extremes(res_validation_long, exp))
+
+wrap_plots(plots, ncol = 1, guides = 'collect', pos)  & theme(legend.position = 'bottom')
+```
+
+#### Autocorrelogram
+
+```{r}
+models <- res_validation_wide |> select(-c("time",  starts_with('undownscaled'))) |> colnames()
+r <- lapply(models, function(x) {
+  acf(res_validation_wide[[x]], lag.max = 47, plot = F)$acf
+})
+
+results <- do.call(cbind, r)
+
+colnames(results) <- models
+
+results <- as_data_frame(results)
+
+results <- results |> 
+  pivot_longer(cols = everything(), names_to = "model", values_to = "acf")
+
+results$lag <- sort(rep(1:48, length(models)))
+
+results <- results |> filter(lag > 1) #I don't want to plot the first lag
+
+results$model <- fct_relevel(results$model, 'reanalysis') #Put reanalysis first
+
+ggplot(results, mapping = aes(x = lag, y = acf)) +
+    geom_segment(mapping = aes(xend = lag, yend = 0)) +
+    facet_wrap(~ model, ncol = 3) 
+```
+
+#### Extremogram
+
+```{r}
+models <- res_validation_wide |> select(-c("time", starts_with('undownscaled'))) |> colnames()
+
+r <- lapply(models, function(x) {
+  extremogram1(res_validation_wide[[x]], quant = .97, maxlag = 48, type = 1, ploting = 0)
+})
+
+results <- do.call(cbind, r)
+
+colnames(results) <- models
+
+results <- as_data_frame(results)
+
+results <- results |> pivot_longer(cols = everything(), names_to = "model", values_to = "extremogram")
+results$lag <- sort(rep(1:48, length(models)))
+
+results$model <- fct_relevel(results$model, 'reanalysis') #Put reanalysis first
+
+results <- results |> filter(lag > 1) #I don't want to plot the first lag
+
+ggplot(results, mapping = aes(x = lag, y = extremogram)) +
+    geom_segment(mapping = aes(xend = lag, yend = 0)) +
+    facet_wrap(~ model, ncol = 3)
+```
