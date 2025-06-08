@@ -6,6 +6,11 @@ h4 {
 ```
 
 ```{r}
+colnames(res_validation_wide) <- sapply(strsplit(colnames(res_validation_wide), "\\."), `[`, 1)
+colnames(res_validation_wide)[colnames(res_validation_wide) == "nv"] <- "naive"
+```
+
+```{r}
 models <- res_validation_wide |> select(-c("time", "reanalysis", starts_with('undownscaled'))) |> colnames()
 
 r <- lapply(models, function(x) {
@@ -32,12 +37,19 @@ results <- do.call(rbind, r)
 
 results <- results |>
   arrange(by = abs(diff_of_means)) |>
-  mutate(diff_of_means = sprintf("%.2f%%", diff_of_means)) |>
-  mutate(across(where(is.numeric), round, digits = 3)) 
+ mutate(across(where(is.numeric), \(x) round(x, digits = 3) ) )
 
 #write.csv(results, paste0("reports/ds_acp/",params$variable,".csv"), row.names = TRUE)
 
-kable(results)
+data.frame(Metric = names(results), t(results)) |> 
+  as_tibble() |> 
+  gt() %>%
+  data_color(
+    columns = -Metric, 
+    method = 'numeric',
+    direction = 'row',
+    palette = 'Blues', 
+    reverse=TRUE)
 ```
 
 #### Time series of the first days
@@ -85,170 +97,191 @@ plots <- lapply(models, function(exp) series_plot(res_to_plot, exp))
 
 # Arrange the plots using gridExtra
 wrap_plots(plots, ncol = 1, guides = 'collect', pos)  & theme(legend.position = 'bottom')
+
+rm(res_validation_long)
 ```
 
-`r  if (conf[["VARIABLES"]][[params$variable]][["daily"]]) {"#### How Often Peaks Hit Hourly\n"} else {"#### Distribution of daily values by month\n"}`
+#### Plots
 
 ```{r}
-models <- unique(res_validation_long$experiment)
+pps <- (0:99+.5)/100
+plqq <- res_validation_wide |> 
+  pivot_longer(cols = -c(1:2), values_to = 'value', 
+               names_to = 'model') |> 
+  group_by(model) |> 
+  reframe(qq.obs  = quantile(reanalysis, probs = pps),
+          qq.pred = quantile(value, probs = pps, na.rm = TRUE),
+          per = pps) |> 
+  ggplot() + 
+  geom_line(aes( y=qq.pred-qq.obs, x=per, color=model)) + 
+  geom_hline(yintercept = 0, linetype='dashed') + 
+  scale_color_brewer(palette = 'Dark2') + 
+  theme_bw() 
+```
 
+
+```{r}
 if (conf[["VARIABLES"]][[params$variable]][["daily"]]) {
+  res.mx <- res_validation_wide |> 
+              select(-starts_with('undownscaled')) |>
+              pivot_longer(-time, names_to = 'model', values_to = 'vs')  |> 
+              mutate( date = ymd_hms(time) ) |> 
+              mutate(dd = as_date(date), hh = hour(date)) |> 
+              group_by(dd, model) |> 
+              mutate(mx = max(vs) ) |> 
+              ungroup() |> 
+              filter(vs == mx) |> 
+              select(model, dd, mx, hh)
   
-  plots <- lapply(models, function(exp) {
-    maximum_histograms_downscaling(res_validation_long, exp) +
-      ggtitle(paste(exp))
-  })
-  
-  wrap_plots(plots, ncol = 1, guides = 'collect', pos)  & theme(legend.position = 'bottom')
-
-} else {
-  plots <- lapply(models, function(exp) {
-
-    p <- res_validation_long |> 
-      filter(experiment == exp) 
-
-    p2 <- p |>
-        group_by(time) |>
-        summarise(model = "reanalysis", value = mean(reanalysis))
-    
-    p <- p |> 
-      select(time,model,value) |>
-      rbind(p2) |>
-      arrange(time)
-          
-    monthly_boxplot_2(p)
-  })
-  
-  wrap_plots(plots, ncol = 1, guides = 'collect', pos)  & theme(legend.position = 'bottom')
+  pl.mx <- ggplot() +
+    geom_bar(data=filter(res.mx, model =='reanalysis'), 
+             mapping = aes(x=hh), fill='grey') +
+    geom_freqpoly(data= filter(res.mx, model !='reanalysis'),
+              mapping = aes(x=hh, color=model) ) +
+    scale_color_brewer(palette = 'Dark2') + 
+    theme_bw() 
 }
 ```
 
-#### QQ Plot
-
 ```{r}
-# Function to create a Q-Q plot comparing quantiles of a sample column against a reference column
-
-qq_plot_against <- function(data, exp) {
-  
- data <- data |> 
-    filter(experiment == exp) |>
-    pivot_wider(names_from = model, values_from = value) |>
-    distinct() |>
-    select(-c(time, experiment))
-  
-  models <- data |> colnames()
-  
-  res <- lapply(models, function(x) {
-    ref_data <- data[[x]]
-    ref_data_sorted <- sort(ref_data) # Sort the data
-    n <- min(length(ref_data_sorted))
-    quantiles_ref <- ref_data_sorted[seq(1, length(ref_data_sorted), length.out = n)] # Calculate quantiles
-    df <- data.frame(
-      value = quantiles_ref
-    )
-    colnames(df) <- c(x)
-    df
-  })
-  
-  
-  quantile_df <- do.call(cbind, res) |>
-    pivot_longer(cols = -reanalysis, names_to = "model", values_to = "value")
-  
-  # Generate the Q-Q plot
-  ggplot(quantile_df, aes(x = reanalysis, y = value, color=model)) +
-    geom_point(alpha = .05) +
-    geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
-    ggtitle(paste(exp)) +
-    labs(x = NULL, y = NULL) +
-    guides(colour = guide_legend(override.aes = list(alpha = 1))) +
-    theme_minimal()
-}
-
-models <- unique(res_validation_long$experiment)
-# Generate Q-Q plots
-plots <- lapply(models, function(col) qq_plot_against(res_validation_long, col))
-
-# Arrange the plots using gridExtra
-wrap_plots(plots, guides = 'collect', pos)  & theme(legend.position = 'bottom')
+pl.hourly_distribution <- hourly_distribution(res_validation_wide |> select(-starts_with('undownscaled')))
 ```
 
-#### Distribution of the undownscaled value on days with estimated extremes values.
-
-*On the x-axis we have the daily mean (standardized). It says `Undownscaled value`, but is the daily mean after the downscaling. A good idea is to plot the original undownscaled value.*
-
-The purpose of this plot is to illustrate the distribution of P(undownscaled value | we predicted an extreme). This is useful because it reveals how much information we can recover concerning extreme events. If the distribution is skewed to the right, it suggests that we're predicting extreme values only when extreme values have already occurred. Conversely, if the lower tail of the distribution resembles the reanalysis data, it indicates that we can capture short-duration extremes (e.g., brief periods of heavy rainfall, such as an intense downpour lasting an hour before stopping).
-
 ```{r}
-models <- unique(res_validation_long$experiment)
-
-extremes <- function(data, exp) {
- res_to_plot <- data |> 
-    filter(experiment == exp) |>
-    pivot_wider(names_from = model, values_from = value) |>
-    select(-c(experiment,undownscaled)) |>
-    distinct() 
- 
-  mean_on_coarse_res_with_extremes_plot(res_to_plot, daily = conf[["VARIABLES"]][[params$variable]][["daily"]], standarize = TRUE) +
-    ggtitle(paste(exp))
-}
-
-models <- unique(res_validation_long$experiment)
-plots <- lapply(models, function(exp) extremes(res_validation_long, exp))
-
-wrap_plots(plots, ncol = 1, guides = 'collect', pos)  & theme(legend.position = 'bottom')
+pl.amplitude <- amplitude_plot(res_validation_wide |> select(-starts_with('undownscaled')))
 ```
 
-#### Autocorrelogram
-
 ```{r}
-models <- res_validation_wide |> select(-c("time",  starts_with('undownscaled'))) |> colnames()
-r <- lapply(models, function(x) {
+models <- res_validation_wide |> select(-c("time")) |> select(-starts_with('undownscaled')) |> colnames()
+
+results <- lapply(models, function(x) {
   acf(res_validation_wide[[x]], lag.max = 47, plot = F)$acf
-})
+}) |> set_names(nm = models) |> 
+  bind_rows( .id='models') |> 
+  tibble() |> 
+  mutate(lag = 1:48) |> 
+  pivot_longer(cols = -lag, names_to = "model", values_to = "acf") |> 
+  filter(lag > 1)
 
-results <- do.call(cbind, r)
+res.acf.obs <- filter(results, model=='reanalysis')
 
-colnames(results) <- models
-
-results <- as_data_frame(results)
-
-results <- results |> 
-  pivot_longer(cols = everything(), names_to = "model", values_to = "acf")
-
-results$lag <- sort(rep(1:48, length(models)))
-
-results <- results |> filter(lag > 1) #I don't want to plot the first lag
-
-results$model <- fct_relevel(results$model, 'reanalysis') #Put reanalysis first
-
-ggplot(results, mapping = aes(x = lag, y = acf)) +
-    geom_segment(mapping = aes(xend = lag, yend = 0)) +
-    facet_wrap(~ model, ncol = 3) 
+pl.acf <- ggplot() +
+  geom_col(data=res.acf.obs, mapping = aes(x=lag, y=acf), fill='grey') + 
+  geom_line(data= filter(results, model !='reanalysis'),
+            mapping = aes(lag, acf, color=model) ) +
+  scale_color_brewer(palette = 'Dark2') + 
+  theme_bw() 
 ```
 
-#### Extremogram
+*Important:* Right now we are only estimating the upper tail extremogram. Currently we didn't find a way to estimate the two tales at the same time. We are using `quant = .97`
 
 ```{r}
-models <- res_validation_wide |> select(-c("time", starts_with('undownscaled'))) |> colnames()
+models <- res_validation_wide |> select(-c("time")) |> select(-starts_with('undownscaled')) |> colnames()
 
-r <- lapply(models, function(x) {
-  extremogram1(res_validation_wide[[x]], quant = .97, maxlag = 48, type = 1, ploting = 0)
-})
+results <- lapply(models, function(x) {
+  extremogram1(res_validation_wide[[x]], 
+               quant = .97, maxlag = 48, type = 1, ploting = 0)
+}) |> 
+  set_names(nm = models) |> 
+  bind_rows( .id='models') |> 
+  tibble() |> 
+  mutate(lag = 1:48) |> 
+  pivot_longer(cols = -lag, names_to = "model", values_to = "extremogram") |> 
+  filter(lag > 1)
 
-results <- do.call(cbind, r)
+res.acf.obs <- filter(results, model=='reanalysis')
 
-colnames(results) <- models
+pl.ext <- ggplot() +
+  geom_col(data=res.acf.obs, mapping = aes(x=lag, y=extremogram), fill='grey') + 
+  geom_line(data= filter(results, model !='reanalysis'),
+            mapping = aes(lag, extremogram, color=model) ) +
+  scale_color_brewer(palette = 'Dark2') + 
+  theme_bw() 
+```
 
-results <- as_data_frame(results)
+```{r, fig.height=11, fig.width=11}
+# (plqq | pl.mx) / (pl.acf | pl.ext) +  plot_layout(guides = 'collect')
+annotations = list( 
+  list( 
+    x = 0.15,  
+    y = 1.0,  
+    text = "Rotated QQ-plot",  
+    xref = "paper",  
+    yref = "paper",  
+    xanchor = "center",  
+    yanchor = "bottom",  
+    showarrow = FALSE 
+  ),  
+  list( 
+    x = 0.5,  
+    y = 1,  
+    text = "Extremogram",  
+    xref = "paper",  
+    yref = "paper",  
+    xanchor = "center",  
+    yanchor = "bottom",  
+    showarrow = FALSE 
+  ),  
+  list( 
+    x = 0.85,  
+    y = 1,  
+    text = "Autocorrelogram",  
+    xref = "paper",  
+    yref = "paper",  
+    xanchor = "center",  
+    yanchor = "bottom",  
+    showarrow = FALSE 
+  )
+)
+f1<-ggplotly(plqq); f2<-ggplotly(pl.ext); f3 <- ggplotly(pl.acf); 
+s1 <- subplot(
+        f1, f2, f3, 
+        nrows=1, titleY = TRUE, titleX = TRUE, shareX=FALSE, shareY=FALSE, margin=.05
+      ) |> 
+      layout(showlegend=TRUE, annotations = annotations, coloraxis=list( colorscale='Dark2' ))
 
-results <- results |> pivot_longer(cols = everything(), names_to = "model", values_to = "extremogram")
-results$lag <- sort(rep(1:48, length(models)))
+annotations = list( 
+  list( 
+    x = 0.25,  
+    y = 1.0,  
+    text = "Max hour per day",  
+    xref = "paper",  
+    yref = "paper",  
+    xanchor = "center",  
+    yanchor = "bottom",  
+    showarrow = FALSE 
+  ),  
+  list( 
+    x = 0.75,  
+    y = 1,  
+    text = "Daily amplitude",  
+    xref = "paper",  
+    yref = "paper",  
+    xanchor = "center",  
+    yanchor = "bottom",  
+    showarrow = FALSE 
+  )  
+)
+f4<- ggplotly(pl.mx); 
+f5 <- ggplotly(pl.amplitude)
+s2 <- subplot(f4, f5, nrows=1, titleY = TRUE, titleX = TRUE, margin=.05) |>
+        layout(showlegend=TRUE, annotations = annotations, coloraxis=list( colorscale='Dark2' ))
 
-results$model <- fct_relevel(results$model, 'reanalysis') #Put reanalysis first
-
-results <- results |> filter(lag > 1) #I don't want to plot the first lag
-
-ggplot(results, mapping = aes(x = lag, y = extremogram)) +
-    geom_segment(mapping = aes(xend = lag, yend = 0)) +
-    facet_wrap(~ model, ncol = 3)
+annotations = list( 
+  list( 
+    x = 0.5,  
+    y = 1.0,  
+    text = "Hourly Average and Spread",  
+    xref = "paper",  
+    yref = "paper",  
+    xanchor = "center",  
+    yanchor = "bottom",  
+    showarrow = FALSE 
+  )
+)
+s3 <- subplot(ggplotly(pl.hourly_distribution), nrows=1, titleY = TRUE, titleX = TRUE, margin=.05) |>
+        layout(showlegend=TRUE, annotations = annotations, coloraxis=list( colorscale='Dark2' ))
+ 
+subplot(s1, s2, s3, nrows=3, titleY = TRUE, titleX = TRUE, margin=.05) |> 
+   layout(showlegend=TRUE, coloraxis=list( colorscale='Dark2' ) )
 ```

@@ -6,9 +6,7 @@ knitr::opts_knit$set(root.dir = here())
 ```
 
 ```{r}
-variables <- list.files("models/")
-
-variables <- variables[!(variables %in% c("hyperparameters", "README.md"))]
+variables <- c("tas", "pr", "sfcWind")
 #variables <- variables[(variables %in% c("clt"))]
 
 lapply(variables, function(x){

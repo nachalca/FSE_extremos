@@ -1,10 +1,11 @@
 ---
 title: "`r paste0('Downscaling the variable ', params$variable)`"
 params:
-  variable: "clt" #Use pr as default
+  variable: "pr" #Use pr as default
 output:
   html_document:
-    self_contained: true
+    mathjax: local
+    self_contained: false
 ---
 
 ```{r setup, include=FALSE}
@@ -23,6 +24,8 @@ use_python("/home/bruno/.miniconda3/envs/FSE_extremos/bin", required = TRUE)
 library(yaml)
 library(forcats)
 library(patchwork)
+library(gt)
+library(plotly)
 library("extremogram")
 source('code/metrics.R')
 source('code/utils.R')
@@ -37,8 +40,7 @@ res_validation_wide_tot <- read.csv(paste0("data/downscaled_data/",params$variab
 res_validation_long_tot <- res_validation_wide_tot |> 
                             pivot_longer(-c("time", "reanalysis"), names_to="model", values_to="value") |>
                             separate(col = model, sep = "\\.", into = c("model", "experiment"), extra = "merge")
-to_be_downscaled <- res_validation_long_tot |> distinct(experiment)
-to_be_downscaled <- to_be_downscaled[[1]]
+to_be_downscaled <- res_validation_long_tot |> distinct(experiment) |> pull(experiment)
 ```
 
 ## Results {.tabset}
@@ -46,17 +48,16 @@ to_be_downscaled <- to_be_downscaled[[1]]
 ```{r tabs_tab, results='asis'}
 for (res in to_be_downscaled) {
   
-  # 1) Subset the wide/long data for this experiment:
+  # Subset the wide/long data for this experiment:
   res_validation_wide <- res_validation_wide_tot %>%
     select(time, reanalysis, ends_with(res))
   
   res_validation_long <- res_validation_long_tot %>%
     filter(experiment == res)
   
-  # 2) Emit the LEVEL‑3 heading for the new tab:
+  # Emit the LEVEL‑3 heading for the new tab:
   cat("### ", res, "\n\n", sep = "")
   
-  # 3) Knit the child, hide progress, and insert a blank line afterward:
   cat(
     knitr::knit_child(
       "code/downscaling_reports_generator/downscaling_reduced.Rmd",
