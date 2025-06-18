@@ -40,15 +40,24 @@ for  (i in 1:length(ff) ) {
 # all data
 dds <- lapply(ff, read.csv) |> set_names(nm=vars) |> 
   bind_rows(.id='respuesta') |> 
-  pivot_longer(cols = -c(1:3), names_to="model", values_to="value") # |>
-  #separate(col = model, sep = "_ss", into = c("model", "experiment"), extra = "merge") |> 
-  #mutate(experiment = paste0('ss', experiment) )
+  pivot_longer(cols = -c(1:3), names_to="model", values_to="value")  |>
+  as.data.frame()
 
-p1 <- TaylorDiagram(mydata = dds, 
-              obs='reanalysis',
-              group= c('respuesta', 'model'), 
-              mod = 'value' , 
-              normalise = TRUE) 
+  separate(col = model, sep = "_ss", into = c("model", "experiment"), extra = "merge") |> 
+  mutate(experiment = paste0('ss', experiment),
+         date= as.Date(time, format="%Y-%m-%d") ) |> 
+  
+  
+prueba <- filter(dds, respuesta %in% c('tas', 'tasmax', 'tasmin')) |> 
+  select(date, reanalysis, value, respuesta) |> 
+  as.data.frame()
+
+TaylorDiagram(mydata = dds, 
+              obs= 'reanalysis',
+              mod = 'value', 
+              group = c('model'),
+              type='respuesta', 
+              normalise = TRUE )
 
 p1$data |> 
   separate(MyGroupVar, into = c("respuesta", "experiment"), extra = "merge") |> 
