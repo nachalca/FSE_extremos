@@ -21,7 +21,7 @@ xgb = XgboostDownscaler()
 lstm = LSTMDownscaler()
 cnn = CNNDownscaler()
 
-for var in ["sfcWind"]:
+for var in VARIABLES_TO_BE_DOWNSCALED:
     files = sorted(os.listdir(f'data/to_be_downscaled/{var}'))
     downscaled_data = []
     for f in files:

@@ -131,8 +131,6 @@ class LSTMDownscaler():
         window_size =  24 if "hour" in data.columns else 28  
         print(f"Transforming dataset for prediction")      
         data = self.transform(window_size, data_x = data)
-        # Save data as csv
-        pd.DataFrame(data.reshape(data.shape[0], -1)).to_csv("data/test.csv", index=False)
         print(f"Predicting with model {model}")
         model = pickle.load(open(model, "rb"))
         predictions = model.predict(data)
