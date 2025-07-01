@@ -121,7 +121,7 @@ class LSTMDownscaler():
             # Save the scaler for later use
             if not os.path.exists("models/scalers/lstm"):
                 os.makedirs("models/scalers/lstm")   
-            pickle.dump(preprocessing.StandardScaler(), open(f"models/scalers/lstm/{variable_name}.pkl", "wb"))
+            pickle.dump(scaler, open(f"models/scalers/lstm/{variable_name}.pkl", "wb"))
         else:
             # Load the scaler
             scaler = pickle.load(open(f"models/scalers/lstm/{variable_name}.pkl", "rb"))
@@ -242,7 +242,7 @@ class LSTMDownscaler():
                     self.optimize,
                     objective="val_mean_absolute_error",
                     max_epochs=50,
-#                    overwrite=True,
+                    overwrite=True,
                     directory = "models/hyperparameters",
                     project_name = f'lstm/{variable_name}', 
                     seed=SEED
