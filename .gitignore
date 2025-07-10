@@ -31,4 +31,4 @@ code/naive_model.html
 code/__pycache__/**
 models/hyperparameters/cnn/**
 models/hyperparameters/lstm/**
-
+temporal_downscaling_py/
