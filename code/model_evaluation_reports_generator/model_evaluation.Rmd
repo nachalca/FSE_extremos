@@ -75,9 +75,11 @@ if(params$variable == "pr"){
 cnn <- import_from_path("CNNDownscaler", path = paste0(here(), "/code"))
 cnn_downscaler <- cnn$CNNDownscaler()
 
-cnn_predictions <- cnn_downscaler$predict(model = paste0(here(), "/models/", params$variable, "/cnn.pkl"), 
+cnn_predictions <- cnn_downscaler$predict(
+                           model = paste0(here(), "/models/", params$variable, "/cnn.pkl"), 
                            data = paste0(here(), "/data/testing/", params$variable, ".csv"),
-                           variable = params$variable)
+                           variable_name = params$variable
+                          )
 ```
 
 ```{r naive_predictions, results=F, warning=F, message=F}
@@ -97,7 +99,7 @@ lstm_downscaler <- lstm$LSTMDownscaler()
 
 lstm_predictions <- lstm_downscaler$predict(model = paste0(here(), "/models/", params$variable, "/lstm.pkl"), 
                            data = paste0(here(), "/data/testing/", params$variable, ".csv"),
-                           variable = params$variable)
+                           variable_name = params$variable)
 ```
 
 ```{r res_dataframe, results=F}

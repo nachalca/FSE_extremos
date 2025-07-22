@@ -38,7 +38,8 @@ for var in VARIABLES_TO_BE_DOWNSCALED:
         xgb_downscaled = xgb.predict(data= f'data/to_be_downscaled/{var}/{f}',
                                      model = f'models/{var}/xgboost.pkl')
         lstm_downscaled = lstm.predict(data= f'data/to_be_downscaled/{var}/{f}',
-                                       model = f'models/{var}/lstm.pkl')
+                                       model = f'models/{var}/lstm.pkl',
+                                       variable_name=var)
         cnn_downscaled = cnn.predict(data= f'data/to_be_downscaled/{var}/{f}',
                                      model = f'models/{var}/cnn.pkl')
         

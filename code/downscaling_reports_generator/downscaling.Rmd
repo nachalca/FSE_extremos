@@ -84,22 +84,26 @@ for(f in to_be_downscaled){
     
   xgboost_predictions <- xgboost_downscaler$predict(
                             model = paste0(here(), "/models/", params$variable, "/xgboost.pkl"), 
-                            data = paste0(here(), "/", x)
+                            data = paste0(here(), "/", x),
+                            variable = params$variable
                           )
   
   lstm_predictions <- lstm_downscaler$predict(
                            model = paste0(here(), "/models/", params$variable, "/lstm.pkl"), 
-                           data = paste0(here(), "/", x)
-                    ) 
+                           data = paste0(here(), "/", x),
+                           variable_name = params$variable
+                      ) 
   
   cnn_predictions <- cnn_downscaler$predict(
                             model = paste0(here(), "/models/", params$variable, "/cnn.pkl"),
-                            data = paste0(here(), "/", x)
-                          )
+                            data = paste0(here(), "/", x),
+                            variable_name = params$variable                          
+                      )
   
   nv_predictions <- nv_downscaler$predict(
                            model = paste0(here(), "/models/", params$variable, "/naive.pkl"), 
-                           data = paste0(here(), "/", x)
+                           data = paste0(here(), "/", x),
+                           variable = params$variable
                     )  
   
 
