@@ -122,10 +122,6 @@ class CNNDownscaler():
                             lookback=lookback)
         
         # Initialize a scaler using the training data.
-        scaler = preprocessing.StandardScaler().fit(flatten(X_train))
-        X_train_scaled = scale(X_train, scaler).astype(np.float32)
-
-        # Initialize a scaler using the training data.
         if isTrain:
             scaler = preprocessing.StandardScaler().fit(flatten(X_train))
             # Save the scaler for later use
