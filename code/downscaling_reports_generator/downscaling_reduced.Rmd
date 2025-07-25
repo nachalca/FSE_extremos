@@ -202,5 +202,5 @@ pl.ext <- ggplot() +
 ```{r, fig.height=11, fig.width=11}
 (plqq | pl.ext | pl.acf) /
       (pl.mx | pl.amplitude) /
-      (pl.ext)
+      (pl.hourly_distribution)
 ```
