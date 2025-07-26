@@ -254,7 +254,7 @@ class CNNDownscaler():
 
         #For each dataset, train a model
         for f in files:
-            if f.endswith('.csv') and not f.startswith("pr"):
+            if f.endswith('.csv'):
                 variable_name = f.split(".")[0] #Get the variable name from the filename
                 print(f"Training model for \033[92m{variable_name}\033[0m")
             
