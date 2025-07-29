@@ -41,7 +41,8 @@ for var in VARIABLES_TO_BE_DOWNSCALED:
                                        model = f'models/{var}/lstm.pkl',
                                        variable_name=var)
         cnn_downscaled = cnn.predict(data= f'data/to_be_downscaled/{var}/{f}',
-                                     model = f'models/{var}/cnn.pkl')
+                                     model = f'models/{var}/cnn.pkl',
+                                     variable_name=var)
         
         #Get undownscaled data
         undownscaled = pd.read_csv(f'data/to_be_downscaled/{var}/{f}')
