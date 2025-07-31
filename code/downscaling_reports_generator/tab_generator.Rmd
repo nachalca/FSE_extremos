@@ -4,8 +4,7 @@ params:
   variable: "pr" #Use pr as default
 output:
   html_document:
-    mathjax: local
-    self_contained: false
+    self_contained: true
 ---
 
 ```{r setup, include=FALSE}
