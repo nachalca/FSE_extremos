@@ -1,0 +1,26 @@
+```{r setup, include=FALSE}
+library(rmarkdown)
+library('here')
+
+knitr::opts_knit$set(root.dir = here())
+```
+
+```{r}
+variables <- c("tas", "pr", "sfcWind")
+#variables <- variables[(variables %in% c("clt"))]
+
+lapply(variables, function(x){
+
+  fname <- paste0("../../reports/downscaling_evaluation/",
+                  x, 
+                  "_reduced", 
+                  ".html") 
+   
+  rmarkdown::render(input="code/downscaling_reports_generator/tab_generator.Rmd", 
+                    output_file = fname,
+                    output_format = "html_document",
+                    params = list(variable=x),
+                    clean = TRUE) # removes log files   
+  
+})
+```
