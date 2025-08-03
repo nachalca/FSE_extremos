@@ -1,0 +1,275 @@
+---
+title: "`r paste0('Model evaluation for ', params$variable)`"
+header-includes:
+   - \usepackage{bbm}
+params:
+  variable: "tas" #Use pr as default
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo=FALSE, warning=FALSE, message=FALSE)
+```
+
+```{css}
+/* Define a margin before h2 element */
+h2 {
+  margin-top: 3em;
+}
+```
+
+```{r imports, include=FALSE}
+library(here)
+library(tidyverse)
+library(gt)
+library(plotly)
+library(yaml)
+library("extremogram")
+source(here('code/metrics.R'))
+source(here('code/utils.R'))
+```
+
+```{r load_data}
+# params <- vector(mode = 'list')
+# params$variable <- 'tas' 
+
+res <- paste0('data/model_evaluation_data/', params$variable, ".csv") |> here() |> read.csv()  
+#Load configuration
+conf <- yaml.load_file(here("code/conf.yml"))
+```
+
+
+
+The observations for the validation were taken from `r min(res$time)` to `r max(res$time)`.
+
+Remember that we have on a daily scale the variables `sfcWind`, `tas`, `pr`, `tasmax`, `tasmin` and `psl` and in a monthly scale `clt`, `rsdt`,`rsds` as a predictors. We also have the month `r  if (conf[["VARIABLES"]][[params$variable]][["daily"]]) {", hour, sun's elevation & azimuth"}` and the daily daylight amount in seconds as a predictors too.
+
+```{r metrics_paired}
+models <- res |> select(-c("time", "reanalysis")) |> colnames()
+
+if(conf[["VARIABLES"]][[params$variable]][["daily"]]){
+  if(params$variable == "pr"){
+    r <- lapply(models, function(x) {
+      metrics_paired_hourly_rain(time = res$time, truth = res$reanalysis, estimate = res[[x]], model = x)
+    })    
+  } else {
+    r <- lapply(models, function(x) {
+      metrics_paired_hourly(time = res$time, truth = res$reanalysis, estimate = res[[x]], model = x)
+    })    
+  }
+} else {
+  r <- lapply(models, function(x) {
+    metrics_paired_daily(time = res$time, truth = res$reanalysis, estimate = res[[x]], model = x)
+  })  
+}
+
+tabla <- do.call(rbind, r) |>
+  mutate(across(where(is.numeric), \(x) round(x, digits = 3) ) ) |> 
+  select()
+
+ "ratio_of_sd"         "KGE"
+ "cor"
+ "sign_correlation"    "extreme_correlation"
+ 
+ "mae"                                 
+"amplitude_mae"       "maximum_difference" 
+  "qqplot_mae"          "acf_mae"            
+ "extremogram_mae" 
+
+
+data.frame(Metric = names(tabla), t(tabla)) |> 
+  as_tibble() |> 
+  gt() %>%
+  data_color(
+    columns = -Metric, 
+    method = 'numeric',
+    direction = 'row',
+    palette = 'Blues', 
+    reverse=TRUE)
+```
+
+## Plots
+
+```{r qqplot}
+pps <- (0:99+.5)/100
+plqq <- res |> 
+  pivot_longer(cols = -c(1:2), values_to = 'value', 
+               names_to = 'model') |> 
+  group_by(model) |> 
+  reframe(qq.obs  = quantile(reanalysis, probs = pps),
+          qq.pred = quantile(value, probs = pps, na.rm = TRUE),
+          per = pps) |> 
+  ggplot() + 
+  geom_line(aes( y=qq.pred-qq.obs, x=per, color=model)) + 
+  geom_hline(yintercept = 0, linetype='dashed') + 
+  scale_color_brewer(palette = 'Dark2') + 
+  theme_bw() 
+```
+
+
+```{r maximum}
+if (conf[["VARIABLES"]][[params$variable]][["daily"]]) {
+  res.mx <- res |> 
+  pivot_longer(-time, names_to = 'model', values_to = 'vs')  |> 
+  mutate( date = ymd_hms(time), date.uy = date - hours(3) ) |> 
+  mutate(dd = as_date(date.uy), hh = hour(date.uy)) |> 
+  group_by(dd, model) |> 
+  mutate(mx = max(vs) ) |> 
+  ungroup() |> 
+  filter(vs == mx) #|> 
+  #select(model, dd, mx, hh)
+  
+pl.mx <- ggplot() +
+  geom_bar(data=filter(res.mx, model =='reanalysis'), 
+           mapping = aes(x=hh), fill='grey') +
+  geom_freqpoly(data= filter(res.mx, model !='reanalysis'),
+            mapping = aes(x=hh, color=model) ) +
+  scale_color_brewer(palette = 'Dark2') + 
+  theme_bw() 
+}
+```
+
+```{r hourly_distribution}
+pl.hourly_distribution <- hourly_distribution(res)
+```
+
+```{r amplitude_plot}
+pl.amplitude <- amplitude_plot(res)
+```
+
+```{r acf}
+models <- res |> select(-c("time")) |> colnames()
+
+results <- lapply(models, function(x) {
+  acf(res[[x]], lag.max = 47, plot = F)$acf
+}) |> set_names(nm = models) |> 
+  bind_rows( .id='models') |> 
+  tibble() |> 
+  mutate(lag = 1:48) |> 
+  pivot_longer(cols = -lag, names_to = "model", values_to = "acf") |> 
+  filter(lag > 1)
+
+res.acf.obs <- filter(results, model=='reanalysis')
+
+pl.acf <- ggplot() +
+  geom_col(data=res.acf.obs, mapping = aes(x=lag, y=acf), fill='grey') + 
+  geom_line(data= filter(results, model !='reanalysis'),
+            mapping = aes(lag, acf, color=model) ) +
+  scale_color_brewer(palette = 'Dark2') + 
+  theme_bw() 
+```
+
+*Important:* Right now we are only estimating the upper tail extremogram. Currently we didn't find a way to estimate the two tales at the same time. We are using `quant = .97`
+
+```{r extremogram}
+models <- res |> select(-c("time")) |> colnames()
+
+results <- lapply(models, function(x) {
+  extremogram1(res[[x]], 
+               quant = .97, maxlag = 48, type = 1, ploting = 0)
+}) |> 
+  set_names(nm = models) |> 
+  bind_rows( .id='models') |> 
+  tibble() |> 
+  mutate(lag = 1:48) |> 
+  pivot_longer(cols = -lag, names_to = "model", values_to = "extremogram") |> 
+  filter(lag > 1)
+
+res.acf.obs <- filter(results, model=='reanalysis')
+
+pl.ext <- ggplot() +
+  geom_col(data=res.acf.obs, mapping = aes(x=lag, y=extremogram), fill='grey') + 
+  geom_line(data= filter(results, model !='reanalysis'),
+            mapping = aes(lag, extremogram, color=model) ) +
+  scale_color_brewer(palette = 'Dark2') + 
+  theme_bw() 
+```
+
+```{r, fig.height=11, fig.width=11}
+# (plqq | pl.mx) / (pl.acf | pl.ext) +  plot_layout(guides = 'collect')
+annotations = list( 
+  list( 
+    x = 0.15,  
+    y = 1.0,  
+    text = "Rotated QQ-plot",  
+    xref = "paper",  
+    yref = "paper",  
+    xanchor = "center",  
+    yanchor = "bottom",  
+    showarrow = FALSE 
+  ),  
+  list( 
+    x = 0.5,  
+    y = 1,  
+    text = "Extremogram",  
+    xref = "paper",  
+    yref = "paper",  
+    xanchor = "center",  
+    yanchor = "bottom",  
+    showarrow = FALSE 
+  ),  
+  list( 
+    x = 0.85,  
+    y = 1,  
+    text = "Autocorrelogram",  
+    xref = "paper",  
+    yref = "paper",  
+    xanchor = "center",  
+    yanchor = "bottom",  
+    showarrow = FALSE 
+  )
+)
+f1<-ggplotly(plqq); f2<-ggplotly(pl.ext); f3 <- ggplotly(pl.acf); 
+s1 <- subplot(
+        f1, f2, f3, 
+        nrows=1, titleY = TRUE, titleX = TRUE, shareX=FALSE, shareY=FALSE, margin=.05
+      ) |> 
+      layout(showlegend=TRUE, annotations = annotations, coloraxis=list( colorscale='Dark2' ))
+
+annotations = list( 
+  list( 
+    x = 0.25,  
+    y = 1.0,  
+    text = "Max hour per day",  
+    xref = "paper",  
+    yref = "paper",  
+    xanchor = "center",  
+    yanchor = "bottom",  
+    showarrow = FALSE 
+  ),  
+  list( 
+    x = 0.75,  
+    y = 1,  
+    text = "Daily amplitude",  
+    xref = "paper",  
+    yref = "paper",  
+    xanchor = "center",  
+    yanchor = "bottom",  
+    showarrow = FALSE 
+  )  
+)
+f4<- ggplotly(pl.mx); 
+f5 <- ggplotly(pl.amplitude)
+s2 <- subplot(f4, f5, nrows=1, titleY = TRUE, titleX = TRUE, margin=.05) |>
+        layout(showlegend=TRUE, annotations = annotations, coloraxis=list( colorscale='Dark2' ))
+
+annotations = list( 
+  list( 
+    x = 0.5,  
+    y = 1.0,  
+    text = "Hourly Average and Spread",  
+    xref = "paper",  
+    yref = "paper",  
+    xanchor = "center",  
+    yanchor = "bottom",  
+    showarrow = FALSE 
+  )
+)
+s3 <- subplot(ggplotly(pl.hourly_distribution), nrows=1, titleY = TRUE, titleX = TRUE, margin=.05) |>
+        layout(showlegend=TRUE, annotations = annotations, coloraxis=list( colorscale='Dark2' ))
+ 
+subplot(s1, s2, s3, nrows=3, titleY = TRUE, titleX = TRUE, margin=.05) |> 
+   layout(showlegend=TRUE, coloraxis=list( colorscale='Dark2' ) )
+```
+
+

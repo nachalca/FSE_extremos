@@ -3,7 +3,7 @@ title: "`r paste0('Model evaluation for ', params$variable)`"
 header-includes:
    - \usepackage{bbm}
 params:
-  variable: "tas" #Use pr as default
+  variable: "sfcWind" #Use pr as default
 output: html_document
 ---
 
@@ -27,7 +27,7 @@ library(knitr)
 library(gridExtra)
 #Sys.setenv(RETICULATE_PYTHON = "/home/tancre/bin/miniconda3/bin/python")
 library(reticulate)
-use_python("/home/tancre/bin/miniconda3/bin/python", required = TRUE)
+use_python("/home/bruno/.miniconda3/envs/FSE_extremos/bin", required = TRUE)
 library(yaml)
 library("extremogram")
 source('code/metrics.R')
@@ -52,7 +52,8 @@ xgboost_downscaler <- xgb$XgboostDownscaler()
 
 xgboost_predictions <- xgboost_downscaler$predict(
                            model = paste0(here(), "/models/", params$variable, "/xgboost.pkl"), 
-                           data = paste0(here(), "/data/testing/", params$variable, ".csv")
+                           data = paste0(here(), "/data/testing/", params$variable, ".csv"),
+                           variable = params$variable
                        )
 
 ```
@@ -63,7 +64,8 @@ if(params$variable == "pr"){
   xgb_custom_downscaler <- xgb_custom$XgboostCustomDownscaler()
   xgb_custom_predictions <- xgb_custom_downscaler$predict(
                                 model = paste0(here(), "/models/", params$variable, "/xgboost_custom.pkl"), 
-                                data = paste0(here(), "/data/testing/", params$variable, ".csv")
+                                data = paste0(here(), "/data/testing/", params$variable, ".csv"),
+                                variable = params$variable
                             )
 }
 ```
@@ -73,8 +75,11 @@ if(params$variable == "pr"){
 cnn <- import_from_path("CNNDownscaler", path = paste0(here(), "/code"))
 cnn_downscaler <- cnn$CNNDownscaler()
 
-cnn_predictions <- cnn_downscaler$predict(model = paste0(here(), "/models/", params$variable, "/cnn.pkl"), 
-                           data = paste0(here(), "/data/testing/", params$variable, ".csv"))
+cnn_predictions <- cnn_downscaler$predict(
+                           model = paste0(here(), "/models/", params$variable, "/cnn.pkl"), 
+                           data = paste0(here(), "/data/testing/", params$variable, ".csv"),
+                           variable_name = params$variable
+                          )
 ```
 
 ```{r naive_predictions, results=F, warning=F, message=F}
@@ -83,7 +88,8 @@ nv <- import_from_path("NaiveDownscaler", path = paste0(here(), "/code"))
 nv_downscaler <- nv$NaiveDownscaler()
 
 nv_predictions <- nv_downscaler$predict(model = paste0(here(), "/models/", params$variable, "/naive.pkl"), 
-                           data = paste0(here(), "/data/testing/", params$variable, ".csv"))
+                           data = paste0(here(), "/data/testing/", params$variable, ".csv"),
+                           variable = params$variable)
 ```
 
 ```{r lstm_predictions, results=F, warning=F, message=F}
@@ -92,7 +98,8 @@ lstm <- import_from_path("LSTMDownscaler", path = paste0(here(), "/code"))
 lstm_downscaler <- lstm$LSTMDownscaler()
 
 lstm_predictions <- lstm_downscaler$predict(model = paste0(here(), "/models/", params$variable, "/lstm.pkl"), 
-                           data = paste0(here(), "/data/testing/", params$variable, ".csv"))
+                           data = paste0(here(), "/data/testing/", params$variable, ".csv"),
+                           variable_name = params$variable)
 ```
 
 ```{r res_dataframe, results=F}
@@ -158,17 +165,17 @@ $$
   * $A_d$: is the amplitude of day d, defined as the difference between the highest and lowest temperatures of that day.
   * $\hat{A}_d$: Estimated amplitude of day d.
   
-### Maximum difference
+### Maximum error
 
 $$
-\frac{\sum_{d=1}^D |{mh}_d - \hat{mh}_d}|
+\frac{\sum_{d=1}^D |{mh}_d - \hat{mh}_d|}{D}
 $$
 
 **Where**
 
-  * $D$, Number of days.
-  * $mh_d$ is the actual hour of the day when the peak occurred on day $d$.
-  * $\hat{mh}_d$ is the estimated hour of the day when the peak occurred on day $d$.
+  * $D$: Number of days.
+  * $mh_d$: is the actual hour of the day when the peak occurred on day $d$.
+  * $\hat{mh}_d$: is the estimated hour of the day when the peak occurred on day $d$.
 
 Lower values are better.
 
@@ -180,14 +187,30 @@ $$
 
 **Where**
 
-  * $N$ number of observations
-  * $sg$ is the sign function
-  * $X_n,X_n+1$ are the actual values of observation $n$ and $n+1$.
-  * $\hat{X}_n, \hat{X}_{n+1}$ are the estimated values for observation $n$ and $n+1$.
+  * $N$: number of observations
+  * $sg$: is the sign function
+  * $X_n,X_n+1$: are the actual values of observation $n$ and $n+1$.
+  * $\hat{X}_n, \hat{X}_{n+1}$: are the estimated values for observation $n$ and $n+1$.
   
 The function $\mathbb{1}{sg(X{n+1} - X_{n}) = sg(\hat{X}{n+1} - \hat{X}{n})}$ is an indicator function that equals 1 when the direction of change in the actual series matches the direction of change in the estimated series (i.e., if the actual series increases, the estimated series also increases, or if the actual series decreases, the estimated series also decreases), and equals 0 otherwise.
 
 The possible values of this indicator range between 0 (meaning that whenever the actual series increases, the estimated series decreases, or vice versa) and 1 (meaning that the estimated series always follows the same direction as the actual series). Higher values are preferable.
+
+### Extreme correlation
+
+$$
+\sum_{d | d \in D*} \frac{\mathbb{1}_{E_d=\hat{E}_d}}{|D*|}
+$$
+
+**Where**
+
+  * $D*$: Days that have an extreme value.
+  * $E_d$: A binary indicator for whether day d has an extreme value (1 if it does, 0 otherwise) in the observed data.
+  * $\hat{E}_d$: A binary indicator for whether day d is predicted to have an extreme value (1 if it does, 0 otherwise) based on the model.
+
+The function $\mathbb{1}_{E_d=\hat{E}_d}}$ is an indicator function that equals 1 when both of the days have and extreme value and 0 when one has an extreme value but the other does not.
+
+The possible values of this indicator range between 0 (the days with extremes in the actual serie and the estimated serie never match) and 1 (the days with extremes always match). Higher values are preferable.
 ```
 
 ## Time series of the first days
@@ -218,6 +241,14 @@ plots <- lapply(models, function(col) series_plot(res_to_plot, col))
 
 # Arrange the plots using gridExtra
 do.call(grid.arrange, c(plots, ncol = 1))
+```
+
+`r  if (conf[["VARIABLES"]][[params$variable]][["daily"]]) {"### Hourly distribution\n"}`
+
+```{r, fig.height=9, fig.width=8}
+if (conf[["VARIABLES"]][[params$variable]][["daily"]]){
+  hourly_distribution(res)
+}
 ```
 
 `r  if (conf[["VARIABLES"]][[params$variable]][["daily"]]) {"## How Often Peaks Hit Hourly\n"} else {"## Distribution of daily values by month\n"}`
@@ -316,7 +347,7 @@ do.call(grid.arrange, c(plots, ncol = 2))  # Arrange in a grid
 The purpose of this plot is to illustrate the distribution of P(undownscaled value | we predicted an extreme). This is useful because it reveals how much information we can recover concerning extreme events. If the distribution is skewed to the right, it suggests that we're predicting extreme values only when extreme values have already occurred. Conversely, if the lower tail of the distribution resembles the reanalysis data, it indicates that we can capture short-duration extremes (e.g., brief periods of heavy rainfall, such as an intense downpour lasting an hour before stopping).
 
 ```{r extremes}
-mean_on_days_with_extremes_plot(res, standarize=T)
+mean_on_coarse_res_with_extremes_plot(res, daily = conf[["VARIABLES"]][[params$variable]][["daily"]], standarize=T)
 ```
 
 ## Autocorrelogram

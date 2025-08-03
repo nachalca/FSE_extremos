@@ -6,19 +6,17 @@ knitr::opts_knit$set(root.dir = here())
 ```
 
 ```{r}
-variables <- list.files("models/")
-
-variables <- variables[!(variables %in% c("hyperparameters", "scalers", "README.md"))]
-#variables <- variables[(variables %in% c("tas"))]
+variables <- c("tas", "pr", "sfcWind")
+#variables <- variables[(variables %in% c("clt"))]
 
 lapply(variables, function(x){
 
-  #No idea why for the output file don't use the root folder and use as reference the ocation of the rmd file
   fname <- paste0("../../reports/downscaling_evaluation/",
                   x, 
+                  "_reduced", 
                   ".html") 
    
-  rmarkdown::render(input="code/downscaling_reports_generator/downscaling.Rmd", 
+  rmarkdown::render(input="code/downscaling_reports_generator/tab_generator.Rmd", 
                     output_file = fname,
                     output_format = "html_document",
                     params = list(variable=x),
