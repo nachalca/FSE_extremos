@@ -276,10 +276,6 @@ class LSTMDownscaler():
                 
                 best_hps = tuner.get_best_hyperparameters()[0]
                 lstm = tuner.hypermodel.build(best_hps)
-
-                print(X_train.shape)  # Should match (num_samples, time_steps, expected_features)
-                print(X_valid.shape)  # Should match (num_samples, time_steps, expected_features)
-
                 lstm.fit(X_train, 
                          y_train, 
                          epochs=100 if VARIABLES[variable_name]["daily"] else 200, 
