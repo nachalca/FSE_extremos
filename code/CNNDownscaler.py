@@ -269,7 +269,10 @@ class CNNDownscaler():
                 y_train = data["target"]
 
                 #Split the data in train and validation
-                X_train, X_valid, y_train, y_valid = model_selection.train_test_split(X_train, y_train, test_size=0.2, shuffle=False)                
+                X_train, X_valid, y_train, y_valid = model_selection.train_test_split(X_train, y_train, test_size=0.2, shuffle=False)   \
+
+                print(X_valid.shape)
+                print(X_train.shape)
                                 
                 #Set the amount of future and past observations to be taken into account  
                 window_size =  24 if VARIABLES[variable_name]["daily"] else 28
