@@ -6,6 +6,7 @@
 *.Rproj
 *.DS_Store
 
+temporal_downscaling_py/
 codigo/*.zip
 
 *.aux
