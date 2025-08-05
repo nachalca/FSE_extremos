@@ -8,8 +8,7 @@ knitr::opts_knit$set(root.dir = here())
 ```{r}
 variables <- list.files("models/")
 
-variables <- variables[!(variables %in% c("hyperparameters", "scalers", "README.md"))]
-#variables <- variables[(variables %in% c("tas"))]
+variables <- variables[(variables %in% c("pr"))]
 
 lapply(variables, function(x){
 

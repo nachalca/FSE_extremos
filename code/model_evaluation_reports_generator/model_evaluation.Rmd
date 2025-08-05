@@ -3,7 +3,7 @@ title: "`r paste0('Model evaluation for ', params$variable)`"
 header-includes:
    - \usepackage{bbm}
 params:
-  variable: "sfcWind" #Use pr as default
+  variable: "pr" #Use pr as default
 output: html_document
 ---
 
@@ -58,18 +58,6 @@ xgboost_predictions <- xgboost_downscaler$predict(
 
 ```
 
-```{r xgboost_custom, results=F, warning=F, message=F}
-if(params$variable == "pr"){
-  xgb_custom <- import_from_path("XgboostCustomDownscaler", path = paste0(here(), "/code"))
-  xgb_custom_downscaler <- xgb_custom$XgboostCustomDownscaler()
-  xgb_custom_predictions <- xgb_custom_downscaler$predict(
-                                model = paste0(here(), "/models/", params$variable, "/xgboost_custom.pkl"), 
-                                data = paste0(here(), "/data/testing/", params$variable, ".csv"),
-                                variable = params$variable
-                            )
-}
-```
-
 ```{r cnn_predictions, results=F, warning=F, message=F}
 # Use reticulate to import Python modules
 cnn <- import_from_path("CNNDownscaler", path = paste0(here(), "/code"))
@@ -108,8 +96,8 @@ if(params$variable == "pr"){
   inner_join(xgboost_predictions, by = join_by(time)) |>
   inner_join(cnn_predictions, by = join_by(time)) |>
   inner_join(nv_predictions, by = join_by(time)) |>
-  inner_join(lstm_predictions, by = join_by(time)) |>
-  inner_join(xgb_custom_predictions, by = join_by(time))
+  inner_join(lstm_predictions, by = join_by(time)) 
+#  inner_join(xgb_custom_predictions, by = join_by(time))
 } else {
   res <- res |> 
     inner_join(xgboost_predictions, by = join_by(time)) |>

@@ -2,7 +2,7 @@ library(rmarkdown)
 library(here)
 
 # variables <- c('clt', 'pr', 'rsds', 'sfcWind', 'tas')
-variables <- c( 'pr', 'sfcWind', 'tas')
+variables <- c( 'pr')
 
 lapply(variables, function(x){
   rmarkdown::render(input= here("code/model_evaluation_reports_generator/model_evaluation_reduced.Rmd"), 

@@ -6,7 +6,7 @@ knitr::opts_knit$set(root.dir = here())
 ```
 
 ```{r}
-variables <- c("tas", "pr", "sfcWind")
+variables <- c("pr")
 #variables <- variables[(variables %in% c("clt"))]
 
 lapply(variables, function(x){

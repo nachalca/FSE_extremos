@@ -64,18 +64,7 @@ if(conf[["VARIABLES"]][[params$variable]][["daily"]]){
 }
 
 tabla <- do.call(rbind, r) |>
-  mutate(across(where(is.numeric), \(x) round(x, digits = 3) ) ) |> 
-  select()
-
- "ratio_of_sd"         "KGE"
- "cor"
- "sign_correlation"    "extreme_correlation"
- 
- "mae"                                 
-"amplitude_mae"       "maximum_difference" 
-  "qqplot_mae"          "acf_mae"            
- "extremogram_mae" 
-
+  mutate(across(where(is.numeric), \(x) round(x, digits = 3) ) ) 
 
 data.frame(Metric = names(tabla), t(tabla)) |> 
   as_tibble() |> 
