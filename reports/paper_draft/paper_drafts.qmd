@@ -1,0 +1,10 @@
+---
+title: "Draft"
+format: pdf
+editor: visual
+---
+
+## Evaluating Downscaling Performance
+
+key points to develop:\
+- section to describe predictor evaluation methods - classical measures like RMSE are not useful - need metrics to capture distributional aspects of the predictions - notation with day and hour as subscript - set of combined graphics is presented, highlight different levels of summary

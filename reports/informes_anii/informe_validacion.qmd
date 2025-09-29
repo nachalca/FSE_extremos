@@ -7,19 +7,50 @@ number-sections: true
 
 # Introducción
 
+Este informe describe brevemente los procedimientos y productos obtenidos durante la ejecución del proyecto ZZZZ financiado por el Fondo Sectorial de Energía 2022 en el desafío ZZZ. 
+
+El principal objetivo alcanzado consiste en la aplicación de métodos estadísticos para reducir la escala temporal de series climáticas proyectadas a largo plazo bajo distintos escenarios de cambio climático, y la confección de herramientas estadísticas para evaluar el ajuste de las series de escala reducida. 
+
 -   describir problema y estructura informe
+   
+
+# Datos 
+
+- fuentes de datos 
+- selección de variables climáticas relevantes 
+- que datos CMIP fueron descargados 
+- los datos de reanalisis
+- códigos para obtener los datos 
+
+
+# Validación CMIP6
+
 -   foco principal: validación series de cmip6 (?)
 -   referencias de comparacion cmip6 para regiones
 -   algunas trabajos de uruguay
-
-# Datos
-
--   que datos fueron descargados, de que manera
-
-# Validación
-
 -   métodos para comparar las serires
 -   taylor
 -   comparaciónes de otras métricas
 
-# Comentarios finales
+# Downscaling temporal de series climáticas
+
+
+
+# Resumen de los productos
+
+- series a escala reducida: 
+    - 6 variables climáticas
+    - 7 modelos/escenarios climáticos 
+    - 5 métodos estadísticos de downscaling 
+
+- herramientas para evaluar downsaling
+    - comparación a *modelo perfecto* (ERA5 vs ERA5)
+    - comparación a *modelo imperfecto* (ERA5 vs CMIP6)
+
+- codigo R/python para 
+    - descargar datos cmip6
+    - aplicar downscaling temporal
+    - realizar dashboards de evaluación 
+
+- artículo científico describiendo las herramientas de evaluación de downscaling temporal (en preparación)
+
