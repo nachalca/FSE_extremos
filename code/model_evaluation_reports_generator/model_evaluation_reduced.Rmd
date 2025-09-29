@@ -64,8 +64,7 @@ if(conf[["VARIABLES"]][[params$variable]][["daily"]]){
 }
 
 tabla <- do.call(rbind, r) |>
-  mutate(across(where(is.numeric), \(x) round(x, digits = 3) ) ) |> 
-  select()
+  mutate(across(where(is.numeric), \(x) round(x, digits = 3) ) ) # |>  select()
 
  "ratio_of_sd"         "KGE"
  "cor"
@@ -191,7 +190,7 @@ annotations = list(
   list( 
     x = 0.15,  
     y = 1.0,  
-    text = "Rotated QQ-plot",  
+    text = "Detrended QQ-plot",  
     xref = "paper",  
     yref = "paper",  
     xanchor = "center",  
@@ -219,12 +218,17 @@ annotations = list(
     showarrow = FALSE 
   )
 )
-f1<-ggplotly(plqq); f2<-ggplotly(pl.ext); f3 <- ggplotly(pl.acf); 
+f1<-ggplotly(plqq) |> style(showlegend=FALSE) ; 
+f2<-ggplotly(pl.ext) |> style(showlegend=FALSE) ; 
+f3 <- ggplotly(pl.acf); 
 s1 <- subplot(
         f1, f2, f3, 
         nrows=1, titleY = TRUE, titleX = TRUE, shareX=FALSE, shareY=FALSE, margin=.05
       ) |> 
-      layout(showlegend=TRUE, annotations = annotations, coloraxis=list( colorscale='Dark2' ))
+      layout(annotations = annotations, coloraxis=list( colorscale='Dark2' ))
+
+
+
 
 annotations = list( 
   list( 
@@ -248,16 +252,16 @@ annotations = list(
     showarrow = FALSE 
   )  
 )
-f4<- ggplotly(pl.mx); 
-f5 <- ggplotly(pl.amplitude)
+f4<- ggplotly(pl.mx) |> style(showlegend=FALSE)  
+f5 <- ggplotly(pl.amplitude) |> style(showlegend=FALSE) 
 s2 <- subplot(f4, f5, nrows=1, titleY = TRUE, titleX = TRUE, margin=.05) |>
-        layout(showlegend=TRUE, annotations = annotations, coloraxis=list( colorscale='Dark2' ))
+        layout(annotations = annotations, coloraxis=list( colorscale='Dark2' )) 
 
 annotations = list( 
   list( 
     x = 0.5,  
     y = 1.0,  
-    text = "Hourly Average and Spread",  
+    text = "Hourly Average",  
     xref = "paper",  
     yref = "paper",  
     xanchor = "center",  
@@ -265,11 +269,13 @@ annotations = list(
     showarrow = FALSE 
   )
 )
-s3 <- subplot(ggplotly(pl.hourly_distribution), nrows=1, titleY = TRUE, titleX = TRUE, margin=.05) |>
-        layout(showlegend=TRUE, annotations = annotations, coloraxis=list( colorscale='Dark2' ))
+f6 <- ggplotly(pl.hourly_distribution) |> style(showlegend=FALSE) 
+s3 <- subplot(f6, nrows=1, titleY = TRUE, titleX = TRUE, margin=.05) |>
+        layout(annotations = annotations, coloraxis=list( colorscale='Dark2' ))
  
 subplot(s1, s2, s3, nrows=3, titleY = TRUE, titleX = TRUE, margin=.05) |> 
-   layout(showlegend=TRUE, coloraxis=list( colorscale='Dark2' ) )
+   layout(coloraxis=list( colorscale='Dark2' ) )
+
 ```
 
 
