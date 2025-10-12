@@ -74,16 +74,30 @@ tabla <- do.call(rbind, r) |>
 #   "qqplot_mae"          "acf_mae"            
 #  "extremogram_mae" 
 
+# a function for color the best cell in each metric
+fncol <- function(x) {
+  if (x[5] == 0) {
+    x <- abs(x-1)
+    x[5] <- -1
+  }
+  x <- x[5]*x
+  wm <- which.max(x[-5]) 
+  o <- character( 5 )
+  o <- rep("white", 5 )
+  o[wm] <- "#045a8d"
+  return(o)
+}
 
 data.frame(Metric = names(tabla), t(tabla)) |> 
+  mutate( dr = c(-1, 1, 0, 1, -1, -1, 1, 1, -1, -1, -1) ) |> 
   as_tibble() |> 
   gt() %>%
   data_color(
     columns = -Metric, 
     method = 'numeric',
     direction = 'row',
-    palette = 'Blues', 
-    reverse=TRUE)
+    fn = fncol) |> 
+      cols_hide(dr)
 ```
 
 ## Plots
