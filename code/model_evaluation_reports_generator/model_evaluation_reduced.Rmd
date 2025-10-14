@@ -31,7 +31,7 @@ source(here('code/utils.R'))
 
 ```{r load_data}
 # params <- vector(mode = 'list')
-# params$variable <- 'tas' 
+# params$variable <- 'pr' 
 
 res <- paste0('data/model_evaluation_data/', params$variable, ".csv") |> here() |> read.csv()  
 #Load configuration
@@ -76,22 +76,36 @@ tabla <- do.call(rbind, r) |>
 
 # a function for color the best cell in each metric
 fncol <- function(x) {
-  if (x[5] == 0) {
+  n <- length(x)
+
+  if (x[n] == 0) {
     x <- abs(x-1)
-    x[5] <- -1
+    x[n] <- -1
   }
-  x <- x[5]*x
-  wm <- which.max(x[-5]) 
-  o <- character( 5 )
-  o <- rep("white", 5 )
+  x <- x[n]*x
+  wm <- which.max(x[-n]) 
+
+  o <- character( n )
+  o <- rep("white", n )
   o[wm] <- "#045a8d"
   return(o)
 }
 
+# vector indicating if the metric is an error(-1), a gof (1), or a ratio (0)
+
+metr.dir <- rep(1, length(names(tabla)) )
+metr.dir[grep('mae', names(tabla))] <- -1
+metr.dir[grep('ratio', names(tabla)) ] <- 0
+
+
 data.frame(Metric = names(tabla), t(tabla)) |> 
-  mutate( dr = c(-1, 1, 0, 1, -1, -1, 1, 1, -1, -1, -1) ) |> 
-  as_tibble() |> 
-  gt() %>%
+  mutate( dr = metr.dir ) |>  # error direction
+  as_tibble() |>  
+  gt(  ) |>
+  fmt_number(
+    columns = everything(),
+    decimals = 2
+  ) |> 
   data_color(
     columns = -Metric, 
     method = 'numeric',
