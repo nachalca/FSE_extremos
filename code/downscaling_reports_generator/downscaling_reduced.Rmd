@@ -39,7 +39,7 @@ results <- results |>
   arrange(by = abs(diff_of_means)) |>
  mutate(across(where(is.numeric), \(x) round(x, digits = 3) ) )
 
-#write.csv(results, paste0("reports/ds_acp/",params$variable,".csv"), row.names = TRUE)
+write.csv(results, paste0("reports/ds_acp/",params$variable,".csv"), row.names = TRUE)
 
 data.frame(Metric = names(results), t(results)) |> 
   as_tibble() |> 
@@ -202,5 +202,5 @@ pl.ext <- ggplot() +
 ```{r, fig.height=11, fig.width=11}
 (plqq | pl.ext | pl.acf) /
       (pl.mx | pl.amplitude) /
-      (pl.hourly_distribution)
+      (pl.hourly_distribution) + plot_layout(guides = 'collect')
 ```
