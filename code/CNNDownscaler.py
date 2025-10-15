@@ -6,6 +6,7 @@ import yaml
 import os
 from sklearn import model_selection, preprocessing
 import shutil
+from numpy.random import seed
 
 import tensorflow as tf
 from tensorflow.keras import optimizers
@@ -41,7 +42,7 @@ class CNNDownscaler():
 
     #Add past observations and next observations as predictors, also do the onehot encoding
     @staticmethod
-    def transform(window_size, data_x, data_y=None):
+    def transform(window_size, variable_name, isTrain, data_x, data_y=None):
 
         #It is used to shape the data for the model
         def temporalize(X, y, lookback):
@@ -121,39 +122,48 @@ class CNNDownscaler():
                             lookback=lookback)
         
         # Initialize a scaler using the training data.
-        scaler = preprocessing.StandardScaler().fit(flatten(X_train))
+        if isTrain:
+            scaler = preprocessing.StandardScaler().fit(flatten(X_train))
+            # Save the scaler for later use
+            if not os.path.exists("models/scalers/cnn"):
+                os.makedirs("models/scalers/cnn")   
+            pickle.dump(scaler, open(f"models/scalers/cnn/{variable_name}.pkl", "wb"))
+        else:
+            # Load the scaler
+            scaler = pickle.load(open(f"models/scalers/cnn/{variable_name}.pkl", "rb"))
+        
+        # Scale the data
         X_train_scaled = scale(X_train, scaler).astype(np.float32)
 
         if y_train is None:
             return X_train_scaled
-        else:
-            return X_train_scaled, y_train
+        return X_train_scaled, y_train
         
-    def predict(self, data, model, variable=None):
+    def predict(self, data, model, variable_name=None):
         data = pd.read_csv(data)
         res = data.copy() # To keep the time
         data.drop(columns=["target", "time"], inplace=True, errors="ignore")
         window_size =  24 if "hour" in data.columns else 28
         print(f"Transforming dataset for prediction")      
-        data = self.transform(window_size, data_x = data)
+        data = self.transform(window_size, variable_name, False, data_x = data)
         print(f"Predicting with model {model}")
         model = pickle.load(open(model, "rb"))
         predictions = model.predict(data)
         res = res.iloc[window_size:len(res) - window_size] # Match the sizes
         res["cnn"] = predictions
-        res["cnn"] = res["cnn"].clip(lower=0, upper=100 if variable == "clt" else None)
+        res["cnn"] = res["cnn"].clip(lower=0, upper=100 if variable_name == "clt" else None)
         return res[["time", "cnn"]]
 
-    def explain(self, data, model):
-        data = pd.read_csv(data)
-        data.drop(columns=["target", "time"], inplace=True, errors="ignore")
-        window_size =  24 if "hour" in data.columns else 28
-        data = self.transform(window_size, data_x = data)        
-#        model = pickle.load(open(model, "rb"))
-        model = load_model(model)
-        explainer = shap.Explainer(model, data)
-        shap_values = explainer.shap_values(data)
-        return shap_values
+#     def explain(self, data, model, variable_name=None):
+#         data = pd.read_csv(data)
+#         data.drop(columns=["target", "time"], inplace=True, errors="ignore")
+#         window_size =  24 if "hour" in data.columns else 28
+#         data = self.transform(window_size, variable_name, False, data_x = data)      
+# #        model = pickle.load(open(model, "rb"))
+#         model = load_model(model)
+#         explainer = shap.Explainer(model, data)
+#         shap_values = explainer.shap_values(data)
+#         return shap_values
 
     def optimize(self, hp):
         try:
@@ -205,11 +215,11 @@ class CNNDownscaler():
                 f"Failed to build model with error: {_e}"
             )
 
-    def explain(self, data, model):
+    def explain(self, data, model, variable_name=None):
         data = pd.read_csv(data)
         data.drop(columns=["target", "time"], inplace=True, errors="ignore")
         window_size =  24 if "hour" in data.columns else 28
-        data = self.transform(window_size, data_x = data)
+        data = self.transform(window_size, variable_name, False, data_x = data)
         model = pickle.load(open(model, "rb"))
 
         explainer = shap.DeepExplainer(model.predict, data)
@@ -234,14 +244,17 @@ class CNNDownscaler():
         VARIABLES = conf["VARIABLES"]
         SEED = conf["SEED"]        
 
+
+        # Set the random seed for reproducibility
         random.set_seed(SEED)
+        seed(SEED)  # For NumPy
 
         # List all the training datataset
         files = os.listdir("data/training")
 
         #For each dataset, train a model
         for f in files:
-            if f.endswith('.csv') and f.startswith("pr"):
+            if f.endswith('.csv'):
                 variable_name = f.split(".")[0] #Get the variable name from the filename
                 print(f"Training model for \033[92m{variable_name}\033[0m")
             
@@ -263,8 +276,8 @@ class CNNDownscaler():
                 
                 # Transform the data
                 print("Transforming the data ...")
-                X_train, y_train = self.transform(window_size, X_train, y_train)
-                X_valid, y_valid = self.transform(window_size, X_valid, y_valid)
+                X_train, y_train = self.transform(window_size, variable_name, True, X_train, y_train)
+                X_valid, y_valid = self.transform(window_size, variable_name, False, X_valid, y_valid)
 
                 self.TIMESTEPS = X_train.shape[1]  # equal to the lookback
                 self.N_FEATURES = X_train.shape[2]  # the number of features        
@@ -273,7 +286,7 @@ class CNNDownscaler():
                     self.optimize,
                     objective="val_mean_absolute_error",
                     max_epochs=50,
-#                    overwrite=True,
+                    overwrite=True,
                     directory = "models/hyperparameters",
                     project_name = f'cnn/{variable_name}', 
                     seed = SEED
@@ -319,8 +332,8 @@ class CNNDownscaler():
                 if os.path.exists(f"models/{variable_name}") == False:
                     os.makedirs(f"models/{variable_name}")
                 
-                cnn.save(f"models/{variable_name}/cnn.h5")
-#                pickle.dump(cnn, open(f"models/{variable_name}/cnn.pkl", "wb"))
+#                cnn.save(f"models/{variable_name}/cnn.h5")
+                pickle.dump(cnn, open(f"models/{variable_name}/cnn.pkl", "wb"))
         
 
 def main():

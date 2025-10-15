@@ -1,0 +1,15 @@
+
+scrip para copiar archivos desde cuervo 
+
+==================================
+series downscaleadas 
+----------------------
+scp -r nachalca@164.73.240.131:/shares/temporal_downscaling/data/downscaled_data ~/Documents
+
+scp nachalca@164.73.240.131:/shares/temporal_downscaling_brazil/data/downscaled_data/pr.csv ~/Documents
+
+====================================
+
+reportes evaluacion (deberian ser iguales a los de git)
+
+scp -r nachalca@164.73.240.131:/shares/temporal_downscaling/reports/model_evaluation ~/Documents

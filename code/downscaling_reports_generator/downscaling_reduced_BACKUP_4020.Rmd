@@ -1,0 +1,210 @@
+```{css}
+h4 {
+  margin-top: 3em;
+  font-size: 18pt;
+}
+```
+
+```{r}
+colnames(res_validation_wide) <- sapply(strsplit(colnames(res_validation_wide), "\\."), `[`, 1)
+colnames(res_validation_wide)[colnames(res_validation_wide) == "nv"] <- "naive"
+```
+
+```{r}
+models <- res_validation_wide |> select(-c("time", "reanalysis", starts_with('undownscaled'))) |> colnames()
+
+r <- lapply(models, function(x) {
+    if (conf[["VARIABLES"]][[params$variable]][["daily"]]) {
+      if(params$variable == 'pr'){
+        metrics_unpaired_hourly_rain(time = res_validation_wide$time, 
+                                truth = res_validation_wide$reanalysis, 
+                                estimate = res_validation_wide[[x]], 
+                                model = x)
+      }else{
+        metrics_unpaired_hourly(time = res_validation_wide$time, 
+                                truth = res_validation_wide$reanalysis, 
+                                estimate = res_validation_wide[[x]], 
+                                model = x)        
+      }
+    } else {
+      metrics_unpaired_daily(time = res_validation_wide$time, 
+                             truth = res_validation_wide$reanalysis, 
+                             estimate = res_validation_wide[[x]], model = x)
+    }
+})
+
+results <- do.call(rbind, r)
+
+results <- results |>
+  arrange(by = abs(diff_of_means)) |>
+ mutate(across(where(is.numeric), \(x) round(x, digits = 3) ) )
+
+write.csv(results, paste0("reports/ds_acp/",params$variable,".csv"), row.names = TRUE)
+
+data.frame(Metric = names(results), t(results)) |> 
+  as_tibble() |> 
+  gt() %>%
+  data_color(
+    columns = -Metric, 
+    method = 'numeric',
+    direction = 'row',
+    palette = 'Blues', 
+    reverse=TRUE)
+```
+
+#### Time series of the first days
+
+```{r, echo=FALSE}
+days <- n_distinct(res_validation_long$model)*n_distinct(res_validation_long$experiment)*24*5
+res_to_plot <- res_validation_long[0:days,]
+
+
+series_plot <- function(data, exp) {
+  p <- data |> 
+    filter(experiment == exp) |>
+    mutate(time = as.POSIXct(time))
+  
+  p2 <- p |>
+      group_by(time) |>
+      summarise(model = "reanalysis", value = mean(reanalysis))
+  
+  p <- p |> 
+    select(time,model,value) |>
+    rbind(p2) |>
+    arrange(time)
+  
+    ### Assign black color to reanalyis
+    gg_color_hue <- function(n) {
+      hues = seq(15, 375, length = n + 1)
+      hcl(h = hues, l = 65, c = 100)[1:n]
+    } 
+    
+    pal <- gg_color_hue(length(unique(p$model)))
+    pal[which(sort(unique(p$model)) == "reanalysis") ] <- "black"
+    ##############################  
+
+    ggplot(p, aes(x=time, y=value, color=model)) +
+      geom_line() +
+      scale_color_manual(values=pal) +
+      labs(y = params$variable, x = "", title = exp)
+}
+
+# Serie to compare to reanalysis
+models <- unique(res_validation_long$experiment)
+
+# Generate Q-Q plots
+plots <- lapply(models, function(exp) series_plot(res_to_plot, exp))
+
+# Arrange the plots using gridExtra
+wrap_plots(plots, ncol = 1, guides = 'collect', pos)  & theme(legend.position = 'bottom')
+
+rm(res_validation_long)
+```
+
+#### Plots
+
+```{r}
+pps <- (0:99+.5)/100
+plqq <- res_validation_wide |> 
+  pivot_longer(cols = -c(1:2), values_to = 'value', 
+               names_to = 'model') |> 
+  group_by(model) |> 
+  reframe(qq.obs  = quantile(reanalysis, probs = pps),
+          qq.pred = quantile(value, probs = pps, na.rm = TRUE),
+          per = pps) |> 
+  ggplot() + 
+  geom_line(aes( y=qq.pred-qq.obs, x=per, color=model)) + 
+  geom_hline(yintercept = 0, linetype='dashed') + 
+  scale_color_brewer(palette = 'Dark2') + 
+  theme_bw() 
+```
+
+
+```{r}
+if (conf[["VARIABLES"]][[params$variable]][["daily"]]) {
+  res.mx <- res_validation_wide |> 
+              select(-starts_with('undownscaled')) |>
+              pivot_longer(-time, names_to = 'model', values_to = 'vs')  |> 
+              mutate( date = ymd_hms(time) ) |> 
+              mutate(dd = as_date(date), hh = hour(date)) |> 
+              group_by(dd, model) |> 
+              mutate(mx = max(vs) ) |> 
+              ungroup() |> 
+              filter(vs == mx) |> 
+              select(model, dd, mx, hh)
+  
+  pl.mx <- ggplot() +
+    geom_bar(data=filter(res.mx, model =='reanalysis'), 
+             mapping = aes(x=hh), fill='grey') +
+    geom_freqpoly(data= filter(res.mx, model !='reanalysis'),
+              mapping = aes(x=hh, color=model) ) +
+    scale_color_brewer(palette = 'Dark2') + 
+    theme_bw() 
+}
+```
+
+```{r}
+pl.hourly_distribution <- hourly_distribution(res_validation_wide |> select(-starts_with('undownscaled')))
+```
+
+```{r}
+pl.amplitude <- amplitude_plot(res_validation_wide |> select(-starts_with('undownscaled')))
+```
+
+```{r}
+models <- res_validation_wide |> select(-c("time")) |> select(-starts_with('undownscaled')) |> colnames()
+
+results <- lapply(models, function(x) {
+  acf(res_validation_wide[[x]], lag.max = 47, plot = F)$acf
+}) |> set_names(nm = models) |> 
+  bind_rows( .id='models') |> 
+  tibble() |> 
+  mutate(lag = 1:48) |> 
+  pivot_longer(cols = -lag, names_to = "model", values_to = "acf") |> 
+  filter(lag > 1)
+
+res.acf.obs <- filter(results, model=='reanalysis')
+
+pl.acf <- ggplot() +
+  geom_col(data=res.acf.obs, mapping = aes(x=lag, y=acf), fill='grey') + 
+  geom_line(data= filter(results, model !='reanalysis'),
+            mapping = aes(lag, acf, color=model) ) +
+  scale_color_brewer(palette = 'Dark2') + 
+  theme_bw() 
+```
+
+*Important:* Right now we are only estimating the upper tail extremogram. Currently we didn't find a way to estimate the two tales at the same time. We are using `quant = .97`
+
+```{r}
+models <- res_validation_wide |> select(-c("time")) |> select(-starts_with('undownscaled')) |> colnames()
+
+results <- lapply(models, function(x) {
+  extremogram1(res_validation_wide[[x]], 
+               quant = .97, maxlag = 48, type = 1, ploting = 0)
+}) |> 
+  set_names(nm = models) |> 
+  bind_rows( .id='models') |> 
+  tibble() |> 
+  mutate(lag = 1:48) |> 
+  pivot_longer(cols = -lag, names_to = "model", values_to = "extremogram") |> 
+  filter(lag > 1)
+
+res.acf.obs <- filter(results, model=='reanalysis')
+
+pl.ext <- ggplot() +
+  geom_col(data=res.acf.obs, mapping = aes(x=lag, y=extremogram), fill='grey') + 
+  geom_line(data= filter(results, model !='reanalysis'),
+            mapping = aes(lag, extremogram, color=model) ) +
+  scale_color_brewer(palette = 'Dark2') + 
+  theme_bw() 
+```
+
+```{r, fig.height=11, fig.width=11}
+(plqq | pl.ext | pl.acf) /
+      (pl.mx | pl.amplitude) /
+<<<<<<< HEAD
+      (pl.hourly_distribution)
+=======
+      (pl.hourly_distribution) + plot_layout(guides = 'collect')
+>>>>>>> scaler
+```
