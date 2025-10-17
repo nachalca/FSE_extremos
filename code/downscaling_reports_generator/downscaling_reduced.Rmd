@@ -33,23 +33,27 @@ r <- lapply(models, function(x) {
     }
 })
 
-results <- do.call(rbind, r)
+results <- do.call(rbind, r) |> 
+  arrange(abs(diff_of_means))
+ # mutate(across(where(is.numeric), \(x) round(x, digits = 3) ) )
 
-results <- results |>
-  arrange(by = abs(diff_of_means)) |>
- mutate(across(where(is.numeric), \(x) round(x, digits = 3) ) )
+res.tabla <-  data.frame(Metric = names(results), t(results)) |> 
+  mutate( sce = gsub('\\.', '_', res)) |> 
+  remove_rownames()
 
-write.csv(results, paste0("reports/ds_acp/",params$variable,".csv"), row.names = TRUE)
-
-data.frame(Metric = names(results), t(results)) |> 
-  as_tibble() |> 
-  gt() %>%
+res.tabla |>   as_tibble() |> 
+  select(-sce) |> 
+  gt() |> 
   data_color(
-    columns = -Metric, 
+    columns = -c(Metric),
     method = 'numeric',
     direction = 'row',
     palette = 'Blues', 
     reverse=TRUE)
+
+write.csv(res.tabla, 
+  paste0("reports/ds_acp/",params$variable,'_',gsub('\\.', '_', res), ".csv"), 
+  row.names = FALSE)  
 ```
 
 #### Time series of the first days

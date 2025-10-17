@@ -34,6 +34,7 @@ conf <- yaml.load_file("code/conf.yml")
 ```
 
 ```{r load_test_data_tab}
+# params <- list(variables = 'tas')
 x <- paste0('data/to_be_downscaled/', params$variable)
 res_validation_wide_tot <- read.csv(paste0("data/downscaled_data/",params$variable,".csv"))
 res_validation_long_tot <- res_validation_wide_tot |> 
@@ -45,6 +46,7 @@ to_be_downscaled <- res_validation_long_tot |> distinct(experiment) |> pull(expe
 ## Results {.tabset}
 
 ```{r tabs_tab, results='asis'}
+# res <- to_be_downscaled[1]
 for (res in to_be_downscaled) {
   
   # Subset the wide/long data for this experiment:
