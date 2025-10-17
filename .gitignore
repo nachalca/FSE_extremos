@@ -32,3 +32,5 @@ code/__pycache__/**
 models/hyperparameters/cnn/**
 models/hyperparameters/lstm/**
 temporal_downscaling_py/
+code/downscaling_reports_generator/generator_reduced_files/*
+reports/downscaling_evaluation/sfcWind_reduced_files/*
