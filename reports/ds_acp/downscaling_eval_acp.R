@@ -52,15 +52,21 @@ dd <- d |>
 
 nm_cols <- sapply(dd, is.numeric)
 dd[, nm_cols] <- scale(dd[, nm_cols])
+summary(dd)
+
 
 library(GGally)
+ggcorr(dd[, nm_cols])
+
 dd |>
-  filter(response == 'tas') |>
+  #filter(response == 'tas') |>
   ggparcoord(
     columns = colnames(dd)[nm_cols],
-    groupColumn = 'center',
+    groupColumn = 'predictor',
     order = 'allClass'
-  )
+  ) +
+  facet_grid(response ~ center)
+
 
 dd |>
   pivot_longer(
@@ -80,16 +86,33 @@ dd_long <- dd |>
     values_to = 'error'
   )
 
+# try with linear model
 library(ggthemes)
 library(modelbased)
+library(parameters)
+library(xtable)
+
 mm <- lm(
-  error ~ response + response:predictor + response:exp + response:center,
+  error ~ response + response:exp + predictor / response + response * center,
   data = dd_long
 )
+anova(mm) # significant: response, center, response:center, response:predictor
+
+mm <- lm(
+  error ~ response + response:exp + response:predictor + response:center,
+  data = dd_long
+)
+anova(mm) # exp is not relevant: it is ok to compare downscaled series under dif scenarios
+anova(mm) |> model_parameters() |> xtable()
+
+mm1 <- lm(
+  error ~ predictor * center,
+  data = filter(dd_long, response == 'pr')
+)
+anova(mm1)
 
 
-anova(mm)
-
+# compute estimated marginal means
 ?estimate_means
 res.mn <- estimate_means(mm, by = c('response', 'center', 'predictor'))
 
@@ -101,37 +124,65 @@ ggplot(res.mn, aes(x = predictor, y = Mean, color = center)) +
   theme_bw() +
   theme(legend.position = 'bottom', aspect.ratio = 1)
 
-
-ggplot(res.mn, aes(x = predictor, y = Mean, color = center)) +
+res.mn |>
+  mutate(
+    resp = factor(Response, labels = c('Precipitation', 'Temperature', 'Wind'))
+  ) |>
+  # with( table(resp, Response))
+  ggplot() +
   geom_pointrange(
-    aes(ymin = CI_low, ymax = CI_high),
+    aes(x = predictor, y = Mean, color = center, ymin = CI_low, ymax = CI_high),
     position = position_dodge(.5)
   ) +
-  #facet_wrap(~Response) +
-  facet_grid(Response ~ center) +
-  labs(colo = '', x = '', y = 'Error mean') +
+  #facet_grid(Response ~ center) +
+  facet_grid(~resp) +
+  labs(color = '', x = '', y = 'Error mean') +
   scale_color_colorblind() +
   theme_bw() +
   theme(legend.position = 'bottom')
 
+ggsave(filename = 'reports/figures/DSerrormean.png', height = 3.5, width = 7)
 
-# pca...
+# try with pca...
 pca.res <- PCA(dd, quali.sup = c(1:3, 12:13), graph = FALSE)
 
 names(pca.res)
+#plot(pca.res, graph.type = 'ggplot', habillage = 3, label = 'var' )
 
-cbind(dd, pca.res$ind$coord[, 1:2]) |>
+pl.pca <- cbind(dd, pca.res$ind$coord[, 1:2]) |>
+  mutate(
+    resp = factor(response, labels = c('Precipitation', 'Temperature', 'Wind'))
+  ) |>
   ggplot() +
-  geom_point(aes(x = Dim.1, y = Dim.2, color = center)) +
+  geom_point(
+    aes(x = Dim.1, y = Dim.2, color = predictor, shape = center),
+    size = 3,
+    alpha = .7
+  ) +
   geom_vline(xintercept = 0) +
   geom_hline(yintercept = 0) +
-  facet_wrap(~response) +
+  facet_wrap(~resp, ncol = 2) +
   scale_color_brewer(palette = 'Dark2') +
-  theme(aspect.ratio = 1)
+  theme(aspect.ratio = 1) +
+  theme_bw()
 
-plot(pca.res, graph.type = 'ggplot') +
-  facet_wrap(~response)
+# plot(pca.res, graph.type = 'ggplot', habillage = 3, label = 'var' )
+pl.varpca <- plot(pca.res, choix = 'var', graph.type = 'ggplot', cex = .7) +
+  labs(title = '') +
+  theme_void()
 
+library(patchwork)
+pl.pca +
+  inset_element(
+    pl.varpca,
+    left = 0.55,
+    bottom = 0.01,
+    right = 1,
+    top = 0.55,
+    align_to = 'plot'
+  )
+
+ggsave(filename = 'reports/figures/DSerrorpca.png', height = 6, width = 7)
 
 #install.packages('Factoshiny')
 library(Factoshiny)
