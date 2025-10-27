@@ -354,6 +354,57 @@ amplitude_mae_monthly <- function(time, truth, estimate) {
   mae(r$truth_amplitude, r$estimate_amplitude)
 }
 
+# day of year distribution (for monthly variables)
+doy_distribution <- function(data) {
+  df <- data |>
+    pivot_longer(cols = -c(time), names_to = "model", values_to = "value") |>
+    mutate(
+      ww = week(time),
+      season = getSeason(time)
+    ) |>
+    group_by(ww, season, model) |>
+    summarize(
+      w_mean = mean(value),
+      .groups = "drop"
+    )
+
+  df$ww[df$season == 'SUMMER' & df$ww < 12] <- df$ww[
+    df$season == 'SUMMER' & df$ww < 12
+  ] +
+    max(df$ww)
+
+  ggplot() +
+    geom_line(
+      data = filter(df, model == 'reanalysis'),
+      aes(x = ww, y = w_mean),
+      color = 'grey',
+      linewidth = 1,
+      alpha = .8
+    ) +
+    geom_point(
+      data = filter(df, model == 'reanalysis'),
+      aes(x = ww, y = w_mean),
+      color = 'grey',
+      alpha = .8,
+      size = I(2)
+    ) +
+    geom_line(
+      data = filter(df, model != 'reanalysis'),
+      aes(x = ww, y = w_mean, color = model)
+    ) +
+    facet_wrap(~season, nrow = 2, scales = 'free_x') +
+    # scale_x_continuous(breaks = seq(0, 12, 1)) +
+    scale_color_brewer(palette = 'Dark2') +
+    labs(
+      x = "Week of the season",
+      y = "Average",
+      color = "Model"
+    ) +
+    theme_minimal() +
+    theme(axis.text.x = element_blank())
+}
+
+
 #Daily amplitude by model.
 amplitude_plot <- function(data) {
   df <- data |>
