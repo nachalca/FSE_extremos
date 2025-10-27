@@ -1,8 +1,9 @@
 library(rmarkdown)
 library(here)
 
-# variables <- c('clt', 'pr', 'rsds', 'sfcWind', 'tas')
-variables <- c('pr', 'sfcWind', 'tas')
+variables <- c('clt', 'pr', 'rsds', 'sfcWind', 'tas')
+# variables <- c('pr', 'sfcWind', 'tas')
+# variables <- c('clt', 'rsds')
 
 lapply(variables, function(x) {
   rmarkdown::render(
