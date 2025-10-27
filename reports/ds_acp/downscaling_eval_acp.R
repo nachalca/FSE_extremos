@@ -153,9 +153,10 @@ pl.pca <- cbind(dd, pca.res$ind$coord[, 1:2]) |>
   mutate(
     resp = factor(response, labels = c('Precipitation', 'Temperature', 'Wind'))
   ) |>
+  filter(center == 'cesm2') |>
   ggplot() +
   geom_point(
-    aes(x = Dim.1, y = Dim.2, color = predictor, shape = center),
+    aes(x = Dim.1, y = Dim.2, color = predictor, shape = resp),
     size = 3,
     alpha = .7
   ) +
