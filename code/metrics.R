@@ -1061,7 +1061,7 @@ mdeval_report_out <- function(variable, output) {
   }
 
   if (output == 'qqplot') {
-    plqq <- detrend_qq(res)
+    OO <- detrend_qq(res)
   }
 
   if (output == 'maximum') {
