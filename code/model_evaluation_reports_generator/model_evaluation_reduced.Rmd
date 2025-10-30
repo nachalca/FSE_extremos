@@ -40,9 +40,28 @@ conf <- yaml.load_file(here("code/conf.yml"))
 
 
 
-The observations for the validation were taken from `r min(res$time)` to `r max(res$time)`.
+<!-- The observations for the validation were taken from `r min(res$time)` to `r max(res$time)`.
+Remember that we have on a daily scale the variables `sfcWind`, `tas`, `pr`, `tasmax`, `tasmin` and `psl` and in a monthly scale `clt`, `rsdt`,`rsds` as a predictors. We also have the month `r  if (conf[["VARIABLES"]][[params$variable]][["daily"]]) {", hour, sun's elevation & azimuth"}` and the daily daylight amount in seconds as a predictors too. -->
 
-Remember that we have on a daily scale the variables `sfcWind`, `tas`, `pr`, `tasmax`, `tasmin` and `psl` and in a monthly scale `clt`, `rsdt`,`rsds` as a predictors. We also have the month `r  if (conf[["VARIABLES"]][[params$variable]][["daily"]]) {", hour, sun's elevation & azimuth"}` and the daily daylight amount in seconds as a predictors too.
+- Climate variables used as response: 
+      - `sfcWind`, `tas`, `pr`: original scale *daily*, reduced scale: *hourly* 
+      - `clt`, `rsds`: original scale *monthly*, reduced scale: *daily* 
+
+- Training: All models are trained using ERA5 in reduced scale as observations. Training data perdiod: 1980 - 2015.  
+
+- Validation Period:  `r min(res$time)` to `r max(res$time)`
+
+- Response variable to predict:   upscaled ERA5 (daily or monthly)
+
+- Predictors variables: daily scale the variables `sfcWind`, `tas`, `pr`, `tasmax`, `tasmin` and `psl` and in a monthly scale `clt`, `rsdt`,`rsds` ,  the month `r  if (conf[["VARIABLES"]][[params$variable]][["daily"]]) {", hour, sun's elevation & azimuth"}` and the daily daylight amount in seconds.
+
+<br> 
+
+## Numerical evaluation metrics
+
+- Each row correspond an evaluation metric
+- Dark blue cell indicates the best model in the row. 
+- Light blue cell indicates the second best model in the row.
 
 ```{r metrics_paired}
 models <- res |> select(-c("time", "reanalysis")) |> colnames()
@@ -94,7 +113,20 @@ data.frame(Metric = names(tabla), t(tabla)) |>
       cols_hide(dr)
 ```
 
-## Plots
+<br>
+
+## Graphical evaluation metrics
+
+<!-- *Important:* Right now we are only estimating the upper tail extremogram. Currently we didn't find a way to estimate the two tales at the same time. We are using `quant = .97` -->
+
+- **Observations**: cumulative distribution (Detrended QQ), dependency structure (ACF), and extremes (Extremogram, using 0.97 cut off).
+
+- **Daily/Monthly gruped**: Maximum hour histogram (only in daily variables), Amplitude distribution. 
+
+- **Hourly/Daily grouped**: Mean profile per hour within days (or weeks witihin season)
+
+- In all plots, grey color represent the true ERA5 signal. 
+<br>
 
 ```{r qqplot}
 # pps <- (0:99+.5)/100
@@ -112,7 +144,6 @@ data.frame(Metric = names(tabla), t(tabla)) |>
 #   theme_bw() 
 plqq <- detrend_qq(res)
 ```
-
 
 ```{r maximum}
 # if (conf[["VARIABLES"]][[params$variable]][["daily"]]) {
@@ -159,7 +190,6 @@ if (conf[["VARIABLES"]][[params$variable]][["daily"]]) {
 pl.acf <- acf_plot(res)
 ```
 
-*Important:* Right now we are only estimating the upper tail extremogram. Currently we didn't find a way to estimate the two tales at the same time. We are using `quant = .97`
 
 ```{r extremogram}
 pl.ext <- extremogram_plot(res)
