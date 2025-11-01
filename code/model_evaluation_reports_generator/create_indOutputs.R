@@ -18,7 +18,7 @@ conf <- yaml.load_file(here("code/conf.yml"))
 #         'amplitude', 'acf', 'extremogram'
 
 mdeval_report_out(variable = 'tas', output = 'metrics')
+
 mdeval_report_out(variable = 'tas', output = 'extremogram')
 
-
-mdeval_report_out(variable = 'clt', output = 'metrics')
+mdeval_report_out(variable = 'clt', output = 'qqplot')
