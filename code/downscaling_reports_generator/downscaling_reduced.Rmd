@@ -41,19 +41,43 @@ res.tabla <-  data.frame(Metric = names(results), t(results)) |>
   mutate( sce = gsub('\\.', '_', res)) |> 
   remove_rownames()
 
-res.tabla |>   as_tibble() |> 
-  select(-sce) |> 
-  gt() |> 
+# save numeric results 
+# write.csv(res.tabla, 
+#   paste0("reports/ds_acp/",params$variable,'_',gsub('\\.', '_', res), ".csv"), 
+#   row.names = FALSE)  
+#------------------------
+
+# vector indicating if the metric is an error(-1), a gof (1), or a ratio (0)
+metr.dir <- rep(1, length(names(results)) )
+metr.dir[grep('mae|diff|ks', names(results))] <- -1
+metr.dir[grep('ratio', names(results)) ] <- 0
+
+data.frame(Metric = names(results), t(results)) |> 
+  mutate( dr = metr.dir ) |>  # error direction
+  as_tibble() |>  
+  gt(  ) |>
+  fmt_number(
+    columns = everything(),
+    decimals = 2
+  ) |> 
   data_color(
-    columns = -c(Metric),
+    columns = -Metric, 
     method = 'numeric',
     direction = 'row',
-    palette = 'Blues', 
-    reverse=TRUE)
+    fn = fncol) |> 
+      cols_hide(dr)
 
-write.csv(res.tabla, 
-  paste0("reports/ds_acp/",params$variable,'_',gsub('\\.', '_', res), ".csv"), 
-  row.names = FALSE)  
+
+
+# res.tabla |>   as_tibble() |> 
+#   select(-sce) |> 
+#   gt() |> 
+#   data_color(
+#     columns = -c(Metric),
+#     method = 'numeric',
+#     direction = 'row',
+#     palette = 'Blues', 
+#     reverse=TRUE)
 ```
 
 #### Time series of the first days
@@ -63,64 +87,53 @@ days <- n_distinct(res_validation_long$model)*n_distinct(res_validation_long$exp
 res_to_plot <- res_validation_long[0:days,]
 
 
-series_plot <- function(data, exp) {
-  p <- data |> 
-    filter(experiment == exp) |>
-    mutate(time = as.POSIXct(time))
+# series_plot <- function(data, exp) {
+#   p <- data |> 
+#     filter(experiment == exp) |>
+#     mutate(time = as.POSIXct(time))
   
-  p2 <- p |>
-      group_by(time) |>
-      summarise(model = "reanalysis", value = mean(reanalysis))
+#   p2 <- p |>
+#       group_by(time) |>
+#       summarise(model = "reanalysis", value = mean(reanalysis))
   
-  p <- p |> 
-    select(time,model,value) |>
-    rbind(p2) |>
-    arrange(time)
+#   p <- p |> 
+#     select(time,model,value) |>
+#     rbind(p2) |>
+#     arrange(time)
   
-    ### Assign black color to reanalyis
-    gg_color_hue <- function(n) {
-      hues = seq(15, 375, length = n + 1)
-      hcl(h = hues, l = 65, c = 100)[1:n]
-    } 
+#     ### Assign black color to reanalyis
+#     gg_color_hue <- function(n) {
+#       hues = seq(15, 375, length = n + 1)
+#       hcl(h = hues, l = 65, c = 100)[1:n]
+#     } 
     
-    pal <- gg_color_hue(length(unique(p$model)))
-    pal[which(sort(unique(p$model)) == "reanalysis") ] <- "black"
-    ##############################  
+#     pal <- gg_color_hue(length(unique(p$model)))
+#     pal[which(sort(unique(p$model)) == "reanalysis") ] <- "black"
+#     ##############################  
 
-    ggplot(p, aes(x=time, y=value, color=model)) +
-      geom_line() +
-      scale_color_manual(values=pal) +
-      labs(y = params$variable, x = "", title = exp)
-}
+#     ggplot(p, aes(x=time, y=value, color=model)) +
+#       geom_line() +
+#       scale_color_manual(values=pal) +
+#       labs(y = params$variable, x = "", title = exp)
+# }
 
-# Serie to compare to reanalysis
-models <- unique(res_validation_long$experiment)
+# # Serie to compare to reanalysis
+# models <- unique(res_validation_long$experiment)
 
-# Generate Q-Q plots
-plots <- lapply(models, function(exp) series_plot(res_to_plot, exp))
+# # Generate Q-Q plots
+# plots <- lapply(models, function(exp) series_plot(res_to_plot, exp))
 
-# Arrange the plots using gridExtra
-wrap_plots(plots, ncol = 1, guides = 'collect', pos)  & theme(legend.position = 'bottom')
+# # Arrange the plots using gridExtra
+# wrap_plots(plots, ncol = 1, guides = 'collect', pos)  & theme(legend.position = 'bottom')
 
+series_plot_ds(res_to_plot)
 rm(res_validation_long)
 ```
 
 #### Plots
 
 ```{r}
-pps <- (0:99+.5)/100
-plqq <- res_validation_wide |> 
-  pivot_longer(cols = -c(1:2), values_to = 'value', 
-               names_to = 'model') |> 
-  group_by(model) |> 
-  reframe(qq.obs  = quantile(reanalysis, probs = pps),
-          qq.pred = quantile(value, probs = pps, na.rm = TRUE),
-          per = pps) |> 
-  ggplot() + 
-  geom_line(aes( y=qq.pred-qq.obs, x=per, color=model)) + 
-  geom_hline(yintercept = 0, linetype='dashed') + 
-  scale_color_brewer(palette = 'Dark2') + 
-  theme_bw() 
+plqq <- detrend_qq_ds(res_validation_wide)
 ```
 
 

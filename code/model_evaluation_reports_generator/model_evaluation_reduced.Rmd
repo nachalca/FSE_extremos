@@ -47,13 +47,16 @@ Remember that we have on a daily scale the variables `sfcWind`, `tas`, `pr`, `ta
       - `sfcWind`, `tas`, `pr`: original scale *daily*, reduced scale: *hourly* 
       - `clt`, `rsds`: original scale *monthly*, reduced scale: *daily* 
 
-- Training: All models are trained using ERA5 in reduced scale as observations. Training data perdiod: 1980 - 2015.  
+- Training: 
+      - Response: ERA5 in reduced scale 
+      - Data perdiod: 1980 - 2015.  
+      - Predictors: from upscaled ERA5 (daily or monthly)
+      - Predictors variables: `sfcWind`, `tas`, `pr`, `tasmax`, `tasmin` and `psl` in daily scale, `clt`, `rsdt`,`rsds` in monthly scale,  the month `r  if (conf[["VARIABLES"]][[params$variable]][["daily"]]) {", hour, sun's elevation & azimuth"}` and the daily daylight amount in seconds.
 
-- Validation Period:  `r min(res$time)` to `r max(res$time)`
+- Validation: 
+    - Period:  `r min(res$time)` to `r max(res$time)`
+    - Variable to predict: reduced scale ERA5 variable  
 
-- Response variable to predict:   upscaled ERA5 (daily or monthly)
-
-- Predictors variables: daily scale the variables `sfcWind`, `tas`, `pr`, `tasmax`, `tasmin` and `psl` and in a monthly scale `clt`, `rsdt`,`rsds` ,  the month `r  if (conf[["VARIABLES"]][[params$variable]][["daily"]]) {", hour, sun's elevation & azimuth"}` and the daily daylight amount in seconds.
 
 <br> 
 

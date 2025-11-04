@@ -991,12 +991,62 @@ mean_on_coarse_res_with_extremes_ks <- function(
 }
 
 
-# Function to compute metrics table or individual plots
-mdeval_report_out <- function(variable, output) {
-  # variables: "sfcWind" "tas" "pr" "clt" "rsds"
-  # output: 'metrics', 'qqplot', 'maximum', 'hourly_dist',
-  #         'amplitude', 'acf', 'extremogram'
+series_plot_ds <- function(data) {
+  data |>
+    mutate(time = as_datetime(time)) |>
+    pivot_wider(names_from = model, values_from = value) |>
+    pivot_longer(
+      cols = -c('time', 'reanalysis', 'undownscaled', 'experiment'),
+      names_to = 'model',
+      values_to = 'values'
+    ) |>
+    ggplot() +
+    geom_line(aes(x = time, y = reanalysis), color = 'grey') +
+    geom_line(
+      aes(x = time, y = undownscaled),
+      color = 'black',
+      typeline = 'dashed'
+    ) +
+    geom_line(aes(x = time, y = values, color = model)) +
+    labs(color = '', y = params$variables)
+  scale_color_brewer(palette = 'Dark2') +
+    theme_bw() +
+    theme(aspect.ratio = 1 / 2)
+}
 
+detrend_qq_ds <- function(data, pps = (0:99 + .5) / 100) {
+  data |>
+    pivot_longer(
+      cols = -c('time', 'reanalysis', 'undownscaled'),
+      values_to = 'value',
+      names_to = 'model'
+    ) |>
+    group_by(model) |>
+    reframe(
+      qq.obs = quantile(reanalysis, probs = pps),
+      qq.und = quantile(undownscaled, probs = pps),
+      qq.pred = quantile(value, probs = pps, na.rm = TRUE),
+      per = pps
+    ) |>
+    ggplot() +
+    geom_line(aes(y = qq.pred - qq.obs, x = per, color = model)) +
+    geom_line(
+      aes(y = qq.und - qq.obs, x = per),
+      color = 'black',
+      linetype = 'dashed'
+    ) +
+    geom_hline(yintercept = 0, linewidth = 2, color = 'grey') +
+    scale_color_brewer(palette = 'Dark2') +
+    theme_bw()
+}
+
+
+##############################################################
+# Function to compute metrics table or individual plots
+# variables: "sfcWind" "tas" "pr" "clt" "rsds"
+# output: 'metrics', 'qqplot', 'maximum', 'hourly_dist',
+#         'amplitude', 'acf', 'extremogram'
+mdeval_report_out <- function(variable, output) {
   OO <- NULL # return object
   res <- paste0('data/model_evaluation_data/', variable, ".csv") |>
     here() |>

@@ -34,7 +34,7 @@ conf <- yaml.load_file("code/conf.yml")
 ```
 
 ```{r load_test_data_tab}
-# params <- list(variables = 'tas')
+# params <- list(variables = 'rsds')
 x <- paste0('data/to_be_downscaled/', params$variable)
 res_validation_wide_tot <- read.csv(paste0("data/downscaled_data/",params$variable,".csv"))
 res_validation_long_tot <- res_validation_wide_tot |> 
@@ -42,6 +42,22 @@ res_validation_long_tot <- res_validation_wide_tot |>
                             separate(col = model, sep = "\\.", into = c("model", "experiment"), extra = "merge")
 to_be_downscaled <- res_validation_long_tot |> distinct(experiment) |> pull(experiment)
 ```
+
+- Climate response variable: 
+      - `sfcWind`, `tas`, `pr`: original scale *daily*, reduced scale: *hourly* 
+      - `clt`, `rsds`: original scale *monthly*, reduced scale: *daily* 
+
+- Training: 
+      - Response: ERA5 in reduced scale 
+      - Data perdiod: 1980 - 2015.  
+      - Predictors: from CMIP6 (daily or monthly)
+      - Predictors variables: `sfcWind`, `tas`, `pr`, `tasmax`, `tasmin` and `psl` in daily scale, `clt`, `rsdt`,`rsds` in monthly scale,  the month `r  if (conf[["VARIABLES"]][[params$variable]][["daily"]]) {", hour, sun's elevation & azimuth"}` and the daily daylight amount in seconds.
+
+- Validation: 
+    - Period:  `r min(res_validation_wide$time)` to `r max(res_validation_wide$time)`
+    - Variable to predict: reduced scale CMIP6 variable  
+
+<br> 
 
 ## Results {.tabset}
 

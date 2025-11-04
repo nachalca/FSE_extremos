@@ -82,7 +82,7 @@ fncol <- function(x) {
     x <- abs(x - 1)
     x[n] <- -1
   }
-  x <- x[n] * x
+  x <- x[n] * abs(x)
 
   wm1 <- order(x[-n], decreasing = TRUE)[1]
   wm2 <- order(x[-n], decreasing = TRUE)[2]
