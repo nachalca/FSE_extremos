@@ -10,6 +10,12 @@ colnames(res_validation_wide) <- sapply(strsplit(colnames(res_validation_wide), 
 colnames(res_validation_wide)[colnames(res_validation_wide) == "nv"] <- "naive"
 ```
 
+#### Numerical evaluation metrics
+
+- Each row correspond an evaluation metric
+- Dark blue cell indicates the best model in the row. 
+- Light blue cell indicates the second best model in the row.
+
 ```{r}
 models <- res_validation_wide |> select(-c("time", "reanalysis", starts_with('undownscaled'))) |> colnames()
 
@@ -80,7 +86,7 @@ data.frame(Metric = names(results), t(results)) |>
 #     reverse=TRUE)
 ```
 
-#### Time series of the first days
+#### Time series of the first few days
 
 ```{r, echo=FALSE}
 days <- n_distinct(res_validation_long$model)*n_distinct(res_validation_long$experiment)*24*5
@@ -130,7 +136,19 @@ series_plot_ds(res_to_plot)
 rm(res_validation_long)
 ```
 
-#### Plots
+
+#### Graphical evaluation metrics
+
+<!-- *Important:* Right now we are only estimating the upper tail extremogram. Currently we didn't find a way to estimate the two tales at the same time. We are using `quant = .97` -->
+
+- **Observations**: cumulative distribution (Detrended QQ), dependency structure (ACF), and extremes (Extremogram, using 0.97 cut off).
+
+- **Daily/Monthly gruped**: Maximum hour histogram (only in daily variables), Amplitude distribution. 
+
+- **Hourly/Daily grouped**: Mean profile per hour within days (or weeks witihin season)
+
+- In all plots, grey color represent the true ERA5 signal. 
+<br>
 
 ```{r}
 plqq <- detrend_qq_ds(res_validation_wide)
@@ -139,85 +157,74 @@ plqq <- detrend_qq_ds(res_validation_wide)
 
 ```{r}
 if (conf[["VARIABLES"]][[params$variable]][["daily"]]) {
-  res.mx <- res_validation_wide |> 
-              select(-starts_with('undownscaled')) |>
-              pivot_longer(-time, names_to = 'model', values_to = 'vs')  |> 
-              mutate( date = ymd_hms(time) ) |> 
-              mutate(dd = as_date(date), hh = hour(date)) |> 
-              group_by(dd, model) |> 
-              mutate(mx = max(vs) ) |> 
-              ungroup() |> 
-              filter(vs == mx) |> 
-              select(model, dd, mx, hh)
+  # res.mx <- res_validation_wide |> 
+  #             select(-starts_with('undownscaled')) |>
+  #             pivot_longer(-time, names_to = 'model', values_to = 'vs')  |> 
+  #             mutate( date = ymd_hms(time) ) |> 
+  #             mutate(dd = as_date(date), hh = hour(date)) |> 
+  #             group_by(dd, model) |> 
+  #             mutate(mx = max(vs) ) |> 
+  #             ungroup() |> 
+  #             filter(vs == mx) |> 
+  #             select(model, dd, mx, hh)
   
-  pl.mx <- ggplot() +
-    geom_bar(data=filter(res.mx, model =='reanalysis'), 
-             mapping = aes(x=hh), fill='grey') +
-    geom_freqpoly(data= filter(res.mx, model !='reanalysis'),
-              mapping = aes(x=hh, color=model) ) +
-    scale_color_brewer(palette = 'Dark2') + 
-    theme_bw() 
+  # pl.mx <- ggplot() +
+  #   geom_bar(data=filter(res.mx, model =='reanalysis'), 
+  #            mapping = aes(x=hh), fill='grey') +
+  #   geom_freqpoly(data= filter(res.mx, model !='reanalysis'),
+  #             mapping = aes(x=hh, color=model) ) +
+  #   scale_color_brewer(palette = 'Dark2') + 
+  #   theme_bw() 
+
+  pl.mx <- res_validation_wide |> 
+    select(-starts_with('undownscaled')) |> 
+    hour_max_plot()
 }
 ```
 
 ```{r}
-pl.hourly_distribution <- hourly_distribution(res_validation_wide |> select(-starts_with('undownscaled')))
+#pl.hourly_distribution <- hourly_distribution(res_validation_wide |> select(-starts_with('undownscaled')))
+if (conf[["VARIABLES"]][[params$variable]][["daily"]]) {
+  pl.hourly_distribution <- res_validation_wide |> 
+    select(-starts_with('undownscaled')) |> hourly_distribution()
+} else { 
+  pl.hourly_distribution <-   pl.hourly_distribution <- res_validation_wide |> 
+    select(-starts_with('undownscaled')) |> week_distribution()
+}
 ```
 
 ```{r}
-pl.amplitude <- amplitude_plot(res_validation_wide |> select(-starts_with('undownscaled')))
+if (conf[["VARIABLES"]][[params$variable]][["daily"]]) {
+  pl.amplitude <- res_validation_wide |> 
+    select(-starts_with('undownscaled')) |> amplitude_plot()
+} else { 
+  pl.amplitude <- res_validation_wide |> 
+    select(-starts_with('undownscaled')) |> amplitude_monthly_plot()
+}
+
+
+#pl.amplitude <- amplitude_plot(res_validation_wide |> select(-starts_with('undownscaled')))
 ```
 
 ```{r}
-models <- res_validation_wide |> select(-c("time")) |> select(-starts_with('undownscaled')) |> colnames()
-
-results <- lapply(models, function(x) {
-  acf(res_validation_wide[[x]], lag.max = 47, plot = F)$acf
-}) |> set_names(nm = models) |> 
-  bind_rows( .id='models') |> 
-  tibble() |> 
-  mutate(lag = 1:48) |> 
-  pivot_longer(cols = -lag, names_to = "model", values_to = "acf") |> 
-  filter(lag > 1)
-
-res.acf.obs <- filter(results, model=='reanalysis')
-
-pl.acf <- ggplot() +
-  geom_col(data=res.acf.obs, mapping = aes(x=lag, y=acf), fill='grey') + 
-  geom_line(data= filter(results, model !='reanalysis'),
-            mapping = aes(lag, acf, color=model) ) +
-  scale_color_brewer(palette = 'Dark2') + 
-  theme_bw() 
+pl.acf <- res_validation_wide |> select(-starts_with('undownscaled')) |> acf_plot()
 ```
 
-*Important:* Right now we are only estimating the upper tail extremogram. Currently we didn't find a way to estimate the two tales at the same time. We are using `quant = .97`
-
 ```{r}
-models <- res_validation_wide |> select(-c("time")) |> select(-starts_with('undownscaled')) |> colnames()
-
-results <- lapply(models, function(x) {
-  extremogram1(res_validation_wide[[x]], 
-               quant = .97, maxlag = 48, type = 1, ploting = 0)
-}) |> 
-  set_names(nm = models) |> 
-  bind_rows( .id='models') |> 
-  tibble() |> 
-  mutate(lag = 1:48) |> 
-  pivot_longer(cols = -lag, names_to = "model", values_to = "extremogram") |> 
-  filter(lag > 1)
-
-res.acf.obs <- filter(results, model=='reanalysis')
-
-pl.ext <- ggplot() +
-  geom_col(data=res.acf.obs, mapping = aes(x=lag, y=extremogram), fill='grey') + 
-  geom_line(data= filter(results, model !='reanalysis'),
-            mapping = aes(lag, extremogram, color=model) ) +
-  scale_color_brewer(palette = 'Dark2') + 
-  theme_bw() 
+pl.ext <- res_validation_wide |> 
+  select(-starts_with('undownscaled')) |> extremogram_plot()
 ```
 
 ```{r, fig.height=11, fig.width=11}
-(plqq | pl.ext | pl.acf) /
+PP <- NULL
+if (conf[["VARIABLES"]][[params$variable]][["daily"]]) {
+  PP <- (plqq | pl.ext | pl.acf) /
       (pl.mx | pl.amplitude) /
       (pl.hourly_distribution) + plot_layout(guides = 'collect')
+} else {
+    PP <- (plqq | pl.ext | pl.acf) /
+      (pl.amplitude) /
+      (pl.hourly_distribution) + plot_layout(guides = 'collect')
+}
+PP
 ```

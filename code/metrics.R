@@ -1005,11 +1005,11 @@ series_plot_ds <- function(data) {
     geom_line(
       aes(x = time, y = undownscaled),
       color = 'black',
-      typeline = 'dashed'
+      linetype = 'dashed'
     ) +
     geom_line(aes(x = time, y = values, color = model)) +
-    labs(color = '', y = params$variables)
-  scale_color_brewer(palette = 'Dark2') +
+    labs(color = '', y = 'response') +
+    scale_color_brewer(palette = 'Dark2') +
     theme_bw() +
     theme(aspect.ratio = 1 / 2)
 }

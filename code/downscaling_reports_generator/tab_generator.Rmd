@@ -1,7 +1,7 @@
 ---
 title: "`r paste0('Downscaling the variable ', params$variable)`"
 params:
-  variable: "pr" #Use pr as default
+  variable: "clt" #Use pr as default
 output:
   html_document:
     self_contained: true
@@ -34,7 +34,7 @@ conf <- yaml.load_file("code/conf.yml")
 ```
 
 ```{r load_test_data_tab}
-# params <- list(variables = 'rsds')
+# params <- list(variables = 'clt')
 x <- paste0('data/to_be_downscaled/', params$variable)
 res_validation_wide_tot <- read.csv(paste0("data/downscaled_data/",params$variable,".csv"))
 res_validation_long_tot <- res_validation_wide_tot |> 
@@ -54,7 +54,7 @@ to_be_downscaled <- res_validation_long_tot |> distinct(experiment) |> pull(expe
       - Predictors variables: `sfcWind`, `tas`, `pr`, `tasmax`, `tasmin` and `psl` in daily scale, `clt`, `rsdt`,`rsds` in monthly scale,  the month `r  if (conf[["VARIABLES"]][[params$variable]][["daily"]]) {", hour, sun's elevation & azimuth"}` and the daily daylight amount in seconds.
 
 - Validation: 
-    - Period:  `r min(res_validation_wide$time)` to `r max(res_validation_wide$time)`
+    - Period:  `r min(res_validation_wide_tot$time)` to `r max(res_validation_wide_tot$time)`
     - Variable to predict: reduced scale CMIP6 variable  
 
 <br> 
