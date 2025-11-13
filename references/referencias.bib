@@ -1,3 +1,5 @@
+
+% Hidrological models needs input data at subgrid-scale (precipitation, temp). The apply TLFN (time lagged feed-forward network) and compare with SDSM. TLFN is better. 
 @article{coulibaly2005downscaling,
   title={Downscaling precipitation and temperature with temporal neural networks},
   author={Coulibaly, Paulin and Dibike, Yonas B and Anctil, Fran{\c{c}}ois},
@@ -9,6 +11,7 @@
   publisher={American Meteorological Society}
 }
 
+% temporal downscaling of precipitation, from dayly to hourly time series. Propose a Stochastic simulation approach that preserves key statistics (mean, sd, skew, autocorr and max), also consider Prob(Rain) in each hour, and transition from hour/day with/without rain. 
 @article{lee2014nonparametric,
   title={Nonparametric statistical temporal downscaling of daily precipitation to hourly precipitation and implications for climate change scenarios},
   author={Lee, Taesam and Jeong, Changsam},
@@ -19,6 +22,8 @@
   publisher={Elsevier}
 }
 
+% VER ESTE TRABAJO !! 
+%CNN para statistical downscaling (spatio-temporal) of precipitation. Creates RCM-emulator based on CNN. Emulator is obtained with data from RMC and GCM , validated with RCM data and aplicated to GCM future data.  Model validation bsed in several metrics: correlation, sd ratio, concentration contribution. 
 @article{doury2024suitability,
   title={On the suitability of a convolutional neural network based RCM-emulator for fine spatio-temporal precipitation},
   author={Doury, Antoine and Somot, Samuel and Gadat, Sebastien},
@@ -30,6 +35,7 @@
   publisher={Springer}
 }
 
+% downsalling series temporales a sub-diaria, usando ANN. 
 @article{kumar2012sub,
   title={Sub-daily statistical downscaling of meteorological variables using neural networks},
   author={Kumar, Jitendra and Brooks, Bj{\o}rn-Gustaf J and Thornton, Peter E and Dietze, Michael C},
@@ -75,6 +81,8 @@
   url           = {http://dx.doi.org/10.1002/joc.5086},
 }
 
+%--------------------------------------------------
+
 @Article{Firpo2022,
   author        = {Firpo, M{\~A}{!'}ri {\~A}ndrea Feldman and Guimar{\~A}£es, Bruno dos Santos and Dantas, Leydson Galv{\~A}-ncio and Silva, Marcelo Guatura Barbosa da and Alves, Lincoln Muniz and Chadwick, Robin and Llopart, Marta Pereira and Oliveira, Gilvan Sampaio de},
   journal       = {Frontiers in Climate},
@@ -103,6 +111,7 @@
   doi       = {10.5194/gmd-9-1937-2016},
   publisher = {Copernicus GmbH},
 }
+
 
 @Article{Lange2019,
   author    = {Lange, Stefan},
@@ -172,4 +181,117 @@
   publisher = {Springer Science and Business Media LLC},
 }
 
+@misc{kerastuner,
+	title        = {Keras {Tuner}},
+	author       = {O'Malley, Tom and Bursztein, Elie and Long, James and Chollet, Fran\c{c}ois and Jin, Haifeng and Invernizzi, Luca and others},
+	year         = 2019,
+	howpublished = {\url{https://github.com/keras-team/keras-tuner}}
+}
+
+@article{hyperband,
+  title={Hyperband: A Novel Bandit-Based Approach to Hyperparameter Optimization},
+  author={Lisha Li and Kevin G. Jamieson and Giulia DeSalvo and Afshin Rostamizadeh and Ameet Talwalkar},
+  journal={Journal of Machine Learning Research},
+  year={2016},
+  volume={18},
+  pages={185:1--185:52},
+  url={https://arxiv.org/abs/1603.06560}
+}
+
+@inproceedings{hyperopt,
+  author    = {Bergstra, James and Yamins, Daniel and Cox, David D.},
+  title     = {Making a Science of Model Search: Hyperparameter Optimization in Hundreds of Dimensions for Vision Architectures},
+  booktitle = {Proceedings of the 30th International Conference on Machine Learning (ICML 2013)},
+  year      = {2013},
+  month     = {June},
+  pages     = {I-115--I-123}
+}
+
+@inproceedings{tpe,
+ author = {Bergstra, James and Bardenet, R\'{e}mi and Bengio, Yoshua and K\'{e}gl, Bal\'{a}zs},
+ booktitle = {Advances in Neural Information Processing Systems},
+ editor = {J. Shawe-Taylor and R. Zemel and P. Bartlett and F. Pereira and K.Q. Weinberger},
+ pages = {},
+ publisher = {Curran Associates, Inc.},
+ title = {Algorithms for Hyper-Parameter Optimization},
+ volume = {24},
+ year = {2011}
+}
+
+@article{pvlib,
+  author    = {Anderson, K. and Hansen, C. and Holmgren, W. and Jensen, A. and Mikofski, M. and Driesse, A.},
+  title     = {pvlib python: 2023 project update},
+  journal   = {Journal of Open Source Software},
+  volume    = {8},
+  number    = {92},
+  pages     = {5994},
+  year      = {2023},
+  doi       = {10.21105/joss.05994},
+  url       = {https://doi.org/10.21105/joss.05994}
+}
+
+@article{taylor2001summarizing,
+  title={Summarizing multiple aspects of model performance in a single diagram},
+  author={Taylor, Karl E.},
+  journal={Journal of Geophysical Research: Atmospheres},
+  volume={106},
+  number={D7},
+  pages={7183--7192},
+  year={2001},
+  publisher={Wiley Online Library},
+  doi={10.1029/2000JD900719}
+}
+
+@inproceedings{xgboost,
+    author = {Chen, Tianqi and Guestrin, Carlos},
+    title = {XGBoost: A Scalable Tree Boosting System},
+    year = {2016},
+    isbn = {9781450342322},
+    publisher = {Association for Computing Machinery},
+    address = {New York, NY, USA},
+    url = {https://doi.org/10.1145/2939672.2939785},
+    doi = {10.1145/2939672.2939785},
+    abstract = {Tree boosting is a highly effective and widely used machine learning method. In this paper, we describe a scalable end-to-end tree boosting system called XGBoost, which is used widely by data scientists to achieve state-of-the-art results on many machine learning challenges. We propose a novel sparsity-aware algorithm for sparse data and weighted quantile sketch for approximate tree learning. More importantly, we provide insights on cache access patterns, data compression and sharding to build a scalable tree boosting system. By combining these insights, XGBoost scales beyond billions of examples using far fewer resources than existing systems.},
+    booktitle = {Proceedings of the 22nd ACM SIGKDD International Conference on Knowledge Discovery and Data Mining},
+    pages = {785–794},
+    numpages = {10},
+    keywords = {large-scale machine learning},
+    location = {San Francisco, California, USA},
+    series = {KDD '16}
+}
+
 @Comment{jabref-meta: databaseType:bibtex;}
+
+@misc{UNDP2020,
+  title={Climate scenarios through Statistical Downscaling for Uruguay},
+  author={United Nations Development Programme},
+  year={2020},
+  note={Technical report},
+  url={https://www.adaptation-undp.org/climate-scenarios-through-statistical-downscaling-uruguay}
+}
+
+@misc{FMI2024,
+  title={Climate change in Finland, Germany, Uruguay, and China: observed changes and future projections derived from CMIP6 global climate models},
+  author={Finnish Meteorological Institute},
+  year={2024},
+  note={Technical report},
+  url={https://www.researchgate.net/publication/389055631_Climate_change_in_Finland_Germany_Uruguay_and_China_observed_changes_and_future_projections_derived_from_CMIP6_global_climate_models}
+}
+
+@article{Gomez2022,
+  title={Projections of future sea level along the Uruguayan coast based on dynamical downscaling},
+  author={Gomez, J. and coauthors},
+  journal={Frontiers in Marine Science},
+  volume={9},
+  pages={846396},
+  year={2022},
+  publisher={Frontiers}
+}
+
+@misc{CORDEX2023,
+  title={Enhancing climate downscaling at km-scale in subtropical South America using machine learning (CPRCM–CMIP6 emulators)},
+  author={CORDEX Flagship Pilot Study},
+  year={2023},
+  note={Project description},
+  url={https://cordex.org/strategic-activities/flagship-pilot-studies/enhancing-climate-downscaling-at-km-scale-in-subtropical-south-america-using-machine-learning-cprcm-cmip6-emulators/}
+}
