@@ -1,0 +1,28 @@
+```{r setup, include=FALSE}
+library(rmarkdown)
+library('here')
+
+knitr::opts_knit$set(root.dir = here())
+```
+
+```{r}
+print(here())
+print(getwd())
+
+variables <- list.files("data/validation")
+variables <- unlist(lapply(variables, function(x){unlist(strsplit(x, "\\."))[1]}))
+
+lapply(variables, function(x){
+
+  #No idea while for the output file don't use the root folder and use as reference the ocation of the rmd file
+  fname <- paste0("../../reports/validation/",
+                  x, 
+                  "_reduced.html") 
+  
+  rmarkdown::render(input="code/validation_reports_generator/validation_reduced.Rmd", 
+                    output_file = fname,
+                    output_format = "html_document",
+                    params = list(variable=x),
+                    clean = TRUE) # removes log files
+})
+```

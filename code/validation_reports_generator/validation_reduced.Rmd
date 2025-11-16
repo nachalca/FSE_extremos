@@ -1,0 +1,84 @@
+---
+title: "`r params$variable`"
+params:
+  variable: "sfcWind" #Use pr as default
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(here)
+knitr::opts_knit$set(root.dir = here())
+knitr::opts_chunk$set(echo = F, warning = F)
+```
+
+```{css echo=FALSE}
+/* Define a margin before h2 element */
+h2,h3  {
+  margin-top: 3em;
+}
+```
+
+```{r imports, echo=FALSE}
+library(ggplot2)
+library(tidyverse)
+library(knitr)
+library(gridExtra)
+library(patchwork)
+library("extremogram")
+source('code/metrics.R')
+```
+
+```{r data, echo=FALSE}
+# params <- vector(mode = 'list')
+# params$variable <- 'tas' 
+
+x <- paste0('data/validation/', params$variable, ".csv")
+variable <- read.csv(x)
+variable_long <- variable |> pivot_longer(!time, names_to = "model", values_to = "value")
+```
+
+### Metrics
+
+
+```{r metrics, echo=FALSE, warning=FALSE}
+is_daily <- any(variable$time == '2015-01-02')
+variable_temp <- variable |> select(-c("time", "reanalysis"))
+
+r <- lapply(colnames(variable_temp), function(x) {
+  if(is_daily)
+    metrics_unpaired_daily(time = variable$time, truth = variable$reanalysis, estimate = variable[[x]], model = x)
+  else
+    metrics_monthly(time = variable$time, truth = variable$reanalysis, estimate = variable[[x]], model = x)
+} )
+
+results <- do.call(rbind, r)
+
+results <- results |>
+  arrange(by = abs(diff_of_means)) |>
+  mutate(diff_of_means = sprintf("%.2f%%", diff_of_means)) |>
+  mutate(across(where(is.numeric), round, digits = 3)) 
+
+kable(results)
+```
+
+### Density Plot
+
+```{r density, echo=FALSE, eval=FALSE}
+ggplot(variable_long) +
+  geom_density(aes(x=value,color=model)) +
+  xlab(params$variable)
+```
+
+
+```{r plots, fig.height=8, fig.width=6}
+p1 <- variable_long |> pivot_wider(names_from = "model", values_from = "value") |> detrend_qq()
+
+p2 <- variable_long |> pivot_wider(names_from = "model", values_from = "value") |> acf_plot()
+
+p3 <- variable_long |> pivot_wider(names_from = "model", values_from = "value") |> extremogram_plot()
+```
+
+
+```{r}
+p1 + p2 + p3 + plot_layout(guides = 'collect')
+```
