@@ -15,38 +15,60 @@ El cambio climático representa uno de los desafíos más significativos de nues
 
 En años recientes, la integración de técnicas de aprendizaje automático con la reducción de escala estadística ha mostrado gran promesa en mejorar la precisión y confiabilidad de las proyecciones climáticas, ofreciendo nuevas vías para evaluaciones detalladas del impacto climático. Sin embargo, existe un desequilibrio notable en la literatura científica, con mucha más investigación enfocada en el Hemisferio Norte. Esta disparidad deja a países como Uruguay subrepresentados y en desventaja cuando se trata de desarrollar estrategias de adaptación efectivas. Mejorar las proyecciones climáticas para Uruguay es esencial para cerrar esta brecha y asegurar que los tomadores de decisiones tengan la información necesaria para mitigar riesgos y capitalizar las oportunidades potenciales generadas por un clima cambiante.
 
-Este informe describe brevemente los procedimientos y productos obtenidos durante la ejecución del proyecto ZZZZ financiado por el Fondo Sectorial de Energía 2022 en el desafío ZZZ. El principal objetivo alcanzado consiste en la aplicación de métodos estadísticos para reducir la escala temporal de series climáticas proyectadas a largo plazo bajo distintos escenarios de cambio climático, y la confección de herramientas estadísticas para evaluar el ajuste de las series de escala reducida.
+Este informe describe brevemente los procedimientos y productos obtenidos durante la ejecución del proyecto ZZZZ financiado por el Fondo Sectorial de Energía 2022 en el desafío ZZZ. 
 
-## Reducción de escala temporal
+
+El principal objetivo alcanzado consiste en la aplicación de métodos estadísticos para reducir la escala temporal de series climáticas proyectadas a largo plazo bajo distintos escenarios de cambio climático, y la confección de herramientas estadísticas para evaluar el ajuste de las series de escala reducida.
+
+# Reducción de escala temporal
 
 La reducción de escala estadística es una técnica crucial utilizada para refinar los resultados gruesos de los Modelos Climáticos Globales (GCMs) como aquellos de CMIP6, haciéndolos aplicables a escalas regionales y locales. Este proceso involucra desarrollar relaciones estadísticas entre variables atmosféricas de gran escala y condiciones climáticas locales, mejorando así la resolución y precisión de las proyecciones climáticas. En años recientes, la integración de métodos de aprendizaje automático (ML) en la reducción de escala estadística ha abierto nuevas posibilidades para mejorar el rendimiento predictivo. Los algoritmos de aprendizaje automático pueden capturar efectivamente relaciones complejas y no lineales en datos climáticos, llevando a proyecciones reducidas de escala más precisas y confiables. Al aprovechar grandes conjuntos de datos y técnicas computacionales avanzadas, la reducción de escala mejorada con ML no solo mejora la precisión del modelo, sino que también proporciona mejores perspectivas sobre los procesos climáticos subyacentes. Este enfoque combinado es particularmente valioso para regiones como Uruguay, donde información climática detallada y precisa es esencial para estrategias de planificación y adaptación.
 
-En este trabajo exploramos métodos de ML para reducir temporalmente la escala de los resultados de CMIP6. Nuestra referencia son los resultados del reanálisis ERA5 que se producen a una escala temporal más fina. Luego, usando datos de CMIP6 y ERA5 entrenamos predictores de aprendizaje automático capaz de reducir efectivamente la escala temporal. Una contribución importante de nuestro trabajo es proponer un número de indicadores y visualizaciones gráficas para validar los resultados. Con ellos, identificamos el mejor predictor de ML para resolver nuestra tarea.
+En este proyecto exploramos métodos de ML para reducir temporalmente la escala de los resultados de CMIP6. Nuestra referencia son los resultados del reanálisis ERA5 que se producen a una escala temporal más fina. Luego, usando datos de CMIP6 y ERA5 entrenamos predictores de aprendizaje automático capaz de reducir efectivamente la escala temporal. La Figura \ref{ejemplo_ds} presenta un ejemplo de reducción de escala de la temperatura diaria a horaria. LA línea punteada representa los datos de CMIP6, con un único valor por día, y la línea continúa gris son los datos ERA5. El trabajo de los métodos estadísticos es *aprender* la estructura intradiaria en ERA5 y aplicarla a la serie de CMIP6. 
+\begin{figure}
+\centering
+\includegraphics[trim=0 60 0 5, clip, scale=.7]{serie_ds_dias.png}
+\caption{ Reducción de escala temporal de temperatura \label{ejemplo_ds}} 
+\end{figure}
 
-FIGURA EJEMPLO DE DOWNSCALING TEMPORAL
 
-En años recientes, la reducción de escala estadística ha emergido como una herramienta crucial para cerrar la brecha entre los resultados de modelos climáticos de resolución gruesa y los datos de alta resolución necesarios para estudios de impacto local. Los enfoques tradicionales, tales como métodos no paramétricos, han sido utilizados efectivamente para tareas de reducción de escala temporal, como convertir precipitación diaria a horaria [@lee2014nonparametric]. El advenimiento del aprendizaje automático ha traído una nueva generación de métodos de reducción de escala, capaces de modelar relaciones no lineales complejas. Estudios tempranos exploraron redes neuronales artificiales [@kumar2012sub] para reducción de escala sub-diaria, mientras que trabajos más recientes han aprovechado arquitecturas de aprendizaje profundo, tales como redes neuronales convolucionales (CNNs), para emular resultados de modelos climáticos regionales (RCM) de alta resolución con resultados prometedores [@doury2024suitability]. Más allá de la precipitación, las técnicas de aprendizaje automático han sido aplicadas para reducir la escala de otras variables climáticas tales como radiación solar [@bailey2024temporal], resaltando la versatilidad de estos enfoques. Adicionalmente, esfuerzos específicos se han enfocado en aplicar aprendizaje automático para reducir temporalmente la escala de proyecciones de precipitación de modelos climáticos [@kajbaf2022temporal], subrayando la creciente importancia de los métodos basados en datos en la investigación del cambio climático. A pesar de estos avances, permanece una brecha significativa en la aplicación y evaluación de tales métodos en el contexto de regiones sudamericanas como Uruguay, especialmente usando las últimas proyecciones climáticas de CMIP6, lo cual motiva el presente estudio.
+En años recientes, la reducción de escala estadística ha emergido como una herramienta crucial para cerrar la brecha entre los resultados de modelos climáticos de resolución gruesa y los datos de alta resolución necesarios para estudios de impacto local. Los enfoques tradicionales, tales como métodos no paramétricos, han sido utilizados efectivamente para tareas de reducción de escala temporal, como convertir precipitación diaria a horaria [@lee2014nonparametric]. El advenimiento del aprendizaje automático ha traído una nueva generación de métodos de reducción de escala, capaces de modelar relaciones no lineales complejas. Estudios tempranos exploraron redes neuronales artificiales [@kumar2012sub] para reducción de escala sub-diaria, mientras que trabajos más recientes han aprovechado arquitecturas de aprendizaje profundo, tales como redes neuronales convolucionales (CNNs), para emular resultados de modelos climáticos regionales (RCM) de alta resolución con resultados prometedores [@doury2024suitability]. Más allá de la precipitación, las técnicas de aprendizaje automático han sido aplicadas para reducir la escala de otras variables climáticas tales como radiación solar [@bailey2024temporal], resaltando la versatilidad de estos enfoques. Adicionalmente, esfuerzos específicos se han enfocado en aplicar aprendizaje automático para reducir temporalmente la escala de proyecciones de precipitación de modelos climáticos [@kajbaf2022temporal], subrayando la creciente importancia de los métodos basados en datos en la investigación del cambio climático. En la Figura \ref{ejemplo_ds} se presenta el resultado de 4 modelos, un modelo lineal (nv) un modelo basado en árboles de regresión (XgBoost) y dos modelos basados en redes neuronales (lstm y cnn). 
 
-Mientras que la reducción de escala estadística ha sido extensamente estudiada a nivel mundial, las aplicaciones específicamente dirigidas a Uruguay permanecen raras. Las contribuciones existentes son principalmente reportes técnicos en lugar de estudios científicos revisados por pares. Por ejemplo, el Programa de las Naciones Unidas para el Desarrollo publicó un reporte técnico empleando reducción de escala estadística dentro del marco MOSAICC para generar escenarios climáticos de alta resolución para Uruguay, principalmente para evaluaciones de impacto agrícola [@UNDP2020]. En términos de proyecciones basadas en modelos CMIP6, @FMI2024 proporcionan un análisis técnico sobre tendencias climáticas observadas y escenarios futuros para Uruguay, Finlandia, Alemania y China. Con respecto a aplicaciones oceánicas, @Gomez2022 condujo un estudio revisado por pares usando reducción de escala dinámica para proyectar cambios en el nivel del mar a lo largo de la costa uruguaya.
 
-## Productos generados
+A pesar de estos avances, permanece una brecha significativa en la aplicación y evaluación de tales métodos en el contexto de regiones sudamericanas como Uruguay, especialmente usando las últimas proyecciones climáticas de CMIP6, lo cual motiva el presente estudio. Asimismo, una contribución importante de nuestro trabajo es proponer un número de indicadores y visualizaciones gráficas para validar los resultados. Con ellos, identificamos el mejor predictor de ML para resolver nuestra tarea.
 
-El trabajo en este proyecto ha resultado en varios productos importantes:
 
-1.  Series a escala reducida\
+
+<!-- Mientras que la reducción de escala estadística ha sido extensamente estudiada a nivel mundial, las aplicaciones específicamente dirigidas a Uruguay permanecen raras. Las contribuciones existentes son principalmente reportes técnicos en lugar de estudios científicos revisados por pares. Por ejemplo, el Programa de las Naciones Unidas para el Desarrollo publicó un reporte técnico empleando reducción de escala estadística dentro del marco MOSAICC para generar escenarios climáticos de alta resolución para Uruguay, principalmente para evaluaciones de impacto agrícola [@UNDP2020]. En términos de proyecciones basadas en modelos CMIP6, @FMI2024 proporcionan un análisis técnico sobre tendencias climáticas observadas y escenarios futuros para Uruguay, Finlandia, Alemania y China. Con respecto a aplicaciones oceánicas, @Gomez2022 condujo un estudio revisado por pares usando reducción de escala dinámica para proyectar cambios en el nivel del mar a lo largo de la costa uruguaya. -->
+
+# Productos generados
+
+El trabajo en este proyecto ha resultado en varios productos importantes. En este informe se realiza una breve descripción de los mismos. Los productos están accesibles en el repositorio WWWWWWWW con excepción de las series a escala reducidas que están alojadas en servidores de IESTA (se provee un enlace para su descarga). 
+
+1.  Informe validación CMIP6
 2.  Herramientas para evaluar downsaling\
 3.  Código computacional para obtener datos y aplicar downscaling temporal\
-4.  Publicación académica (en preparación)
+4.  Series a escala reducida
+5.  Publicación académica (en preparación)
 
-El principal producto del proyecto consiste en las series a escala reducida de variables climáticas seleccionadas, para distintos modelos climáticos y escenarios de cambio climático. Las series que tenían como escala original mensual fueron reducidas a escala diaria y las que tenían escala diaria fueron reducidas a escala horaria. Todas las series se proyectan hasta el año 2100, utilizando distintos métodos estadísticos de downscaling temporal. Un segundo producto importante consiste en las herramientas estadísticas para evaluar la calidad de las series a escala reducida. Esta evaluación se realiza comparando las series a escala reducida con las series originales de reanálisis climático (consideradas como observaciones) en un período de tiempo reservado para validación. Adicionalmente, el código computacional para descargar los datos climáticos, aplicar los métodos de downscaling temporal y realizar las evaluaciones estadísticas. Finalmente, un producto académico del trabajo en este proyecto consiste en un artículo que describe las herramientas de evaluación de downscaling temporal, el cual se encuentra actualmente en preparación.
+En primer lugar, trabajó en evaluar los datos provenientes de CMIP6, de manera que sean adecuados para el clima de Suramérica y en particular para Uruguay. Este aspecto no estuvo planeado en el proyecto y en los años recientes (luego que el proyecto ya estaba en marcha) ha recibido atención como tema de investigación. Se realizó un informe describiendo algunas de las referencias más recientes para la región, las opciones metodológicas realizadas y una breve validación estadística de los modelos CMIP6 utilizados.  
 
-## Estructura del informe
+Un segundo producto importante consiste en las herramientas estadísticas para evaluar la calidad de las series a escala reducida. Esta evaluación se realiza comparando las series a escala reducida con las series originales de reanálisis climático (consideradas como observaciones) en un período de tiempo reservado para validación. Adicionalmente, el código computacional para descargar los datos climáticos, aplicar los métodos de downscaling temporal y realizar las evaluaciones estadísticas.
 
-# Downscaling temporal de series climáticas
+El principal producto del proyecto, desde el punto de vista de la aplicación en UTE, consiste en las series a escala reducida de variables climáticas seleccionadas, para distintos modelos climáticos y escenarios de cambio climático. Las series que tenían como escala original mensual fueron reducidas a escala diaria y las que tenían escala diaria fueron reducidas a escala horaria. Todas las series se proyectan hasta el año 2100, utilizando distintos métodos estadísticos de downscaling temporal. 
 
-# Conclusiones
+ Finalmente, un producto académico del trabajo en este proyecto consiste en un artículo que describe las herramientas de evaluación de downscaling temporal.  En este momento el artículo se encuentra actualmente en preparación, por lo que no está contenido en el repositorio. 
 
-```{=html}
+
+# Comentarios finales
+
+- cumplimos los objetivos 
+- la evaluación de métodos DS esta abierta para investigar
+- futuro: 
+     - validación exaustiva de cmip
+     - avanzar en herramientas de evaluación para ds espacial, y cada variable por separado
+
+
 <!-- - series a escala reducida: 
     - 6 variables climáticas
     - 7 modelos/escenarios climáticos 
@@ -62,4 +84,3 @@ El principal producto del proyecto consiste en las series a escala reducida de v
     - realizar dashboards de evaluación 
 
 - artículo científico describiendo las herramientas de evaluación de downscaling temporal (en preparación) -->
-```

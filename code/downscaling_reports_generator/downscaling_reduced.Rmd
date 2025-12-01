@@ -93,48 +93,28 @@ days <- n_distinct(res_validation_long$model)*n_distinct(res_validation_long$exp
 res_to_plot <- res_validation_long[0:days,]
 
 
-# series_plot <- function(data, exp) {
-#   p <- data |> 
-#     filter(experiment == exp) |>
-#     mutate(time = as.POSIXct(time))
-  
-#   p2 <- p |>
-#       group_by(time) |>
-#       summarise(model = "reanalysis", value = mean(reanalysis))
-  
-#   p <- p |> 
-#     select(time,model,value) |>
-#     rbind(p2) |>
-#     arrange(time)
-  
-#     ### Assign black color to reanalyis
-#     gg_color_hue <- function(n) {
-#       hues = seq(15, 375, length = n + 1)
-#       hcl(h = hues, l = 65, c = 100)[1:n]
-#     } 
-    
-#     pal <- gg_color_hue(length(unique(p$model)))
-#     pal[which(sort(unique(p$model)) == "reanalysis") ] <- "black"
-#     ##############################  
-
-#     ggplot(p, aes(x=time, y=value, color=model)) +
-#       geom_line() +
-#       scale_color_manual(values=pal) +
-#       labs(y = params$variable, x = "", title = exp)
-# }
-
-# # Serie to compare to reanalysis
-# models <- unique(res_validation_long$experiment)
-
-# # Generate Q-Q plots
-# plots <- lapply(models, function(exp) series_plot(res_to_plot, exp))
-
-# # Arrange the plots using gridExtra
-# wrap_plots(plots, ncol = 1, guides = 'collect', pos)  & theme(legend.position = 'bottom')
-
 series_plot_ds(res_to_plot)
 rm(res_validation_long)
+
+######################################
+# Figure of Temperature for final report 
+# pp <- series_plot_ds(res_to_plot)
+# built <- ggplot_build(pp)
+# brk <- built$layout$panel_params[[1]]$x$breaks[2:4]
+# pp + 
+#   labs(x='', y = 'temperatura') + 
+#   scale_y_continuous(
+#     labels = function(x) round(x - 273.15),
+#     name = "Temperatura"
+#   ) +
+#   scale_x_continuous(breaks = brk, 
+#     labels = paste('Dia', c(3,5,7)) )
+# ggsave(filename = 'reports/informes_aniiserie_ds_dias.png',  height = 6, width = 8)
+######################################
+
 ```
+
+
 
 
 #### Graphical evaluation metrics
@@ -218,9 +198,7 @@ pl.ext <- res_validation_wide |>
 ```{r, fig.height=11, fig.width=11}
 PP <- NULL
 if (conf[["VARIABLES"]][[params$variable]][["daily"]]) {
-  PP <- (plqq | pl.ext | pl.acf) /
-      (pl.mx | pl.amplitude) /
-      (pl.hourly_distribution) + plot_layout(guides = 'collect')
+  PP <- |> 
 } else {
     PP <- (plqq | pl.ext | pl.acf) /
       (pl.amplitude) /
